@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import devServer from '@hono/vite-dev-server';
@@ -13,4 +13,10 @@ export default defineConfig({
       exclude: [/^(?!\/api).*/],
     }),
   ],
+  test: {
+    globals: true,
+    environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+  },
 });
