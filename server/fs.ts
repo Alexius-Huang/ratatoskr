@@ -1,6 +1,13 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import type { ProjectSummary, RatatoskrConfig } from './types';
+import matter from 'gray-matter';
+import type {
+  ProjectSummary,
+  RatatoskrConfig,
+  TicketState,
+  TicketSummary,
+  TicketType,
+} from './types';
 
 export function getWorkspaceRoot(): string {
   const fromEnv = process.env.RATATOSKR_WORKSPACE_ROOT;
@@ -85,4 +92,147 @@ export async function scanProjects(): Promise<ProjectSummary[]> {
   );
 
   return results;
+}
+
+// ---------- Tickets ----------
+
+const TICKET_FILENAME_RE = /^(\d+)\.md$/;
+
+const TICKET_TYPES: readonly TicketType[] = ['Task', 'Epic'];
+const TICKET_STATES: readonly TicketState[] = [
+  'NOT_READY',
+  'READY',
+  'IN_PROGRESS',
+  'IN_REVIEW',
+  'DONE',
+];
+
+function isTicketType(value: unknown): value is TicketType {
+  return (
+    typeof value === 'string' &&
+    (TICKET_TYPES as readonly string[]).includes(value)
+  );
+}
+
+function isTicketState(value: unknown): value is TicketState {
+  return (
+    typeof value === 'string' &&
+    (TICKET_STATES as readonly string[]).includes(value)
+  );
+}
+
+// YAML frontmatter auto-parses ISO 8601 timestamps into Date objects.
+// Accept either form and normalize to a string for the API response.
+function coerceIsoString(value: unknown): string | null {
+  if (typeof value === 'string' && value.length > 0) return value;
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  return null;
+}
+
+async function parseTicketFile(
+  filePath: string,
+  num: number,
+  prefix: string,
+): Promise<TicketSummary | null> {
+  let content: string;
+  try {
+    content = await readFile(filePath, 'utf8');
+  } catch {
+    console.warn(`[tickets] Could not read ${filePath}`);
+    return null;
+  }
+
+  let parsed;
+  try {
+    parsed = matter(content);
+  } catch (err) {
+    console.warn(`[tickets] Frontmatter parse failed: ${filePath}`, err);
+    return null;
+  }
+
+  const fm = parsed.data as Record<string, unknown>;
+
+  if (!isTicketType(fm.type)) {
+    console.warn(`[tickets] Invalid/missing 'type' in ${filePath}`);
+    return null;
+  }
+  if (typeof fm.title !== 'string' || fm.title.length === 0) {
+    console.warn(`[tickets] Missing 'title' in ${filePath}`);
+    return null;
+  }
+  if (!isTicketState(fm.state)) {
+    console.warn(`[tickets] Invalid/missing 'state' in ${filePath}`);
+    return null;
+  }
+  const created = coerceIsoString(fm.created);
+  if (!created) {
+    console.warn(`[tickets] Invalid/missing 'created' in ${filePath}`);
+    return null;
+  }
+  const updated = coerceIsoString(fm.updated);
+  if (!updated) {
+    console.warn(`[tickets] Invalid/missing 'updated' in ${filePath}`);
+    return null;
+  }
+
+  const summary: TicketSummary = {
+    number: num,
+    displayId: `${prefix}-${num}`,
+    type: fm.type,
+    title: fm.title,
+    state: fm.state,
+    created,
+    updated,
+  };
+
+  if (fm.type === 'Task' && typeof fm.epic === 'number') {
+    summary.epic = fm.epic;
+  }
+
+  return summary;
+}
+
+export async function listTickets(
+  projectName: string,
+  prefix: string,
+): Promise<TicketSummary[]> {
+  const workspaceRoot = getWorkspaceRoot();
+  const tasksDir = path.join(
+    workspaceRoot,
+    'projects',
+    projectName,
+    '.meta',
+    'ratatoskr',
+    'tasks',
+  );
+
+  let entries;
+  try {
+    entries = await readdir(tasksDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const candidates: { name: string; num: number }[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const match = entry.name.match(TICKET_FILENAME_RE);
+    if (!match) {
+      console.warn(`[tickets] Skipping non-numeric filename: ${entry.name}`);
+      continue;
+    }
+    candidates.push({ name: entry.name, num: Number(match[1]) });
+  }
+
+  const results = await Promise.all(
+    candidates.map(({ name, num }) =>
+      parseTicketFile(path.join(tasksDir, name), num, prefix),
+    ),
+  );
+
+  const valid = results.filter((t): t is TicketSummary => t !== null);
+  valid.sort((a, b) => a.number - b.number);
+  return valid;
 }

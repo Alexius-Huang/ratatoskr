@@ -12,6 +12,7 @@
   "dependencies": {
     "@hono/vite-dev-server": "^0.25.1",
     "@tanstack/react-query": "^5.99.0",
+    "gray-matter": "^4.0.3",
     "hono": "^4.12.14",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
