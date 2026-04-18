@@ -233,6 +233,21 @@ export async function listTickets(
   );
 
   const valid = results.filter((t): t is TicketSummary => t !== null);
+
+  // Resolve each task's parent epic title server-side so the list
+  // response is self-contained (pagination-safe — a task in page N can
+  // reference an epic in page M without the client needing both).
+  const epicTitles = new Map<number, string>();
+  for (const t of valid) {
+    if (t.type === 'Epic') epicTitles.set(t.number, t.title);
+  }
+  for (const t of valid) {
+    if (t.type === 'Task' && t.epic !== undefined) {
+      const title = epicTitles.get(t.epic);
+      if (title !== undefined) t.epicTitle = title;
+    }
+  }
+
   valid.sort((a, b) => a.number - b.number);
   return valid;
 }

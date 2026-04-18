@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { useStore } from '../store';
@@ -25,16 +24,6 @@ function stateLabel(state: TicketState): string {
 export function TicketsTab() {
   const selectedProject = useStore((s) => s.selectedProject);
   const { data: tickets, isLoading, error } = useTickets(selectedProject);
-
-  const epicTitleByNumber = useMemo(() => {
-    const map = new Map<number, string>();
-    if (tickets) {
-      for (const t of tickets) {
-        if (t.type === 'Epic') map.set(t.number, t.title);
-      }
-    }
-    return map;
-  }, [tickets]);
 
   if (isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;
@@ -70,8 +59,7 @@ export function TicketsTab() {
         </thead>
         <tbody>
           {tickets.map((t: TicketSummary) => {
-            const epicTitle =
-              t.epic !== undefined ? epicTitleByNumber.get(t.epic) : undefined;
+            const epicLabel = t.epicTitle ?? (t.epic !== undefined ? `#${t.epic}` : null);
             return (
               <tr
                 key={t.number}
@@ -91,12 +79,12 @@ export function TicketsTab() {
                   </span>
                 </td>
                 <td className="py-2">
-                  {t.epic !== undefined && (
+                  {epicLabel !== null && (
                     <span
                       className="inline-block max-w-[14rem] truncate align-middle px-2 py-0.5 rounded bg-nord-15/20 text-nord-15 text-xs font-medium"
-                      title={epicTitle ?? `#${t.epic}`}
+                      title={epicLabel}
                     >
-                      {epicTitle ?? `#${t.epic}`}
+                      {epicLabel}
                     </span>
                   )}
                 </td>

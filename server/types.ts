@@ -27,6 +27,7 @@ export type TicketSummary = {
   type: TicketType;
   title: string;
   epic?: number;
+  epicTitle?: string;
   state: TicketState;
   created: string;
   updated: string;
