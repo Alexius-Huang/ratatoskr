@@ -4,6 +4,7 @@ import matter from 'gray-matter';
 import type {
   ProjectSummary,
   RatatoskrConfig,
+  TicketDetail,
   TicketState,
   TicketSummary,
   TicketType,
@@ -132,14 +133,25 @@ function coerceIsoString(value: unknown): string | null {
   return null;
 }
 
-async function parseTicketFile(
+function tasksDir(projectName: string): string {
+  return path.join(
+    getWorkspaceRoot(),
+    'projects',
+    projectName,
+    '.meta',
+    'ratatoskr',
+    'tasks',
+  );
+}
+
+async function parseTicketFileRaw(
   filePath: string,
   num: number,
   prefix: string,
-): Promise<TicketSummary | null> {
-  let content: string;
+): Promise<{ summary: TicketSummary; content: string } | null> {
+  let raw: string;
   try {
-    content = await readFile(filePath, 'utf8');
+    raw = await readFile(filePath, 'utf8');
   } catch {
     console.warn(`[tickets] Could not read ${filePath}`);
     return null;
@@ -147,7 +159,7 @@ async function parseTicketFile(
 
   let parsed;
   try {
-    parsed = matter(content);
+    parsed = matter(raw);
   } catch (err) {
     console.warn(`[tickets] Frontmatter parse failed: ${filePath}`, err);
     return null;
@@ -196,26 +208,58 @@ async function parseTicketFile(
     summary.planDoc = fm.plan_doc;
   }
 
-  return summary;
+  return { summary, content: parsed.content };
+}
+
+async function parseTicketFile(
+  filePath: string,
+  num: number,
+  prefix: string,
+): Promise<TicketSummary | null> {
+  const raw = await parseTicketFileRaw(filePath, num, prefix);
+  return raw?.summary ?? null;
+}
+
+function stripLeadingH1(body: string): string {
+  return body.replace(/^\s*#\s+.*\n+/, '').trim();
+}
+
+export async function readTicketDetail(
+  projectName: string,
+  num: number,
+  prefix: string,
+): Promise<TicketDetail | null> {
+  const filePath = path.join(tasksDir(projectName), `${num}.md`);
+  const raw = await parseTicketFileRaw(filePath, num, prefix);
+  if (!raw) return null;
+
+  if (raw.summary.type === 'Task' && raw.summary.epic !== undefined) {
+    const epicPath = path.join(tasksDir(projectName), `${raw.summary.epic}.md`);
+    const epicRaw = await parseTicketFileRaw(
+      epicPath,
+      raw.summary.epic,
+      prefix,
+    );
+    if (epicRaw && epicRaw.summary.type === 'Epic') {
+      raw.summary.epicTitle = epicRaw.summary.title;
+    }
+  }
+
+  return {
+    ...raw.summary,
+    body: stripLeadingH1(raw.content),
+  };
 }
 
 export async function listTickets(
   projectName: string,
   prefix: string,
 ): Promise<TicketSummary[]> {
-  const workspaceRoot = getWorkspaceRoot();
-  const tasksDir = path.join(
-    workspaceRoot,
-    'projects',
-    projectName,
-    '.meta',
-    'ratatoskr',
-    'tasks',
-  );
+  const dir = tasksDir(projectName);
 
   let entries;
   try {
-    entries = await readdir(tasksDir, { withFileTypes: true });
+    entries = await readdir(dir, { withFileTypes: true });
   } catch {
     return [];
   }
@@ -233,7 +277,7 @@ export async function listTickets(
 
   const results = await Promise.all(
     candidates.map(({ name, num }) =>
-      parseTicketFile(path.join(tasksDir, name), num, prefix),
+      parseTicketFile(path.join(dir, name), num, prefix),
     ),
   );
 

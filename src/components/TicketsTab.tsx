@@ -1,11 +1,33 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
+import { SplitPane } from './SplitPane';
+import { TicketDetailPanel } from './TicketDetailPanel';
 
 export function TicketsTab() {
   const { name } = useParams<{ name: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: tickets, isLoading, error } = useTickets(name ?? null, 'Task');
+
+  const inspectParam = searchParams.get('inspect');
+  const inspectedNumber = inspectParam ? extractTicketNumber(inspectParam) : null;
+
+  const clearInspect = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('inspect');
+    setSearchParams(next, { replace: true });
+  };
+
+  const toggleInspect = (ticket: TicketSummary) => {
+    const next = new URLSearchParams(searchParams);
+    if (inspectParam === ticket.displayId) {
+      next.delete('inspect');
+    } else {
+      next.set('inspect', ticket.displayId);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   if (isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;
@@ -28,8 +50,8 @@ export function TicketsTab() {
     );
   }
 
-  return (
-    <div className="p-6">
+  const table = (
+    <div className="p-6 h-full overflow-y-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-nord-4 border-b border-nord-3">
@@ -41,11 +63,16 @@ export function TicketsTab() {
         </thead>
         <tbody>
           {tickets.map((t: TicketSummary) => {
-            const epicLabel = t.epicTitle ?? (t.epic !== undefined ? `#${t.epic}` : null);
+            const epicLabel =
+              t.epicTitle ?? (t.epic !== undefined ? `#${t.epic}` : null);
+            const isSelected = t.displayId === inspectParam;
             return (
               <tr
                 key={t.number}
-                className="border-b border-nord-3 hover:bg-nord-2 transition-colors"
+                onClick={() => toggleInspect(t)}
+                className={`border-b border-nord-3 cursor-pointer transition-colors ${
+                  isSelected ? 'bg-nord-2' : 'hover:bg-nord-2/70'
+                }`}
               >
                 <td className="py-2 pr-4 font-mono text-nord-8 whitespace-nowrap">
                   {t.displayId}
@@ -77,4 +104,34 @@ export function TicketsTab() {
       </table>
     </div>
   );
+
+  if (!inspectParam || !name || inspectedNumber === null) {
+    return <div className="h-full flex flex-col">{table}</div>;
+  }
+
+  const detail = (
+    <TicketDetailPanel
+      projectName={name}
+      number={inspectedNumber}
+      displayId={inspectParam}
+      onClose={clearInspect}
+    />
+  );
+
+  return (
+    <div className="h-full flex flex-col">
+      <SplitPane
+        left={table}
+        right={detail}
+        storageKey="ratatoskr:tickets-split"
+      />
+    </div>
+  );
+}
+
+function extractTicketNumber(displayId: string): number | null {
+  const match = displayId.match(/-(\d+)$/);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }

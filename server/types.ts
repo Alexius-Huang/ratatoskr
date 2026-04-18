@@ -34,3 +34,7 @@ export type TicketSummary = {
   created: string;
   updated: string;
 };
+
+export type TicketDetail = TicketSummary & {
+  body: string;
+};
