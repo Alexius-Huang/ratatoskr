@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  ArchivedTicketRecord,
   PlanResponse,
   ProjectSummary,
   TicketDetail,
@@ -119,6 +120,20 @@ async function fetchTicketPlan(
     throw new ApiError(message, res.status);
   }
   return (await res.json()) as PlanResponse;
+}
+
+async function fetchArchive(projectName: string): Promise<ArchivedTicketRecord[]> {
+  const res = await fetch(`/api/projects/${encodeURIComponent(projectName)}/archive`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as ArchivedTicketRecord[];
+}
+
+export function useArchive(projectName: string | null) {
+  return useQuery({
+    queryKey: ['archive', projectName],
+    queryFn: () => fetchArchive(projectName as string),
+    enabled: projectName !== null,
+  });
 }
 
 export function useTicketPlan(

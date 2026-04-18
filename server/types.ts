@@ -45,6 +45,11 @@ export type TicketDetail = TicketSummary & {
   body: string;
 };
 
+export type ArchivedTicketRecord = TicketSummary & {
+  archived: string;
+  body: string;
+};
+
 export type PlanResponse = {
   path: string;
   body: string;

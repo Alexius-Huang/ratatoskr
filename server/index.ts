@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import {
+  listArchivedTickets,
   listTickets,
   readProjectConfig,
   readTicketDetail,
@@ -84,6 +85,15 @@ app.get('/api/projects/:name/tickets/:number/plan', async (c) => {
     }
   }
   return c.json(result.data);
+});
+
+app.get('/api/projects/:name/archive', async (c) => {
+  const name = c.req.param('name');
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) {
+    return c.json({ error: 'Project has no prefix configured' }, 400);
+  }
+  return c.json(await listArchivedTickets(name, config.prefix));
 });
 
 export default app;

@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import type {
+  ArchivedTicketRecord,
   PlanResult,
   ProjectSummary,
   RatatoskrConfig,
@@ -146,6 +147,10 @@ function metaRoot(projectName: string): string {
 
 function tasksDir(projectName: string): string {
   return path.join(metaRoot(projectName), 'tasks');
+}
+
+function archiveDir(projectName: string): string {
+  return path.join(metaRoot(projectName), 'archive');
 }
 
 async function parseTicketFileRaw(
@@ -382,4 +387,71 @@ function emptyStateCounts(): Record<TicketState, number> {
     IN_REVIEW: 0,
     DONE: 0,
   };
+}
+
+export async function listArchivedTickets(
+  projectName: string,
+  prefix: string,
+): Promise<ArchivedTicketRecord[]> {
+  const dir = archiveDir(projectName);
+
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const candidates: { name: string; num: number }[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const match = entry.name.match(TICKET_FILENAME_RE);
+    if (!match) {
+      console.warn(`[archive] Skipping non-numeric filename: ${entry.name}`);
+      continue;
+    }
+    candidates.push({ name: entry.name, num: Number(match[1]) });
+  }
+
+  const records: ArchivedTicketRecord[] = [];
+
+  await Promise.all(
+    candidates.map(async ({ name, num }) => {
+      const filePath = path.join(dir, name);
+      let raw: string;
+      try {
+        raw = await readFile(filePath, 'utf8');
+      } catch {
+        console.warn(`[archive] Could not read ${filePath}`);
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = matter(raw);
+      } catch (err) {
+        console.warn(`[archive] Frontmatter parse failed: ${filePath}`, err);
+        return;
+      }
+
+      const result = await parseTicketFileRaw(filePath, num, prefix);
+      if (!result) return;
+
+      const fm = parsed.data as Record<string, unknown>;
+      const archived = coerceIsoString(fm.archived);
+      if (!archived) {
+        console.warn(`[archive] Missing/invalid 'archived' field in ${filePath}`);
+        return;
+      }
+
+      records.push({
+        ...result.summary,
+        archived,
+        body: stripLeadingH1(result.content),
+      });
+    }),
+  );
+
+  records.sort((a, b) => b.archived.localeCompare(a.archived));
+  return records;
 }
