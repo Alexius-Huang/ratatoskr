@@ -101,6 +101,7 @@ const TICKET_FILENAME_RE = /^(\d+)\.md$/;
 const TICKET_TYPES: readonly TicketType[] = ['Task', 'Epic'];
 const TICKET_STATES: readonly TicketState[] = [
   'NOT_READY',
+  'PLANNING',
   'READY',
   'IN_PROGRESS',
   'IN_REVIEW',
@@ -189,6 +190,10 @@ async function parseTicketFile(
 
   if (fm.type === 'Task' && typeof fm.epic === 'number') {
     summary.epic = fm.epic;
+  }
+
+  if (typeof fm.plan_doc === 'string' && fm.plan_doc.length > 0) {
+    summary.planDoc = fm.plan_doc;
   }
 
   return summary;

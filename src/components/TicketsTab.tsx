@@ -6,6 +6,8 @@ function stateColorClass(state: TicketState): string {
   switch (state) {
     case 'NOT_READY':
       return 'bg-nord-2 text-nord-4';
+    case 'PLANNING':
+      return 'bg-nord-7 text-nord-0';
     case 'READY':
       return 'bg-nord-9 text-nord-0';
     case 'IN_PROGRESS':

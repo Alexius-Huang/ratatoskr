@@ -16,6 +16,7 @@ export type TicketType = 'Task' | 'Epic';
 
 export type TicketState =
   | 'NOT_READY'
+  | 'PLANNING'
   | 'READY'
   | 'IN_PROGRESS'
   | 'IN_REVIEW'
@@ -29,6 +30,7 @@ export type TicketSummary = {
   epic?: number;
   epicTitle?: string;
   state: TicketState;
+  planDoc?: string;
   created: string;
   updated: string;
 };
