@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { CreateTicketRequest, TicketDetail, UpdateTicketRequest } from '../../server/types';
+import type { CreateTicketRequest, TicketDetail, TicketState, TicketSummary, UpdateTicketRequest } from '../../server/types';
 import { apiFetch } from './api';
 
 export function useCreateTicket(projectName: string) {
@@ -78,6 +78,37 @@ export function useArchiveDoneTickets(projectName: string) {
           q.queryKey[1] === projectName,
       });
       queryClient.invalidateQueries({ queryKey: ['archive', projectName] });
+    },
+  });
+}
+
+export function useTransitionTicketState(projectName: string) {
+  const queryClient = useQueryClient();
+  const ticketsPredicate = (q: { queryKey: readonly unknown[] }) =>
+    Array.isArray(q.queryKey) &&
+    q.queryKey[0] === 'tickets' &&
+    q.queryKey[1] === projectName;
+  return useMutation({
+    mutationFn: ({ num, state }: { num: number; state: TicketState }) =>
+      apiFetch<TicketDetail>(
+        `/api/projects/${encodeURIComponent(projectName)}/tickets/${num}`,
+        { method: 'PATCH', body: JSON.stringify({ state }) },
+      ),
+    onMutate: async ({ num, state }) => {
+      await queryClient.cancelQueries({ predicate: ticketsPredicate });
+      const previous = queryClient.getQueriesData<TicketSummary[]>({ predicate: ticketsPredicate });
+      queryClient.setQueriesData<TicketSummary[]>(
+        { predicate: ticketsPredicate },
+        (old) => old?.map((t) => (t.number === num ? { ...t, state } : t)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      ctx?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    },
+    onSettled: (_data, _err, { num }) => {
+      queryClient.invalidateQueries({ predicate: ticketsPredicate });
+      queryClient.invalidateQueries({ queryKey: ['ticket', projectName, num] });
     },
   });
 }

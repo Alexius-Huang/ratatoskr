@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
-import { useArchiveDoneTickets } from '../lib/ticketMutations';
+import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMutations';
 import { BoardColumn } from './BoardColumn';
 import { CreateTicketModal } from './CreateTicketModal';
 import { Modal } from './Modal';
+import { Toast } from './Toast';
 
 const BOARD_STATES: readonly TicketState[] = [
   'READY',
@@ -21,7 +23,9 @@ export function BoardTab() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showCreate, setShowCreate] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const archiveDone = useArchiveDoneTickets(name ?? '');
+  const transition = useTransitionTicketState(name ?? '');
 
   const tasks = useTickets(name ?? null, ['Task', 'Bug']);
   const epics = useTickets(name ?? null, 'Epic');
@@ -61,6 +65,30 @@ export function BoardTab() {
     }
     return buckets;
   }, [tasks.data, activeEpicNumber]);
+
+  useEffect(() => {
+    if (!name) return;
+    return monitorForElements({
+      canMonitor: ({ source }) => source.data.type === 'ticket',
+      onDrop: ({ source, location }) => {
+        const target = location.current.dropTargets[0];
+        if (!target || target.data.type !== 'column') return;
+        const fromState = source.data.fromState as TicketState;
+        const toState = target.data.toState as TicketState;
+        const num = source.data.number as number;
+        if (fromState === toState) return;
+        transition.mutate(
+          { num, state: toState },
+          {
+            onError: (err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              setToast(`Couldn't move ticket: ${msg}`);
+            },
+          },
+        );
+      },
+    });
+  }, [name, transition]);
 
   if (tasks.isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;
@@ -178,6 +206,7 @@ export function BoardTab() {
           </Modal>
         </>
       )}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }

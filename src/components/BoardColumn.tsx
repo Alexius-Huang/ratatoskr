@@ -1,3 +1,5 @@
+import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { useEffect, useRef, useState } from 'react';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { stateLabel } from '../lib/ticketState';
 import { BoardCard } from './BoardCard';
@@ -10,9 +12,27 @@ export function BoardColumn({
   tickets: TicketSummary[];
 }) {
   const sorted = [...tickets].sort((a, b) => a.number - b.number);
+  const ref = useRef<HTMLElement>(null);
+  const [isOver, setIsOver] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    return dropTargetForElements({
+      element: el,
+      canDrop: ({ source }) => source.data.type === 'ticket' && source.data.fromState !== state,
+      getData: () => ({ type: 'column', toState: state }),
+      onDragEnter: () => setIsOver(true),
+      onDragLeave: () => setIsOver(false),
+      onDrop: () => setIsOver(false),
+    });
+  }, [state]);
 
   return (
-    <section className="flex-1 min-w-0 flex flex-col bg-nord-1 border border-nord-3 rounded overflow-hidden">
+    <section
+      ref={ref}
+      className={`flex-1 min-w-0 flex flex-col bg-nord-1 border rounded overflow-hidden ${isOver ? 'border-nord-8' : 'border-nord-3'}`}
+    >
       <header className="px-3 py-2 border-b border-nord-3 bg-nord-2 flex items-center justify-between">
         <h3 className="text-xs font-semibold text-nord-4 uppercase tracking-wider">
           {stateLabel(state)}

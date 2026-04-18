@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@atlaskit/pragmatic-drag-and-drop':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@hono/vite-dev-server':
         specifier: ^0.25.1
         version: 0.25.1(hono@4.12.14)
@@ -116,6 +119,9 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
+
+  '@atlaskit/pragmatic-drag-and-drop@1.8.0':
+    resolution: {integrity: sha512-xUvSniuXsiu28ImUnR27oEH4Ov8AExQrdwBE3feAq0d9W9ngLgS+dD5DY3PW5wKEMFjdSecIzbg7o9bsctbf5Q==}
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -786,6 +792,9 @@ packages:
 
   bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}
+
+  bind-event-listener@3.0.0:
+    resolution: {integrity: sha512-PJvH288AWQhKs2v9zyfYdPzlPqf5bXbGMmhmUIY9x4dAUGIWgomO771oBQNwJnMQSnUIXhKu6sgzpBRXTlvb8Q==}
 
   brace-expansion@1.1.14:
     resolution: {integrity: sha512-MWPGfDxnyzKU7rNOW9SP/c50vi3xrmrua/+6hfPbCS2ABNWfx24vPidzvC7krjU/RTo235sV776ymlsMtGKj8g==}
@@ -1485,6 +1494,9 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
+  raf-schd@4.0.3:
+    resolution: {integrity: sha512-tQkJl2GRWh83ui2DiPTJz9wEiMN20syf+5oKfB03yYP7ioZcJwsIK8FjrtLwH1m7C7e+Tt2yYBlrOpdT+dyeIQ==}
+
   react-dom@19.2.5:
     resolution: {integrity: sha512-J5bAZz+DXMMwW/wV3xzKke59Af6CHY7G4uYLN1OvBcKEsWOs4pQExj86BBKamxl/Ik5bx9whOrvBlSDfWzgSag==}
     peerDependencies:
@@ -1910,6 +1922,12 @@ snapshots:
   '@asamuzakjp/generational-cache@1.0.1': {}
 
   '@asamuzakjp/nwsapi@2.3.9': {}
+
+  '@atlaskit/pragmatic-drag-and-drop@1.8.0':
+    dependencies:
+      '@babel/runtime': 7.29.2
+      bind-event-listener: 3.0.0
+      raf-schd: 4.0.3
 
   '@babel/code-frame@7.29.0':
     dependencies:
@@ -2560,6 +2578,8 @@ snapshots:
   bidi-js@1.0.3:
     dependencies:
       require-from-string: 2.0.2
+
+  bind-event-listener@3.0.0: {}
 
   brace-expansion@1.1.14:
     dependencies:
@@ -3352,6 +3372,8 @@ snapshots:
   property-information@7.1.0: {}
 
   punycode@2.3.1: {}
+
+  raf-schd@4.0.3: {}
 
   react-dom@19.2.5(react@19.2.5):
     dependencies:

@@ -12,6 +12,7 @@ vi.mock('../lib/api', () => ({
 
 vi.mock('../lib/ticketMutations', () => ({
   useArchiveDoneTickets: vi.fn(),
+  useTransitionTicketState: vi.fn(),
 }));
 
 vi.mock('./CreateTicketModal', () => ({
@@ -31,10 +32,11 @@ vi.mock('./BoardColumn', () => ({
 }));
 
 import { useTickets } from '../lib/api';
-import { useArchiveDoneTickets } from '../lib/ticketMutations';
+import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMutations';
 
 const mockUseTickets = vi.mocked(useTickets);
 const mockUseArchiveDoneTickets = vi.mocked(useArchiveDoneTickets);
+const mockUseTransitionTicketState = vi.mocked(useTransitionTicketState);
 
 const epic1 = { number: 10, displayId: 'RAT-10', type: 'Epic' as const, title: 'Epic one', state: 'IN_PROGRESS' as const, created: '', updated: '' };
 const epic2 = { number: 11, displayId: 'RAT-11', type: 'Epic' as const, title: 'Epic two', state: 'IN_PROGRESS' as const, created: '', updated: '' };
@@ -56,6 +58,7 @@ function setupMocks(taskList = tasks) {
     return { data: [epic1, epic2], isLoading: false, error: null } as ReturnType<typeof useTickets>;
   });
   mockUseArchiveDoneTickets.mockReturnValue({ mutate: vi.fn(), isPending: false, error: null } as unknown as ReturnType<typeof useArchiveDoneTickets>);
+  mockUseTransitionTicketState.mockReturnValue({ mutate: vi.fn() } as unknown as ReturnType<typeof useTransitionTicketState>);
 }
 
 function render() {
