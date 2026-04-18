@@ -37,6 +37,7 @@ export function Sidebar() {
 
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [expandedWidth, setExpandedWidth] = useState(readWidth);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     try {
@@ -64,6 +65,7 @@ export function Sidebar() {
       dragStartXRef.current = e.clientX;
       dragStartWidthRef.current = expandedWidth;
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+      setIsDragging(true);
     },
     [expandedWidth],
   );
@@ -81,14 +83,15 @@ export function Sidebar() {
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    setIsDragging(false);
   }, []);
 
   const width = collapsed ? COLLAPSED_WIDTH : expandedWidth;
 
   return (
     <aside
-      className="shrink-0 border-r border-nord-3 bg-nord-1 h-screen overflow-y-auto flex flex-col relative"
-      style={{ width }}
+      className="shrink-0 border-r border-nord-3 bg-nord-1 h-screen overflow-y-auto overflow-x-hidden flex flex-col relative transition-[width] duration-200 ease-in-out motion-reduce:transition-none motion-reduce:duration-0"
+      style={{ width, transition: isDragging ? 'none' : undefined }}
     >
       {/* Header */}
       <div
@@ -150,6 +153,7 @@ export function Sidebar() {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         />
       )}
     </aside>
