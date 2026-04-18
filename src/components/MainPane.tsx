@@ -6,6 +6,7 @@ import { TicketsTab } from './TicketsTab';
 import { EpicsTab } from './EpicsTab';
 import { BoardTab } from './BoardTab';
 import { ArchiveTab } from './ArchiveTab';
+import { NotFound } from './NotFound';
 
 export function MainPane() {
   const { name, tab } = useParams<{ name: string; tab: string }>();
@@ -17,6 +18,15 @@ export function MainPane() {
 
   if (!isValidTab(tab)) {
     return <Navigate to={`/projects/${encodeURIComponent(name)}/tickets`} replace />;
+  }
+
+  if (projects && !projects.some((p) => p.name === name)) {
+    return (
+      <NotFound
+        title="Project not found"
+        description={`Project '${name}' is not registered in this workspace.`}
+      />
+    );
   }
 
   const project = projects?.find((p) => p.name === name);

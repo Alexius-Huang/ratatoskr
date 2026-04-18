@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { EmptyState } from './components/EmptyState';
 import { MainPane } from './components/MainPane';
+import { NotFound } from './components/NotFound';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           element={<Navigate to="tickets" replace />}
         />
         <Route path="projects/:name/:tab" element={<MainPane />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );
