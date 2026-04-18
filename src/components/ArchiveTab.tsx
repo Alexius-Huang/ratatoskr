@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ArchivedTicketRecord } from '../../server/types';
 import { useArchive } from '../lib/api';
+import { useUnarchiveTicket } from '../lib/ticketMutations';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 
 function formatArchived(iso: string): string {
@@ -16,6 +17,7 @@ export function ArchiveTab() {
   const { name } = useParams<{ name: string }>();
   const [query, setQuery] = useState('');
   const { data: records, isLoading, error } = useArchive(name ?? null);
+  const unarchiveMutation = useUnarchiveTicket(name ?? '');
 
   const trimmed = query.trim().toLowerCase();
   const filtered = records
@@ -77,7 +79,8 @@ export function ArchiveTab() {
                 <th className="pb-2 pr-4 font-medium">ID</th>
                 <th className="pb-2 pr-4 font-medium">Title</th>
                 <th className="pb-2 pr-4 font-medium">State</th>
-                <th className="pb-2 font-medium">Archived</th>
+                <th className="pb-2 pr-4 font-medium">Archived</th>
+                <th className="pb-2 font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -103,10 +106,20 @@ export function ArchiveTab() {
                     </span>
                   </td>
                   <td
-                    className="py-2 text-nord-4 text-xs whitespace-nowrap"
+                    className="py-2 pr-4 text-nord-4 text-xs whitespace-nowrap"
                     title={r.archived}
                   >
                     {formatArchived(r.archived)}
+                  </td>
+                  <td className="py-2 whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => unarchiveMutation.mutate(r.number)}
+                      disabled={unarchiveMutation.isPending && unarchiveMutation.variables === r.number}
+                      className="text-xs text-nord-8 hover:text-nord-6 border border-nord-3 hover:border-nord-8 rounded px-2 py-0.5 transition-colors disabled:opacity-50"
+                    >
+                      Unarchive
+                    </button>
                   </td>
                 </tr>
               ))}

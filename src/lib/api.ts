@@ -148,3 +148,21 @@ export function useTicketPlan(
     retry: false,
   });
 }
+
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    ...init,
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      // ignore parse failure
+    }
+    throw new ApiError(message, res.status);
+  }
+  return (await res.json()) as T;
+}

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, useTicketDetail, useTicketPlan } from '../lib/api';
+import { useArchiveTicket } from '../lib/ticketMutations';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
+import { EditTicketModal } from './EditTicketModal';
 import { MarkdownBody } from './MarkdownBody';
 
 type Props = {
@@ -17,7 +20,9 @@ export function TicketDetailPanel({
   onClose,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showEdit, setShowEdit] = useState(false);
   const isPlanView = searchParams.get('view') === 'plan';
+  const archiveMutation = useArchiveTicket(projectName);
 
   const { data, isLoading, error } = useTicketDetail(projectName, number);
   const hasPlan = Boolean(data?.planDoc);
@@ -35,25 +40,29 @@ export function TicketDetailPanel({
     setSearchParams(next, { replace: true });
   };
 
-  const headerAction =
+  const planAction: HeaderAction | null =
     !isLoading && data && hasPlan
       ? isPlanView
-        ? {
-            label: 'Back to ticket',
-            onClick: clearPlanView,
-          }
-        : {
-            label: 'View plan',
-            onClick: setPlanView,
-          }
+        ? { label: 'Back to ticket', onClick: clearPlanView }
+        : { label: 'View plan', onClick: setPlanView }
       : null;
+
+  const handleArchive = async () => {
+    if (!data) return;
+    try {
+      await archiveMutation.mutateAsync(data.number);
+      onClose();
+    } catch {
+      // error surfaces via archiveMutation.error — no-op here
+    }
+  };
 
   if (isLoading) {
     return (
       <PanelShell
         onClose={onClose}
         title={displayId}
-        action={null}
+        actions={[]}
       >
         <div className="text-nord-4">Loading…</div>
       </PanelShell>
@@ -63,7 +72,7 @@ export function TicketDetailPanel({
   if (error) {
     const isNotFound = error instanceof ApiError && error.status === 404;
     return (
-      <PanelShell onClose={onClose} title={displayId} action={null}>
+      <PanelShell onClose={onClose} title={displayId} actions={[]}>
         {isNotFound ? (
           <div className="text-nord-4 italic">
             Ticket {displayId} not found.
@@ -85,7 +94,7 @@ export function TicketDetailPanel({
       <PanelShell
         onClose={onClose}
         title={data.displayId}
-        action={headerAction}
+        actions={planAction ? [planAction] : []}
       >
         <PlanBody
           path={data.planDoc}
@@ -100,8 +109,32 @@ export function TicketDetailPanel({
   const epicLabel =
     data.epicTitle ?? (data.epic !== undefined ? `#${data.epic}` : null);
 
+  const nonDoneChildren = data.type === 'Epic' && data.childCounts
+    ? Object.entries(data.childCounts.byState)
+        .filter(([state]) => state !== 'DONE')
+        .reduce((sum, [, count]) => sum + count, 0)
+    : 0;
+
+  const archiveDisabled = data.type === 'Epic' && nonDoneChildren > 0;
+  const archiveTooltip = archiveDisabled
+    ? `Cannot archive: ${nonDoneChildren} active non-DONE ${nonDoneChildren === 1 ? 'child' : 'children'}`
+    : undefined;
+
+  const actions: HeaderAction[] = [
+    { label: 'Edit', onClick: () => setShowEdit(true) },
+    {
+      label: archiveMutation.isPending ? 'Archiving…' : 'Archive',
+      onClick: handleArchive,
+      disabled: archiveDisabled || archiveMutation.isPending,
+      tooltip: archiveTooltip,
+      variant: 'danger',
+    },
+    ...(planAction ? [planAction] : []),
+  ];
+
   return (
-    <PanelShell onClose={onClose} title={data.displayId} action={headerAction}>
+    <>
+    <PanelShell onClose={onClose} title={data.displayId} actions={actions}>
       <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <span
@@ -120,7 +153,19 @@ export function TicketDetailPanel({
         <span className="text-xs text-nord-4">{data.type}</span>
       </div>
       <MarkdownBody source={data.body} />
+      {archiveMutation.error && (
+        <div className="mt-4 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
+          Archive failed: {archiveMutation.error instanceof Error ? archiveMutation.error.message : String(archiveMutation.error)}
+        </div>
+      )}
     </PanelShell>
+    <EditTicketModal
+      open={showEdit}
+      onClose={() => setShowEdit(false)}
+      projectName={projectName}
+      ticket={data}
+    />
+    </>
   );
 }
 
@@ -165,15 +210,23 @@ function PlanBody({
   );
 }
 
+type HeaderAction = {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tooltip?: string;
+  variant?: 'default' | 'danger';
+};
+
 function PanelShell({
   onClose,
   title,
-  action,
+  actions,
   children,
 }: {
   onClose: () => void;
   title: string;
-  action: { label: string; onClick: () => void } | null;
+  actions: HeaderAction[];
   children: React.ReactNode;
 }) {
   return (
@@ -181,15 +234,22 @@ function PanelShell({
       <header className="flex items-center justify-between px-6 py-3 border-b border-nord-3 bg-nord-1 gap-3">
         <span className="font-mono text-sm text-nord-8 shrink-0">{title}</span>
         <div className="flex items-center gap-2 shrink-0">
-          {action && (
+          {actions.map((a) => (
             <button
+              key={a.label}
               type="button"
-              onClick={action.onClick}
-              className="text-xs font-medium text-nord-8 hover:text-nord-6 border border-nord-3 hover:border-nord-8 rounded px-2 py-1 transition-colors"
+              onClick={a.onClick}
+              disabled={a.disabled}
+              title={a.tooltip}
+              className={`text-xs font-medium border rounded px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                a.variant === 'danger'
+                  ? 'text-nord-11 border-nord-11/50 hover:border-nord-11 hover:bg-nord-11/10'
+                  : 'text-nord-8 hover:text-nord-6 border-nord-3 hover:border-nord-8'
+              }`}
             >
-              {action.label}
+              {a.label}
             </button>
-          )}
+          ))}
           <button
             type="button"
             onClick={onClose}

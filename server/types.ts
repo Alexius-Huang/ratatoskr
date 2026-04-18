@@ -55,6 +55,27 @@ export type PlanResponse = {
   body: string;
 };
 
+export type CreateTicketRequest = {
+  type: string;
+  title: string;
+  state?: string;
+  epic?: number | null;
+  body?: string;
+};
+
+export type UpdateTicketRequest = {
+  title?: string;
+  state?: string;
+  type?: string;
+  epic?: number | null;
+  body?: string;
+};
+
+export type ArchiveBlockedError = {
+  error: string;
+  blockers: Partial<Record<TicketState, number>>;
+};
+
 export type PlanResult =
   | { ok: true; data: PlanResponse }
   | {

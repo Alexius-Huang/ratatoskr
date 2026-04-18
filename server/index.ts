@@ -7,7 +7,14 @@ import {
   readTicketPlan,
   scanProjects,
 } from './fs';
-import type { TicketType } from './types';
+import type { CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
+import {
+  archiveDoneTickets,
+  archiveTicket,
+  createTicket,
+  unarchiveTicket,
+  updateTicket,
+} from './writeFs';
 
 const VALID_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 
@@ -94,6 +101,110 @@ app.get('/api/projects/:name/archive', async (c) => {
     return c.json({ error: 'Project has no prefix configured' }, 400);
   }
   return c.json(await listArchivedTickets(name, config.prefix));
+});
+
+app.post('/api/projects/:name/tickets/archive-done', async (c) => {
+  const name = c.req.param('name');
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) {
+    return c.json({ error: 'Project has no prefix configured' }, 400);
+  }
+  const result = await archiveDoneTickets(name, config.prefix);
+  if (!result.ok) return c.json({ error: result.error.message }, 400);
+  return c.json(result.data);
+});
+
+app.post('/api/projects/:name/tickets', async (c) => {
+  const name = c.req.param('name');
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) {
+    return c.json({ error: 'Project has no prefix configured' }, 400);
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+  const result = await createTicket(name, config.prefix, body as CreateTicketRequest);
+  if (!result.ok) {
+    const status = result.error.kind === 'not-found' ? 404 : 400;
+    return c.json({ error: result.error.message }, status);
+  }
+  return c.json(result.data, 201);
+});
+
+app.patch('/api/projects/:name/tickets/:number', async (c) => {
+  const name = c.req.param('name');
+  const numberParam = c.req.param('number');
+  const n = Number(numberParam);
+  if (!Number.isInteger(n) || n <= 0) {
+    return c.json({ error: 'Invalid ticket number' }, 400);
+  }
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) {
+    return c.json({ error: 'Project has no prefix configured' }, 400);
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+  const result = await updateTicket(name, config.prefix, n, body as UpdateTicketRequest);
+  if (!result.ok) {
+    const status = result.error.kind === 'not-found' ? 404 : 400;
+    return c.json({ error: result.error.message }, status);
+  }
+  return c.json(result.data);
+});
+
+app.post('/api/projects/:name/tickets/:number/archive', async (c) => {
+  const name = c.req.param('name');
+  const numberParam = c.req.param('number');
+  const n = Number(numberParam);
+  if (!Number.isInteger(n) || n <= 0) {
+    return c.json({ error: 'Invalid ticket number' }, 400);
+  }
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) {
+    return c.json({ error: 'Project has no prefix configured' }, 400);
+  }
+  const result = await archiveTicket(name, config.prefix, n);
+  if (!result.ok) {
+    if (result.error.kind === 'not-found') {
+      return c.json({ error: result.error.message }, 404);
+    }
+    if (result.error.kind === 'epic-guard-violated') {
+      return c.json({ error: result.error.message, blockers: result.error.blockers }, 409);
+    }
+    return c.json({ error: result.error.message }, 400);
+  }
+  return c.json({ ok: true });
+});
+
+app.post('/api/projects/:name/archive/:number/unarchive', async (c) => {
+  const name = c.req.param('name');
+  const numberParam = c.req.param('number');
+  const n = Number(numberParam);
+  if (!Number.isInteger(n) || n <= 0) {
+    return c.json({ error: 'Invalid ticket number' }, 400);
+  }
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) {
+    return c.json({ error: 'Project has no prefix configured' }, 400);
+  }
+  const result = await unarchiveTicket(name, config.prefix, n);
+  if (!result.ok) {
+    if (result.error.kind === 'not-found') {
+      return c.json({ error: result.error.message }, 404);
+    }
+    if (result.error.kind === 'already-exists') {
+      return c.json({ error: result.error.message }, 409);
+    }
+    return c.json({ error: result.error.message }, 400);
+  }
+  return c.json({ ok: true });
 });
 
 export default app;

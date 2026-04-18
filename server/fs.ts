@@ -99,7 +99,7 @@ export async function scanProjects(): Promise<ProjectSummary[]> {
 
 // ---------- Tickets ----------
 
-const TICKET_FILENAME_RE = /^(\d+)\.md$/;
+export const TICKET_FILENAME_RE = /^(\d+)\.md$/;
 
 const TICKET_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 const TICKET_STATES: readonly TicketState[] = [
@@ -135,7 +135,7 @@ function coerceIsoString(value: unknown): string | null {
   return null;
 }
 
-function metaRoot(projectName: string): string {
+export function metaRoot(projectName: string): string {
   return path.join(
     getWorkspaceRoot(),
     'projects',
@@ -145,15 +145,15 @@ function metaRoot(projectName: string): string {
   );
 }
 
-function tasksDir(projectName: string): string {
+export function tasksDir(projectName: string): string {
   return path.join(metaRoot(projectName), 'tasks');
 }
 
-function archiveDir(projectName: string): string {
+export function archiveDir(projectName: string): string {
   return path.join(metaRoot(projectName), 'archive');
 }
 
-async function parseTicketFileRaw(
+export async function parseTicketFileRaw(
   filePath: string,
   num: number,
   prefix: string,

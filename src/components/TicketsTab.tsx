@@ -1,15 +1,22 @@
+import { useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { extractTicketNumber } from '../lib/ticketId';
+import { useArchiveDoneTickets } from '../lib/ticketMutations';
+import { CreateTicketModal } from './CreateTicketModal';
+import { Modal } from './Modal';
 import { SplitPane } from './SplitPane';
 import { TicketDetailPanel } from './TicketDetailPanel';
 
 export function TicketsTab() {
   const { name } = useParams<{ name: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showCreate, setShowCreate] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const { data: tickets, isLoading, error } = useTickets(name ?? null, ['Task', 'Bug']);
+  const archiveDone = useArchiveDoneTickets(name ?? '');
 
   const inspectParam = searchParams.get('inspect');
   const inspectedNumber = extractTicketNumber(inspectParam);
@@ -54,8 +61,28 @@ export function TicketsTab() {
     );
   }
 
+  const doneCount = tickets?.filter((t) => t.state === 'DONE').length ?? 0;
+
   const table = (
     <div className="p-6 h-full overflow-y-auto">
+      <div className="flex justify-end gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setShowArchiveConfirm(true)}
+          disabled={doneCount === 0}
+          title={doneCount === 0 ? 'No done tickets to archive' : `Archive ${doneCount} done ticket${doneCount === 1 ? '' : 's'}`}
+          className="px-3 py-1.5 text-sm font-medium bg-nord-3 text-nord-4 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-nord-2 enabled:hover:text-nord-6"
+        >
+          Archive Done Tickets
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="px-3 py-1.5 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 transition-colors"
+        >
+          + Create
+        </button>
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-nord-4 border-b border-nord-3">
@@ -114,8 +141,62 @@ export function TicketsTab() {
     </div>
   );
 
+  const modals = name ? (
+    <>
+      <CreateTicketModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        projectName={name}
+      />
+      <Modal
+        open={showArchiveConfirm}
+        onClose={() => setShowArchiveConfirm(false)}
+        title="Archive Done Tickets"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowArchiveConfirm(false)}
+              className="px-4 py-2 text-sm font-medium bg-nord-3 text-nord-6 rounded hover:bg-nord-2 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={archiveDone.isPending}
+              onClick={() => {
+                archiveDone.mutate(undefined, {
+                  onSuccess: () => setShowArchiveConfirm(false),
+                });
+              }}
+              className="px-4 py-2 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 transition-colors disabled:opacity-50"
+            >
+              {archiveDone.isPending ? 'Archiving…' : 'Confirm'}
+            </button>
+          </>
+        }
+      >
+        <p className="text-nord-6 text-sm">
+          Are you sure to move all Done tickets to Archived?
+        </p>
+        {archiveDone.error && (
+          <p className="mt-3 text-nord-11 text-sm">
+            {archiveDone.error instanceof Error
+              ? archiveDone.error.message
+              : 'Something went wrong.'}
+          </p>
+        )}
+      </Modal>
+    </>
+  ) : null;
+
   if (!inspectParam || !name || inspectedNumber === null) {
-    return <div className="h-full flex flex-col">{table}</div>;
+    return (
+      <div className="h-full flex flex-col">
+        {table}
+        {modals}
+      </div>
+    );
   }
 
   const detail = (
@@ -134,6 +215,7 @@ export function TicketsTab() {
         right={detail}
         storageKey="ratatoskr:tickets-split"
       />
+      {modals}
     </div>
   );
 }
