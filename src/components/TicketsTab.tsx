@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { useStore } from '../store';
@@ -21,13 +22,19 @@ function stateLabel(state: TicketState): string {
   return state.replace('_', ' ');
 }
 
-function getPrefix(displayId: string): string {
-  return displayId.split('-')[0];
-}
-
 export function TicketsTab() {
   const selectedProject = useStore((s) => s.selectedProject);
   const { data: tickets, isLoading, error } = useTickets(selectedProject);
+
+  const epicTitleByNumber = useMemo(() => {
+    const map = new Map<number, string>();
+    if (tickets) {
+      for (const t of tickets) {
+        if (t.type === 'Epic') map.set(t.number, t.title);
+      }
+    }
+    return map;
+  }, [tickets]);
 
   if (isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;
@@ -57,35 +64,24 @@ export function TicketsTab() {
           <tr className="text-left text-nord-4 border-b border-nord-3">
             <th className="pb-2 pr-4 font-medium">ID</th>
             <th className="pb-2 pr-4 font-medium">Title</th>
-            <th className="pb-2 pr-4 font-medium">Type</th>
             <th className="pb-2 pr-4 font-medium">State</th>
             <th className="pb-2 font-medium">Epic</th>
           </tr>
         </thead>
         <tbody>
           {tickets.map((t: TicketSummary) => {
-            const isEpic = t.type === 'Epic';
+            const epicTitle =
+              t.epic !== undefined ? epicTitleByNumber.get(t.epic) : undefined;
             return (
               <tr
                 key={t.number}
                 className="border-b border-nord-3 hover:bg-nord-2 transition-colors"
               >
-                <td className="py-2 pr-4 font-mono text-nord-8">
+                <td className="py-2 pr-4 font-mono text-nord-8 whitespace-nowrap">
                   {t.displayId}
                 </td>
                 <td className="py-2 pr-4 text-nord-6">{t.title}</td>
-                <td className="py-2 pr-4">
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      isEpic
-                        ? 'bg-nord-15 text-nord-0'
-                        : 'bg-nord-2 text-nord-4'
-                    }`}
-                  >
-                    {t.type}
-                  </span>
-                </td>
-                <td className="py-2 pr-4">
+                <td className="py-2 pr-4 whitespace-nowrap">
                   <span
                     className={`px-2 py-0.5 rounded text-xs font-medium ${stateColorClass(
                       t.state,
@@ -94,10 +90,15 @@ export function TicketsTab() {
                     {stateLabel(t.state)}
                   </span>
                 </td>
-                <td className="py-2 font-mono text-nord-4">
-                  {t.epic !== undefined
-                    ? `${getPrefix(t.displayId)}-${t.epic}`
-                    : ''}
+                <td className="py-2">
+                  {t.epic !== undefined && (
+                    <span
+                      className="inline-block max-w-[14rem] truncate align-middle px-2 py-0.5 rounded bg-nord-15/20 text-nord-15 text-xs font-medium"
+                      title={epicTitle ?? `#${t.epic}`}
+                    >
+                      {epicTitle ?? `#${t.epic}`}
+                    </span>
+                  )}
                 </td>
               </tr>
             );
