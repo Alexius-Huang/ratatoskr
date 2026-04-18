@@ -17,6 +17,7 @@ export function TicketsTab() {
   const clearInspect = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('inspect');
+    next.delete('view');
     setSearchParams(next, { replace: true });
   };
 
@@ -24,8 +25,10 @@ export function TicketsTab() {
     const next = new URLSearchParams(searchParams);
     if (inspectParam === ticket.displayId) {
       next.delete('inspect');
+      next.delete('view');
     } else {
       next.set('inspect', ticket.displayId);
+      next.delete('view');
     }
     setSearchParams(next, { replace: true });
   };

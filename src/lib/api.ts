@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  PlanResponse,
   ProjectSummary,
   TicketDetail,
   TicketSummary,
@@ -96,6 +97,39 @@ export function useTicketDetail(
     queryKey: ['ticket', projectName, number],
     queryFn: () => fetchTicketDetail(projectName as string, number as number),
     enabled: projectName !== null && number !== null,
+    retry: false,
+  });
+}
+
+async function fetchTicketPlan(
+  projectName: string,
+  number: number,
+): Promise<PlanResponse> {
+  const res = await fetch(
+    `/api/projects/${encodeURIComponent(projectName)}/tickets/${number}/plan`,
+  );
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new ApiError(message, res.status);
+  }
+  return (await res.json()) as PlanResponse;
+}
+
+export function useTicketPlan(
+  projectName: string | null,
+  number: number | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ['ticket-plan', projectName, number],
+    queryFn: () => fetchTicketPlan(projectName as string, number as number),
+    enabled: enabled && projectName !== null && number !== null,
     retry: false,
   });
 }

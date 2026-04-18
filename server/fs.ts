@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import type {
+  PlanResult,
   ProjectSummary,
   RatatoskrConfig,
   TicketDetail,
@@ -133,15 +134,18 @@ function coerceIsoString(value: unknown): string | null {
   return null;
 }
 
-function tasksDir(projectName: string): string {
+function metaRoot(projectName: string): string {
   return path.join(
     getWorkspaceRoot(),
     'projects',
     projectName,
     '.meta',
     'ratatoskr',
-    'tasks',
   );
+}
+
+function tasksDir(projectName: string): string {
+  return path.join(metaRoot(projectName), 'tasks');
 }
 
 async function parseTicketFileRaw(
@@ -255,6 +259,37 @@ export async function readTicketDetail(
     ...raw.summary,
     body: stripLeadingH1(raw.content),
   };
+}
+
+export async function readTicketPlan(
+  projectName: string,
+  num: number,
+  prefix: string,
+): Promise<PlanResult> {
+  const ticketPath = path.join(tasksDir(projectName), `${num}.md`);
+  const raw = await parseTicketFileRaw(ticketPath, num, prefix);
+  if (!raw) return { ok: false, reason: 'ticket-not-found' };
+  const planRel = raw.summary.planDoc;
+  if (!planRel) return { ok: false, reason: 'no-plan-doc' };
+
+  const root = metaRoot(projectName);
+  const absPlan = path.resolve(root, planRel);
+  if (absPlan !== root && !absPlan.startsWith(root + path.sep)) {
+    console.warn(
+      `[plan] refused out-of-scope plan path for ${raw.summary.displayId}: ${planRel}`,
+    );
+    return { ok: false, reason: 'out-of-scope' };
+  }
+
+  let body: string;
+  try {
+    body = await readFile(absPlan, 'utf8');
+  } catch (err) {
+    console.warn(`[plan] could not read plan file ${absPlan}`, err);
+    return { ok: false, reason: 'file-not-found' };
+  }
+
+  return { ok: true, data: { path: planRel, body } };
 }
 
 export async function listTickets(

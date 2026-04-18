@@ -1,6 +1,7 @@
-import ReactMarkdown from 'react-markdown';
-import { ApiError, useTicketDetail } from '../lib/api';
+import { useSearchParams } from 'react-router-dom';
+import { ApiError, useTicketDetail, useTicketPlan } from '../lib/api';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
+import { MarkdownBody } from './MarkdownBody';
 
 type Props = {
   projectName: string;
@@ -15,11 +16,45 @@ export function TicketDetailPanel({
   displayId,
   onClose,
 }: Props) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isPlanView = searchParams.get('view') === 'plan';
+
   const { data, isLoading, error } = useTicketDetail(projectName, number);
+  const hasPlan = Boolean(data?.planDoc);
+  const planQuery = useTicketPlan(projectName, number, isPlanView && hasPlan);
+
+  const setPlanView = () => {
+    const next = new URLSearchParams(searchParams);
+    next.set('view', 'plan');
+    setSearchParams(next, { replace: true });
+  };
+
+  const clearPlanView = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    setSearchParams(next, { replace: true });
+  };
+
+  const headerAction =
+    !isLoading && data && hasPlan
+      ? isPlanView
+        ? {
+            label: 'Back to ticket',
+            onClick: clearPlanView,
+          }
+        : {
+            label: 'View plan',
+            onClick: setPlanView,
+          }
+      : null;
 
   if (isLoading) {
     return (
-      <PanelShell onClose={onClose} title={displayId}>
+      <PanelShell
+        onClose={onClose}
+        title={displayId}
+        action={null}
+      >
         <div className="text-nord-4">Loading…</div>
       </PanelShell>
     );
@@ -28,7 +63,7 @@ export function TicketDetailPanel({
   if (error) {
     const isNotFound = error instanceof ApiError && error.status === 404;
     return (
-      <PanelShell onClose={onClose} title={displayId}>
+      <PanelShell onClose={onClose} title={displayId} action={null}>
         {isNotFound ? (
           <div className="text-nord-4 italic">
             Ticket {displayId} not found.
@@ -45,11 +80,28 @@ export function TicketDetailPanel({
 
   if (!data) return null;
 
+  if (isPlanView && hasPlan) {
+    return (
+      <PanelShell
+        onClose={onClose}
+        title={data.displayId}
+        action={headerAction}
+      >
+        <PlanBody
+          path={data.planDoc}
+          isLoading={planQuery.isLoading}
+          error={planQuery.error}
+          body={planQuery.data?.body}
+        />
+      </PanelShell>
+    );
+  }
+
   const epicLabel =
     data.epicTitle ?? (data.epic !== undefined ? `#${data.epic}` : null);
 
   return (
-    <PanelShell onClose={onClose} title={data.displayId}>
+    <PanelShell onClose={onClose} title={data.displayId} action={headerAction}>
       <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <span
@@ -67,81 +119,86 @@ export function TicketDetailPanel({
         )}
         <span className="text-xs text-nord-4">{data.type}</span>
       </div>
-      <div className="markdown-body text-sm text-nord-5 leading-relaxed">
-        <ReactMarkdown
-          components={{
-            h1: ({ children }) => (
-              <h1 className="text-lg font-semibold text-nord-6 mt-6 mb-2">
-                {children}
-              </h1>
-            ),
-            h2: ({ children }) => (
-              <h2 className="text-xs font-semibold text-nord-4 uppercase tracking-wider mt-6 mb-2">
-                {children}
-              </h2>
-            ),
-            h3: ({ children }) => (
-              <h3 className="text-sm font-semibold text-nord-5 mt-4 mb-2">
-                {children}
-              </h3>
-            ),
-            p: ({ children }) => <p className="mb-3">{children}</p>,
-            ul: ({ children }) => (
-              <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>
-            ),
-            ol: ({ children }) => (
-              <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>
-            ),
-            code: ({ children }) => (
-              <code className="bg-nord-2 px-1 py-0.5 rounded text-nord-13 text-[0.85em] font-mono">
-                {children}
-              </code>
-            ),
-            pre: ({ children }) => (
-              <pre className="bg-nord-2 border border-nord-3 rounded p-3 overflow-x-auto text-xs mb-3">
-                {children}
-              </pre>
-            ),
-            a: ({ href, children }) => (
-              <a
-                href={href}
-                className="text-nord-8 hover:underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {children}
-              </a>
-            ),
-          }}
-        >
-          {data.body}
-        </ReactMarkdown>
-      </div>
+      <MarkdownBody source={data.body} />
     </PanelShell>
+  );
+}
+
+function PlanBody({
+  path,
+  isLoading,
+  error,
+  body,
+}: {
+  path?: string;
+  isLoading: boolean;
+  error: unknown;
+  body: string | undefined;
+}) {
+  if (isLoading) {
+    return <div className="text-nord-4">Loading plan…</div>;
+  }
+  if (error) {
+    const isNotFound = error instanceof ApiError && error.status === 404;
+    if (isNotFound) {
+      return (
+        <div className="text-nord-4 italic">
+          {error instanceof Error ? error.message : 'Plan not available.'}
+        </div>
+      );
+    }
+    return (
+      <div className="bg-nord-2 border border-nord-11 rounded p-4 text-nord-11 text-sm">
+        Failed to load plan:{' '}
+        {error instanceof Error ? error.message : String(error)}
+      </div>
+    );
+  }
+  if (!body) return null;
+  return (
+    <>
+      {path && (
+        <p className="font-mono text-xs text-nord-4 mb-4">{path}</p>
+      )}
+      <MarkdownBody source={body} />
+    </>
   );
 }
 
 function PanelShell({
   onClose,
   title,
+  action,
   children,
 }: {
   onClose: () => void;
   title: string;
+  action: { label: string; onClick: () => void } | null;
   children: React.ReactNode;
 }) {
   return (
     <div className="h-full flex flex-col bg-nord-0 border-l border-nord-3">
-      <header className="flex items-center justify-between px-6 py-3 border-b border-nord-3 bg-nord-1">
-        <span className="font-mono text-sm text-nord-8">{title}</span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-nord-4 hover:text-nord-6 text-lg leading-none px-2"
-          aria-label="Close detail panel"
-        >
-          ×
-        </button>
+      <header className="flex items-center justify-between px-6 py-3 border-b border-nord-3 bg-nord-1 gap-3">
+        <span className="font-mono text-sm text-nord-8 shrink-0">{title}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          {action && (
+            <button
+              type="button"
+              onClick={action.onClick}
+              className="text-xs font-medium text-nord-8 hover:text-nord-6 border border-nord-3 hover:border-nord-8 rounded px-2 py-1 transition-colors"
+            >
+              {action.label}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-nord-4 hover:text-nord-6 text-lg leading-none px-2"
+            aria-label="Close detail panel"
+          >
+            ×
+          </button>
+        </div>
       </header>
       <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
     </div>

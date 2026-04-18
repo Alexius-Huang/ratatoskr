@@ -44,3 +44,19 @@ export type TicketSummary = {
 export type TicketDetail = TicketSummary & {
   body: string;
 };
+
+export type PlanResponse = {
+  path: string;
+  body: string;
+};
+
+export type PlanResult =
+  | { ok: true; data: PlanResponse }
+  | {
+      ok: false;
+      reason:
+        | 'ticket-not-found'
+        | 'no-plan-doc'
+        | 'out-of-scope'
+        | 'file-not-found';
+    };
