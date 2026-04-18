@@ -1,73 +1,33 @@
-# React + TypeScript + Vite
+# Ratatoskr
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Local-first, file-based, AI-native task management app for the ai-workspace.
 
-Currently, two official plugins are available:
+## What it is
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Ratatoskr auto-detects projects under `projects/*/` and visualizes their tasks as a Scrum board (Epics / Tickets / Board / Archive). Tickets are markdown files living in each project's gitignored `.meta/ratatoskr/` folder — the filesystem is the database. Named after the Nordic squirrel who shuttles messages along Yggdrasil.
 
-## React Compiler
+## Quickstart
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Opens on `http://localhost:5173/` (or the next free port).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Stack
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- Vite 8 + React 19 + TypeScript 6
+- Tailwind CSS v4 (via `@tailwindcss/vite`)
+- pnpm
+
+Planned, not yet implemented: Zustand (client state), TanStack Query (server state / caching), Hono (backend), Tauri (desktop packaging).
+
+## Docs
+
+- `docs/onboard.md` — full project context for AI agents and new contributors
+- `../../scratch/20260418_ratatoskr-draft.md` — design spec (working draft)
+
+## Status
+
+**active** — scaffold complete, feature work pending. See `docs/onboard.md` for current implementation state.
