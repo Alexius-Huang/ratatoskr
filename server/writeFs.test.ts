@@ -160,6 +160,24 @@ describe('updateTicket', () => {
     expect(data.plan_doc).toBe('plans/1.md');
     expect(data.updated).not.toBe('2026-01-01T00:00:00.000Z');
   });
+
+  it('should accept plan_doc and write it to frontmatter', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { plan_doc: 'plans/1.md' });
+    expect(result.ok).toBe(true);
+    const raw = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data } = matter(raw);
+    expect(data.plan_doc).toBe('plans/1.md');
+  });
+
+  it('should strip plan_doc when patched with null', async () => {
+    await makeTicketFile(tasksPath, 1, { plan_doc: 'plans/1.md' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { plan_doc: null });
+    expect(result.ok).toBe(true);
+    const raw = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data } = matter(raw);
+    expect(data.plan_doc).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------

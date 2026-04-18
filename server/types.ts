@@ -69,6 +69,7 @@ export type UpdateTicketRequest = {
   type?: string;
   epic?: number | null;
   body?: string;
+  plan_doc?: string | null;
 };
 
 export type ArchiveBlockedError = {

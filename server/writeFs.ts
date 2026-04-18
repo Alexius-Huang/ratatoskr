@@ -167,6 +167,16 @@ export async function updateTicket(
     }
   }
 
+  if ('plan_doc' in patch) {
+    if (patch.plan_doc === null || patch.plan_doc === '' || patch.plan_doc === undefined) {
+      delete fm.plan_doc;
+    } else if (typeof patch.plan_doc !== 'string') {
+      return { ok: false, error: { kind: 'invalid-input', message: 'plan_doc must be a string' } };
+    } else {
+      fm.plan_doc = patch.plan_doc;
+    }
+  }
+
   fm.updated = nowIso();
 
   const newContent = patch.body !== undefined ? patch.body : parsed.content;
