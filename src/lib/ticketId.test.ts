@@ -1,0 +1,38 @@
+import { describe, it, expect } from 'vitest';
+import { extractTicketNumber, parseDisplayId } from './ticketId';
+
+describe('ticketId', () => {
+  describe('extractTicketNumber', () => {
+    it('should return the numeric suffix for a valid displayId', () => {
+      expect(extractTicketNumber('RAT-12')).toBe(12);
+    });
+
+    it('should return null for a non-numeric suffix', () => {
+      expect(extractTicketNumber('RAT-abc')).toBeNull();
+    });
+
+    it('should return null for null input', () => {
+      expect(extractTicketNumber(null)).toBeNull();
+    });
+
+    it('should return null for a zero or negative number', () => {
+      // Regex captures only \d+ so negative numbers can't occur; zero is the boundary case
+      expect(extractTicketNumber('RAT-0')).toBeNull();
+    });
+  });
+
+  describe('parseDisplayId', () => {
+    it('should return the number when prefix and suffix match', () => {
+      expect(parseDisplayId('RAT-7', 'RAT')).toBe(7);
+    });
+
+    it('should return null when the prefix does not match', () => {
+      expect(parseDisplayId('BUG-7', 'RAT')).toBeNull();
+    });
+
+    it('should return null for malformed input', () => {
+      expect(parseDisplayId('RAT-', 'RAT')).toBeNull();
+      expect(parseDisplayId('rat-7', 'RAT')).toBeNull();
+    });
+  });
+});
