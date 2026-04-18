@@ -5,6 +5,9 @@ import {
   readTicketDetail,
   scanProjects,
 } from './fs';
+import type { TicketType } from './types';
+
+const VALID_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 
 const app = new Hono();
 
@@ -15,14 +18,24 @@ app.get('/api/projects', async (c) => {
 
 app.get('/api/projects/:name/tickets', async (c) => {
   const name = c.req.param('name');
-  const typeFilter = c.req.query('type');
+  const typeParam = c.req.query('type');
   const { config } = await readProjectConfig(name);
   if (!config || !config.prefix) {
     return c.json({ error: 'Project has no prefix configured' }, 400);
   }
   let tickets = await listTickets(name, config.prefix);
-  if (typeFilter === 'Task' || typeFilter === 'Epic') {
-    tickets = tickets.filter((t) => t.type === typeFilter);
+  if (typeParam) {
+    const allowed = new Set<TicketType>(
+      typeParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s): s is TicketType =>
+          (VALID_TYPES as readonly string[]).includes(s),
+        ),
+    );
+    if (allowed.size > 0) {
+      tickets = tickets.filter((t) => allowed.has(t.type));
+    }
   }
   return c.json(tickets);
 });

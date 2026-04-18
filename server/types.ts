@@ -12,7 +12,7 @@ export type ProjectSummary = {
   warnings: string[];
 };
 
-export type TicketType = 'Task' | 'Epic';
+export type TicketType = 'Task' | 'Epic' | 'Bug';
 
 export type TicketState =
   | 'NOT_READY'

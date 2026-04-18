@@ -99,7 +99,7 @@ export async function scanProjects(): Promise<ProjectSummary[]> {
 
 const TICKET_FILENAME_RE = /^(\d+)\.md$/;
 
-const TICKET_TYPES: readonly TicketType[] = ['Task', 'Epic'];
+const TICKET_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 const TICKET_STATES: readonly TicketState[] = [
   'NOT_READY',
   'PLANNING',
@@ -200,7 +200,10 @@ async function parseTicketFileRaw(
     updated,
   };
 
-  if (fm.type === 'Task' && typeof fm.epic === 'number') {
+  if (
+    (fm.type === 'Task' || fm.type === 'Bug') &&
+    typeof fm.epic === 'number'
+  ) {
     summary.epic = fm.epic;
   }
 
@@ -233,7 +236,10 @@ export async function readTicketDetail(
   const raw = await parseTicketFileRaw(filePath, num, prefix);
   if (!raw) return null;
 
-  if (raw.summary.type === 'Task' && raw.summary.epic !== undefined) {
+  if (
+    (raw.summary.type === 'Task' || raw.summary.type === 'Bug') &&
+    raw.summary.epic !== undefined
+  ) {
     const epicPath = path.join(tasksDir(projectName), `${raw.summary.epic}.md`);
     const epicRaw = await parseTicketFileRaw(
       epicPath,
@@ -283,25 +289,36 @@ export async function listTickets(
 
   const valid = results.filter((t): t is TicketSummary => t !== null);
 
-  // Resolve each task's parent epic title server-side so the list
-  // response is self-contained (pagination-safe — a task in page N can
+  // Resolve each work-item's parent epic title server-side so the list
+  // response is self-contained (pagination-safe — a ticket in page N can
   // reference an epic in page M without the client needing both).
+  const epicIds = new Set<number>();
   const epicTitles = new Map<number, string>();
   for (const t of valid) {
-    if (t.type === 'Epic') epicTitles.set(t.number, t.title);
+    if (t.type === 'Epic') {
+      epicIds.add(t.number);
+      epicTitles.set(t.number, t.title);
+    }
   }
   for (const t of valid) {
-    if (t.type === 'Task' && t.epic !== undefined) {
+    if ((t.type === 'Task' || t.type === 'Bug') && t.epic !== undefined) {
+      if (!epicIds.has(t.epic)) {
+        console.warn(
+          `[tickets] ${t.displayId} references epic #${t.epic} that is not an Epic-typed ticket`,
+        );
+        continue;
+      }
       const title = epicTitles.get(t.epic);
       if (title !== undefined) t.epicTitle = title;
     }
   }
 
-  // Roll up child-task counts onto each Epic so the Epics tab can show
-  // per-state distribution without a second round-trip.
+  // Roll up child counts onto each Epic so the Epics tab can show
+  // per-state distribution without a second round-trip. Tasks and Bugs
+  // both count as children.
   const childCountsByEpic = new Map<number, Record<TicketState, number>>();
   for (const t of valid) {
-    if (t.type === 'Task' && t.epic !== undefined) {
+    if ((t.type === 'Task' || t.type === 'Bug') && t.epic !== undefined) {
       let bucket = childCountsByEpic.get(t.epic);
       if (!bucket) {
         bucket = emptyStateCounts();

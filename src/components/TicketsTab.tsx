@@ -9,7 +9,7 @@ import { TicketDetailPanel } from './TicketDetailPanel';
 export function TicketsTab() {
   const { name } = useParams<{ name: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: tickets, isLoading, error } = useTickets(name ?? null, 'Task');
+  const { data: tickets, isLoading, error } = useTickets(name ?? null, ['Task', 'Bug']);
 
   const inspectParam = searchParams.get('inspect');
   const inspectedNumber = extractTicketNumber(inspectParam);
@@ -76,6 +76,11 @@ export function TicketsTab() {
                 }`}
               >
                 <td className="py-2 pr-4 font-mono text-nord-8 whitespace-nowrap">
+                  {t.type === 'Bug' && (
+                    <span className="mr-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nord-11/20 text-nord-11 align-middle">
+                      BUG
+                    </span>
+                  )}
                   {t.displayId}
                 </td>
                 <td className="py-2 pr-4 text-nord-6">{t.title}</td>

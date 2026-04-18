@@ -28,11 +28,18 @@ export function useProjects() {
   });
 }
 
+function encodeTypes(type?: TicketType | TicketType[]): string | null {
+  if (!type) return null;
+  const arr = Array.isArray(type) ? type : [type];
+  return arr.length > 0 ? arr.join(',') : null;
+}
+
 async function fetchTickets(
   projectName: string,
-  type?: TicketType,
+  type?: TicketType | TicketType[],
 ): Promise<TicketSummary[]> {
-  const qs = type ? `?type=${encodeURIComponent(type)}` : '';
+  const csv = encodeTypes(type);
+  const qs = csv ? `?type=${encodeURIComponent(csv)}` : '';
   const res = await fetch(
     `/api/projects/${encodeURIComponent(projectName)}/tickets${qs}`,
   );
@@ -51,10 +58,11 @@ async function fetchTickets(
 
 export function useTickets(
   projectName: string | null,
-  type?: TicketType,
+  type?: TicketType | TicketType[],
 ) {
+  const csv = encodeTypes(type);
   return useQuery({
-    queryKey: ['tickets', projectName, type ?? 'all'],
+    queryKey: ['tickets', projectName, csv ?? 'all'],
     queryFn: () => fetchTickets(projectName as string, type),
     enabled: projectName !== null,
   });

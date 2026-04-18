@@ -17,7 +17,7 @@ export function BoardTab() {
   const { name } = useParams<{ name: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const tasks = useTickets(name ?? null, 'Task');
+  const tasks = useTickets(name ?? null, ['Task', 'Bug']);
   const epics = useTickets(name ?? null, 'Epic');
 
   const epicParam = searchParams.get('epic');
