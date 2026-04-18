@@ -1,6 +1,6 @@
+import { useParams } from 'react-router-dom';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
-import { useStore } from '../store';
 
 function stateColorClass(state: TicketState): string {
   switch (state) {
@@ -24,8 +24,8 @@ function stateLabel(state: TicketState): string {
 }
 
 export function TicketsTab() {
-  const selectedProject = useStore((s) => s.selectedProject);
-  const { data: tickets, isLoading, error } = useTickets(selectedProject, 'Task');
+  const { name } = useParams<{ name: string }>();
+  const { data: tickets, isLoading, error } = useTickets(name ?? null, 'Task');
 
   if (isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;

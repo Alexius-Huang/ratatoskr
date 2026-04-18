@@ -1,10 +1,9 @@
+import { Link, useParams } from 'react-router-dom';
 import { useProjects } from '../lib/api';
-import { useStore } from '../store';
 
 export function Sidebar() {
   const { data: projects, isLoading, error } = useProjects();
-  const selectedProject = useStore((s) => s.selectedProject);
-  const setSelectedProject = useStore((s) => s.setSelectedProject);
+  const { name: selectedProject } = useParams<{ name: string }>();
 
   return (
     <aside className="w-60 shrink-0 border-r border-nord-3 bg-nord-1 h-screen overflow-y-auto">
@@ -34,9 +33,8 @@ export function Sidebar() {
           const hasWarnings = p.warnings.length > 0;
           return (
             <li key={p.name}>
-              <button
-                type="button"
-                onClick={() => setSelectedProject(p.name)}
+              <Link
+                to={`/projects/${encodeURIComponent(p.name)}/tickets`}
                 className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
                   isSelected
                     ? 'bg-nord-10 text-nord-6 font-medium'
@@ -53,7 +51,7 @@ export function Sidebar() {
                     ⚠
                   </span>
                 )}
-              </button>
+              </Link>
             </li>
           );
         })}

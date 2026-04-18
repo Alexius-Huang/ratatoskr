@@ -1,12 +1,20 @@
-import { Sidebar } from './components/Sidebar';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { AppLayout } from './components/AppLayout';
+import { EmptyState } from './components/EmptyState';
 import { MainPane } from './components/MainPane';
 
 function App() {
   return (
-    <div className="flex h-screen w-screen bg-nord-0 text-nord-6">
-      <Sidebar />
-      <MainPane />
-    </div>
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<EmptyState />} />
+        <Route
+          path="projects/:name"
+          element={<Navigate to="tickets" replace />}
+        />
+        <Route path="projects/:name/:tab" element={<MainPane />} />
+      </Route>
+    </Routes>
   );
 }
 

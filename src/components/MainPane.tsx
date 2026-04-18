@@ -1,5 +1,6 @@
+import { Navigate, useParams } from 'react-router-dom';
 import { useProjects } from '../lib/api';
-import { useStore } from '../store';
+import { isValidTab } from '../lib/tabs';
 import { TabBar } from './TabBar';
 import { TicketsTab } from './TicketsTab';
 import { EpicsTab } from './EpicsTab';
@@ -7,26 +8,25 @@ import { BoardTab } from './BoardTab';
 import { ArchiveTab } from './ArchiveTab';
 
 export function MainPane() {
-  const selectedProject = useStore((s) => s.selectedProject);
-  const activeTab = useStore((s) => s.activeTab);
+  const { name, tab } = useParams<{ name: string; tab: string }>();
   const { data: projects } = useProjects();
 
-  if (!selectedProject) {
-    return (
-      <main className="flex-1 flex items-center justify-center text-nord-4">
-        Select a project
-      </main>
-    );
+  if (!name) {
+    return <Navigate to="/" replace />;
   }
 
-  const project = projects?.find((p) => p.name === selectedProject);
+  if (!isValidTab(tab)) {
+    return <Navigate to={`/projects/${encodeURIComponent(name)}/tickets`} replace />;
+  }
+
+  const project = projects?.find((p) => p.name === name);
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
       <header className="px-6 py-4 border-b border-nord-3 bg-nord-1">
         <h1 className="text-xl font-semibold">
           <span className="text-nord-4">Project:</span>{' '}
-          <span className="font-mono text-nord-8">{selectedProject}</span>
+          <span className="font-mono text-nord-8">{name}</span>
         </h1>
         {project?.config?.description && (
           <p className="text-sm text-nord-4 mt-1">
@@ -43,10 +43,10 @@ export function MainPane() {
       <TabBar />
 
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'epics' && <EpicsTab />}
-        {activeTab === 'tickets' && <TicketsTab />}
-        {activeTab === 'board' && <BoardTab />}
-        {activeTab === 'archive' && <ArchiveTab />}
+        {tab === 'epics' && <EpicsTab />}
+        {tab === 'tickets' && <TicketsTab />}
+        {tab === 'board' && <BoardTab />}
+        {tab === 'archive' && <ArchiveTab />}
       </div>
     </main>
   );
