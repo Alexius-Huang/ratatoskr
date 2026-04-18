@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ProjectSummary, TicketSummary } from '../../server/types';
+import type {
+  ProjectSummary,
+  TicketSummary,
+  TicketType,
+} from '../../server/types';
 
 async function fetchProjects(): Promise<ProjectSummary[]> {
   const res = await fetch('/api/projects');
@@ -14,9 +18,13 @@ export function useProjects() {
   });
 }
 
-async function fetchTickets(projectName: string): Promise<TicketSummary[]> {
+async function fetchTickets(
+  projectName: string,
+  type?: TicketType,
+): Promise<TicketSummary[]> {
+  const qs = type ? `?type=${encodeURIComponent(type)}` : '';
   const res = await fetch(
-    `/api/projects/${encodeURIComponent(projectName)}/tickets`,
+    `/api/projects/${encodeURIComponent(projectName)}/tickets${qs}`,
   );
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
@@ -31,10 +39,13 @@ async function fetchTickets(projectName: string): Promise<TicketSummary[]> {
   return (await res.json()) as TicketSummary[];
 }
 
-export function useTickets(projectName: string | null) {
+export function useTickets(
+  projectName: string | null,
+  type?: TicketType,
+) {
   return useQuery({
-    queryKey: ['tickets', projectName],
-    queryFn: () => fetchTickets(projectName as string),
+    queryKey: ['tickets', projectName, type ?? 'all'],
+    queryFn: () => fetchTickets(projectName as string, type),
     enabled: projectName !== null,
   });
 }

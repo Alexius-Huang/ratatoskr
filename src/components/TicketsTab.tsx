@@ -23,7 +23,7 @@ function stateLabel(state: TicketState): string {
 
 export function TicketsTab() {
   const selectedProject = useStore((s) => s.selectedProject);
-  const { data: tickets, isLoading, error } = useTickets(selectedProject);
+  const { data: tickets, isLoading, error } = useTickets(selectedProject, 'Task');
 
   if (isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;
