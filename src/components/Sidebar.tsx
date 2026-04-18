@@ -7,25 +7,25 @@ export function Sidebar() {
   const setSelectedProject = useStore((s) => s.setSelectedProject);
 
   return (
-    <aside className="w-60 shrink-0 border-r border-gray-200 bg-gray-50 h-screen overflow-y-auto">
-      <div className="px-4 py-3 border-b border-gray-200">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+    <aside className="w-60 shrink-0 border-r border-nord-3 bg-nord-1 h-screen overflow-y-auto">
+      <div className="px-4 py-3 border-b border-nord-3">
+        <h2 className="text-xs font-semibold text-nord-4 uppercase tracking-wider">
           Projects
         </h2>
       </div>
 
       {isLoading && (
-        <p className="px-4 py-3 text-sm text-gray-500">Loading…</p>
+        <p className="px-4 py-3 text-sm text-nord-4">Loading…</p>
       )}
 
       {error && (
-        <p className="px-4 py-3 text-sm text-red-600">
+        <p className="px-4 py-3 text-sm text-nord-11">
           Failed to load projects: {String(error)}
         </p>
       )}
 
       {projects && projects.length === 0 && (
-        <p className="px-4 py-3 text-sm text-gray-500">No projects detected.</p>
+        <p className="px-4 py-3 text-sm text-nord-4">No projects detected.</p>
       )}
 
       <ul>
@@ -39,15 +39,15 @@ export function Sidebar() {
                 onClick={() => setSelectedProject(p.name)}
                 className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
                   isSelected
-                    ? 'bg-blue-100 text-blue-900 font-medium'
-                    : 'text-gray-800 hover:bg-gray-100'
+                    ? 'bg-nord-10 text-nord-6 font-medium'
+                    : 'text-nord-5 hover:bg-nord-2'
                 }`}
               >
                 <span className="flex-1 truncate">{p.name}</span>
                 {hasWarnings && (
                   <span
                     title={p.warnings.join('; ')}
-                    className="text-yellow-600"
+                    className="text-nord-13"
                     aria-label="warning"
                   >
                     ⚠
