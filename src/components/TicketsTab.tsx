@@ -2,6 +2,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
+import { extractTicketNumber } from '../lib/ticketId';
 import { SplitPane } from './SplitPane';
 import { TicketDetailPanel } from './TicketDetailPanel';
 
@@ -11,7 +12,7 @@ export function TicketsTab() {
   const { data: tickets, isLoading, error } = useTickets(name ?? null, 'Task');
 
   const inspectParam = searchParams.get('inspect');
-  const inspectedNumber = inspectParam ? extractTicketNumber(inspectParam) : null;
+  const inspectedNumber = extractTicketNumber(inspectParam);
 
   const clearInspect = () => {
     const next = new URLSearchParams(searchParams);
@@ -129,9 +130,3 @@ export function TicketsTab() {
   );
 }
 
-function extractTicketNumber(displayId: string): number | null {
-  const match = displayId.match(/-(\d+)$/);
-  if (!match) return null;
-  const n = Number(match[1]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}

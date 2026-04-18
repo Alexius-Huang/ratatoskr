@@ -297,6 +297,37 @@ export async function listTickets(
     }
   }
 
+  // Roll up child-task counts onto each Epic so the Epics tab can show
+  // per-state distribution without a second round-trip.
+  const childCountsByEpic = new Map<number, Record<TicketState, number>>();
+  for (const t of valid) {
+    if (t.type === 'Task' && t.epic !== undefined) {
+      let bucket = childCountsByEpic.get(t.epic);
+      if (!bucket) {
+        bucket = emptyStateCounts();
+        childCountsByEpic.set(t.epic, bucket);
+      }
+      bucket[t.state] += 1;
+    }
+  }
+  for (const t of valid) {
+    if (t.type !== 'Epic') continue;
+    const byState = childCountsByEpic.get(t.number) ?? emptyStateCounts();
+    const total = Object.values(byState).reduce((a, b) => a + b, 0);
+    t.childCounts = { total, byState };
+  }
+
   valid.sort((a, b) => a.number - b.number);
   return valid;
+}
+
+function emptyStateCounts(): Record<TicketState, number> {
+  return {
+    NOT_READY: 0,
+    PLANNING: 0,
+    READY: 0,
+    IN_PROGRESS: 0,
+    IN_REVIEW: 0,
+    DONE: 0,
+  };
 }

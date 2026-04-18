@@ -6,6 +6,14 @@ export function parseDisplayId(value: string, prefix: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+export function extractTicketNumber(displayId: string | null): number | null {
+  if (!displayId) return null;
+  const match = displayId.match(/-(\d+)$/);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

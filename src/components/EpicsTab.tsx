@@ -1,7 +1,91 @@
+import { useParams, useSearchParams } from 'react-router-dom';
+import type { TicketSummary } from '../../server/types';
+import { useTickets } from '../lib/api';
+import { extractTicketNumber } from '../lib/ticketId';
+import { EpicRow } from './EpicRow';
+import { SplitPane } from './SplitPane';
+import { TicketDetailPanel } from './TicketDetailPanel';
+
 export function EpicsTab() {
+  const { name } = useParams<{ name: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: epics, isLoading, error } = useTickets(name ?? null, 'Epic');
+
+  const inspectParam = searchParams.get('inspect');
+  const inspectedNumber = extractTicketNumber(inspectParam);
+
+  const clearInspect = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('inspect');
+    setSearchParams(next, { replace: true });
+  };
+
+  const toggleInspect = (ticket: TicketSummary) => {
+    const next = new URLSearchParams(searchParams);
+    if (inspectParam === ticket.displayId) {
+      next.delete('inspect');
+    } else {
+      next.set('inspect', ticket.displayId);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  if (isLoading) {
+    return <div className="p-6 text-nord-4">Loading epics…</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-nord-2 border border-nord-11 rounded p-4 text-nord-11 text-sm">
+          Failed to load epics:{' '}
+          {error instanceof Error ? error.message : String(error)}
+        </div>
+      </div>
+    );
+  }
+
+  if (!epics || epics.length === 0) {
+    return (
+      <div className="p-6 text-nord-4">No epics in this project yet.</div>
+    );
+  }
+
+  const sorted = [...epics].sort((a, b) => a.number - b.number);
+
+  const list = (
+    <div className="h-full overflow-y-auto">
+      {sorted.map((e) => (
+        <EpicRow
+          key={e.number}
+          ticket={e}
+          isSelected={e.displayId === inspectParam}
+          onClick={() => toggleInspect(e)}
+        />
+      ))}
+    </div>
+  );
+
+  if (!inspectParam || !name || inspectedNumber === null) {
+    return <div className="h-full flex flex-col">{list}</div>;
+  }
+
+  const detail = (
+    <TicketDetailPanel
+      projectName={name}
+      number={inspectedNumber}
+      displayId={inspectParam}
+      onClose={clearInspect}
+    />
+  );
+
   return (
-    <div className="p-6 flex items-center justify-center text-nord-4">
-      Epics view — coming in RAT-5
+    <div className="h-full flex flex-col">
+      <SplitPane
+        left={list}
+        right={detail}
+        storageKey="ratatoskr:epics-split"
+      />
     </div>
   );
 }

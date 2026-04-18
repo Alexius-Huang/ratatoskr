@@ -22,6 +22,11 @@ export type TicketState =
   | 'IN_REVIEW'
   | 'DONE';
 
+export type TicketChildCounts = {
+  total: number;
+  byState: Record<TicketState, number>;
+};
+
 export type TicketSummary = {
   number: number;
   displayId: string;
@@ -33,6 +38,7 @@ export type TicketSummary = {
   planDoc?: string;
   created: string;
   updated: string;
+  childCounts?: TicketChildCounts;
 };
 
 export type TicketDetail = TicketSummary & {
