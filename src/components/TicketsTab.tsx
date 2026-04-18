@@ -1,27 +1,7 @@
 import { useParams } from 'react-router-dom';
-import type { TicketState, TicketSummary } from '../../server/types';
+import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
-
-function stateColorClass(state: TicketState): string {
-  switch (state) {
-    case 'NOT_READY':
-      return 'bg-nord-2 text-nord-4';
-    case 'PLANNING':
-      return 'bg-nord-7 text-nord-0';
-    case 'READY':
-      return 'bg-nord-9 text-nord-0';
-    case 'IN_PROGRESS':
-      return 'bg-nord-13 text-nord-0';
-    case 'IN_REVIEW':
-      return 'bg-nord-12 text-nord-0';
-    case 'DONE':
-      return 'bg-nord-14 text-nord-0';
-  }
-}
-
-function stateLabel(state: TicketState): string {
-  return state.replace('_', ' ');
-}
+import { stateColorClass, stateLabel } from '../lib/ticketState';
 
 export function TicketsTab() {
   const { name } = useParams<{ name: string }>();
