@@ -211,9 +211,10 @@ describe('TicketDetailPanel', () => {
     expect(screen.getAllByText('my-branch')).toHaveLength(2);
   });
 
-  it('should render raw prs paths when pullRequests is absent', () => {
-    renderPanel({ ...taskFixture, prs: ['owner/repo/pull/42'] });
-    expect(screen.getByText('owner/repo/pull/42')).toBeInTheDocument();
+  it('should render raw prs as parsed number + branch when pullRequests is absent', () => {
+    renderPanel({ ...taskFixture, branch: 'my-branch', prs: ['owner/repo/pull/42'] });
+    expect(screen.getByText('#42')).toBeInTheDocument();
+    expect(screen.getByText('my-branch')).toBeInTheDocument();
   });
 
   it('should call openExternal when a PR row is clicked', async () => {

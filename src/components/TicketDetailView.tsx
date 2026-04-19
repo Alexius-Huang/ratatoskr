@@ -86,18 +86,22 @@ export function TicketDetailView({
                   );
                 })
               : data.prs && data.prs.length > 0
-              ? data.prs.map((prPath) => (
-                  <button
-                    key={prPath}
-                    type="button"
-                    onClick={() => openExternal(`https://github.com/${prPath}`)}
-                    aria-label={`Open PR ${prPath}`}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-nord-3 bg-nord-1 text-nord-4 hover:bg-nord-2 hover:text-nord-6"
-                  >
-                    <GitPullRequest size={12} className="text-nord-9" />
-                    <span className="font-mono">{prPath}</span>
-                  </button>
-                ))
+              ? data.prs.map((prPath) => {
+                  const prNum = prPath.match(/\/pull\/(\d+)$/)?.[1];
+                  return (
+                    <button
+                      key={prPath}
+                      type="button"
+                      onClick={() => openExternal(`https://github.com/${prPath}`)}
+                      aria-label={`Open PR ${prPath}`}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-nord-3 bg-nord-1 text-nord-4 hover:bg-nord-2 hover:text-nord-6 font-medium"
+                    >
+                      <GitPullRequest size={12} className="text-nord-9" />
+                      <span className="font-mono">{prNum ? `#${prNum}` : prPath}</span>
+                      {data.branch && <span className="font-mono opacity-80">{data.branch}</span>}
+                    </button>
+                  );
+                })
               : data.branch
               ? (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-nord-3 bg-nord-1 text-nord-4">
