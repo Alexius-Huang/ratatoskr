@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError, useTicketDetail, useTicketPlan } from '../lib/api';
 import { useArchiveTicket } from '../lib/ticketMutations';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
@@ -19,6 +19,7 @@ export function TicketDetailPanel({
   displayId,
   onClose,
 }: Props) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showEdit, setShowEdit] = useState(false);
   const isPlanView = searchParams.get('view') === 'plan';
@@ -130,6 +131,9 @@ export function TicketDetailPanel({
       variant: 'danger',
     },
     ...(planAction ? [planAction] : []),
+    ...(data.type === 'Epic'
+      ? [{ label: 'View tickets', onClick: () => navigate(`/projects/${encodeURIComponent(projectName)}/tickets?epic=${data.number}`) }]
+      : []),
   ];
 
   return (

@@ -14,10 +14,12 @@ export function EpicRow({
   ticket,
   isSelected,
   onClick,
+  onViewTickets,
 }: {
   ticket: TicketSummary;
   isSelected: boolean;
   onClick: () => void;
+  onViewTickets?: () => void;
 }) {
   const counts = ticket.childCounts ?? {
     total: 0,
@@ -35,10 +37,12 @@ export function EpicRow({
   const pct = counts.total === 0 ? 0 : Math.round((done / counts.total) * 100);
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className={`w-full text-left border-b border-nord-3 px-4 py-3 transition-colors ${
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className={`w-full text-left border-b border-nord-3 px-4 py-3 transition-colors cursor-pointer ${
         isSelected ? 'bg-nord-2' : 'hover:bg-nord-2/70'
       }`}
     >
@@ -86,6 +90,18 @@ export function EpicRow({
       {counts.total === 0 && (
         <p className="text-xs text-nord-4 italic">No child tasks yet.</p>
       )}
-    </button>
+
+      {onViewTickets && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onViewTickets(); }}
+            className="text-xs text-nord-8 hover:text-nord-6 hover:underline transition-colors"
+          >
+            View ticket list →
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { extractTicketNumber } from '../lib/ticketId';
@@ -8,6 +8,7 @@ import { TicketDetailPanel } from './TicketDetailPanel';
 
 export function EpicsTab() {
   const { name } = useParams<{ name: string }>();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: epics, isLoading, error } = useTickets(name ?? null, 'Epic');
 
@@ -64,6 +65,7 @@ export function EpicsTab() {
           ticket={e}
           isSelected={e.displayId === inspectParam}
           onClick={() => toggleInspect(e)}
+          onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
         />
       ))}
     </div>
