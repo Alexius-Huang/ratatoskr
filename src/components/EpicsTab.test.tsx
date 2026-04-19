@@ -75,6 +75,78 @@ function render(epics: TicketSummary[]) {
   });
 }
 
+describe('EpicsTab — filter bar', () => {
+  beforeEach(() => {
+    markDoneMutateFn.mockReset();
+    mockFireConfetti.mockReset();
+  });
+
+  it('renders the filter input above the list', () => {
+    render([makeEpic()]);
+    expect(screen.getByRole('textbox', { name: /filter epics/i })).toBeInTheDocument();
+  });
+
+  it('filters by title substring (case-insensitive)', async () => {
+    const user = userEvent.setup();
+    render([
+      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Alpha Feature' }),
+      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Beta Feature' }),
+      makeEpic({ number: 3, displayId: 'RAT-3', title: 'Alpha Bugfix' }),
+    ]);
+    await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'alpha');
+    expect(screen.getByText('Alpha Feature')).toBeInTheDocument();
+    expect(screen.getByText('Alpha Bugfix')).toBeInTheDocument();
+    expect(screen.queryByText('Beta Feature')).not.toBeInTheDocument();
+  });
+
+  it('filters by displayId substring (case-insensitive, substring — RAT-1 matches RAT-1 and RAT-10)', async () => {
+    const user = userEvent.setup();
+    render([
+      makeEpic({ number: 1, displayId: 'RAT-1', title: 'First' }),
+      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Second' }),
+      makeEpic({ number: 10, displayId: 'RAT-10', title: 'Tenth' }),
+    ]);
+    await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'rat-1');
+    expect(screen.getByText('First')).toBeInTheDocument();
+    expect(screen.getByText('Tenth')).toBeInTheDocument();
+    expect(screen.queryByText('Second')).not.toBeInTheDocument();
+  });
+
+  it('filter applies to the Completed section too', async () => {
+    const user = userEvent.setup();
+    render([
+      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Active Epic', state: 'IN_PROGRESS' }),
+      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Done Epic', state: 'DONE' }),
+    ]);
+    await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'Done Epic');
+    expect(screen.getByText('Done Epic')).toBeInTheDocument();
+    expect(screen.queryByText('Active Epic')).not.toBeInTheDocument();
+  });
+
+  it('shows "No matching epics" when nothing matches', async () => {
+    const user = userEvent.setup();
+    render([makeEpic({ title: 'Alpha Feature' })]);
+    await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'zzz-no-match');
+    expect(screen.getByText('No matching epics')).toBeInTheDocument();
+    expect(screen.queryByText('Alpha Feature')).not.toBeInTheDocument();
+  });
+
+  it('clearing the input restores the full list', async () => {
+    const user = userEvent.setup();
+    render([
+      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Alpha Feature' }),
+      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Beta Feature' }),
+    ]);
+    const input = screen.getByRole('textbox', { name: /filter epics/i });
+    await user.type(input, 'alpha');
+    expect(screen.queryByText('Beta Feature')).not.toBeInTheDocument();
+    await user.clear(input);
+    expect(screen.getByText('Alpha Feature')).toBeInTheDocument();
+    expect(screen.getByText('Beta Feature')).toBeInTheDocument();
+    expect(screen.queryByText('No matching epics')).not.toBeInTheDocument();
+  });
+});
+
 describe('EpicsTab — Completed section', () => {
   beforeEach(() => {
     markDoneMutateFn.mockReset();

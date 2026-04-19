@@ -1,3 +1,5 @@
+import { Search } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
@@ -44,6 +46,7 @@ export function EpicsTab() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: epics, isLoading, error } = useTickets(name ?? null, 'Epic');
+  const [query, setQuery] = useState('');
 
   const inspectParam = searchParams.get('inspect');
   const inspectedNumber = extractTicketNumber(inspectParam);
@@ -92,6 +95,13 @@ export function EpicsTab() {
   const active = sorted.filter((e) => e.state !== 'DONE');
   const completed = sorted.filter((e) => e.state === 'DONE');
 
+  const q = query.trim().toLowerCase();
+  const matches = (e: TicketSummary) =>
+    q === '' || `${e.displayId} — ${e.title}`.toLowerCase().includes(q);
+  const activeFiltered = active.filter(matches);
+  const completedFiltered = completed.filter(matches);
+  const hasMatches = activeFiltered.length > 0 || completedFiltered.length > 0;
+
   const renderRow = (e: TicketSummary) => (
     <EpicRowWithMutation
       key={e.number}
@@ -104,23 +114,44 @@ export function EpicsTab() {
   );
 
   const list = (
-    <div className="h-full overflow-y-auto pb-72">
-      {active.map(renderRow)}
-      {completed.length > 0 && (
-        <>
-          <div className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-nord-4 bg-nord-1 border-y border-nord-3">
-            Completed ({completed.length})
-          </div>
-          <div className="opacity-40 grayscale-[40%]">
-            {completed.map(renderRow)}
-          </div>
-        </>
-      )}
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-2 border-b border-nord-3 bg-nord-1">
+        <div className="flex items-center bg-nord-2 border border-nord-3 rounded focus-within:border-nord-8 transition-colors">
+          <Search size={14} className="ml-2 text-nord-4" aria-hidden="true" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter epics by ID or title…"
+            aria-label="Filter epics"
+            className="bg-transparent pl-1.5 pr-2 py-1 text-sm text-nord-6 placeholder-nord-4 focus:outline-none w-full"
+          />
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto pb-72">
+        {!hasMatches && q !== '' ? (
+          <div className="p-6 text-nord-4">No matching epics</div>
+        ) : (
+          <>
+            {activeFiltered.map(renderRow)}
+            {completedFiltered.length > 0 && (
+              <>
+                <div className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-nord-4 bg-nord-1 border-y border-nord-3">
+                  Completed ({completedFiltered.length})
+                </div>
+                <div className="opacity-40 grayscale-[40%]">
+                  {completedFiltered.map(renderRow)}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 
   if (!inspectParam || !name || inspectedNumber === null) {
-    return <div className="h-full flex flex-col">{list}</div>;
+    return list;
   }
 
   const detail = (
@@ -133,12 +164,10 @@ export function EpicsTab() {
   );
 
   return (
-    <div className="h-full flex flex-col">
-      <SplitPane
-        left={list}
-        right={detail}
-        storageKey="ratatoskr:epics-split"
-      />
-    </div>
+    <SplitPane
+      left={list}
+      right={detail}
+      storageKey="ratatoskr:epics-split"
+    />
   );
 }
