@@ -1,9 +1,11 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  getWorkspaceRoot,
   listTickets,
   parseTicketFileRaw,
   readProjectConfig,
@@ -155,5 +157,50 @@ describe('readTicketPlan', () => {
     const result = await readTicketPlan(PROJECT, 1, PREFIX);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('out-of-scope');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('getWorkspaceRoot', () => {
+  let xdgTmpDir: string;
+
+  beforeEach(async () => {
+    xdgTmpDir = await mkdtemp(path.join(os.tmpdir(), 'rat-ws-root-test-'));
+    // ensure XDG_CONFIG_HOME points to a clean tmp dir (no real config leaks in)
+    process.env.XDG_CONFIG_HOME = xdgTmpDir;
+  });
+
+  afterEach(async () => {
+    delete process.env.XDG_CONFIG_HOME;
+    await rm(xdgTmpDir, { recursive: true, force: true });
+  });
+
+  it('should return env var value when RATATOSKR_WORKSPACE_ROOT is set', () => {
+    // env var is already set in outer beforeEach (tmpRoot)
+    expect(getWorkspaceRoot()).toBe(tmpRoot);
+  });
+
+  it('should return config file value when env var is absent', () => {
+    const savedEnv = process.env.RATATOSKR_WORKSPACE_ROOT;
+    delete process.env.RATATOSKR_WORKSPACE_ROOT;
+    try {
+      const configDir = path.join(xdgTmpDir, 'ratatoskr');
+      mkdirSync(configDir, { recursive: true });
+      writeFileSync(path.join(configDir, 'config.json'), JSON.stringify({ workspaceRoot: '/from/config' }), 'utf8');
+      expect(getWorkspaceRoot()).toBe('/from/config');
+    } finally {
+      process.env.RATATOSKR_WORKSPACE_ROOT = savedEnv;
+    }
+  });
+
+  it('should return null when both env var and config file are absent', () => {
+    const savedEnv = process.env.RATATOSKR_WORKSPACE_ROOT;
+    delete process.env.RATATOSKR_WORKSPACE_ROOT;
+    try {
+      expect(getWorkspaceRoot()).toBeNull();
+    } finally {
+      process.env.RATATOSKR_WORKSPACE_ROOT = savedEnv;
+    }
   });
 });

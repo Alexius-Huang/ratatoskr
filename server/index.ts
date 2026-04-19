@@ -1,5 +1,10 @@
+import { stat } from 'node:fs/promises';
+import path from 'node:path';
 import { Hono } from 'hono';
+import { writeAppConfig } from './appConfig';
 import {
+  getWorkspaceRoot,
+  getWorkspaceRootSource,
   listArchivedTickets,
   listTickets,
   readProjectConfig,
@@ -19,6 +24,36 @@ import {
 const VALID_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 
 const app = new Hono();
+
+app.get('/api/config', (c) => {
+  const workspaceRoot = getWorkspaceRoot();
+  const source = getWorkspaceRootSource();
+  return c.json({ configured: workspaceRoot !== null, workspaceRoot, source });
+});
+
+app.put('/api/config', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+  const candidate = (body as { workspaceRoot?: unknown })?.workspaceRoot;
+  if (typeof candidate !== 'string' || candidate.length === 0) {
+    return c.json({ error: 'workspaceRoot must be a non-empty string' }, 400);
+  }
+  if (!path.isAbsolute(candidate)) {
+    return c.json({ error: 'workspaceRoot must be an absolute path' }, 400);
+  }
+  try {
+    const s = await stat(candidate);
+    if (!s.isDirectory()) return c.json({ error: 'Path is not an existing directory' }, 400);
+  } catch {
+    return c.json({ error: 'Path is not an existing directory' }, 400);
+  }
+  writeAppConfig({ workspaceRoot: candidate });
+  return c.json({ configured: true, workspaceRoot: candidate, source: getWorkspaceRootSource() });
+});
 
 app.get('/api/projects', async (c) => {
   const projects = await scanProjects();

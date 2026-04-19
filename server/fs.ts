@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
+import { readAppConfigSync } from './appConfig';
 import type {
   ArchivedTicketRecord,
   PlanResult,
@@ -12,10 +13,18 @@ import type {
   TicketType,
 } from './types';
 
-export function getWorkspaceRoot(): string {
+export function getWorkspaceRoot(): string | null {
   const fromEnv = process.env.RATATOSKR_WORKSPACE_ROOT;
   if (fromEnv) return fromEnv;
-  return path.resolve(process.cwd(), '..', '..');
+  const fromConfig = readAppConfigSync();
+  if (fromConfig) return fromConfig.workspaceRoot;
+  return null;
+}
+
+export function getWorkspaceRootSource(): 'env' | 'file' | null {
+  if (process.env.RATATOSKR_WORKSPACE_ROOT) return 'env';
+  if (readAppConfigSync()) return 'file';
+  return null;
 }
 
 export async function readProjectConfig(projectName: string): Promise<{
@@ -24,6 +33,9 @@ export async function readProjectConfig(projectName: string): Promise<{
   warnings: string[];
 }> {
   const workspaceRoot = getWorkspaceRoot();
+  if (!workspaceRoot) {
+    return { config: null, hasConfig: false, warnings: ['Workspace not configured'] };
+  }
   const configPath = path.join(
     workspaceRoot,
     'projects',
@@ -73,6 +85,7 @@ export async function readProjectConfig(projectName: string): Promise<{
 
 export async function scanProjects(): Promise<ProjectSummary[]> {
   const workspaceRoot = getWorkspaceRoot();
+  if (!workspaceRoot) return [];
   const projectsDir = path.join(workspaceRoot, 'projects');
 
   let entries;
@@ -136,13 +149,9 @@ function coerceIsoString(value: unknown): string | null {
 }
 
 export function metaRoot(projectName: string): string {
-  return path.join(
-    getWorkspaceRoot(),
-    'projects',
-    projectName,
-    '.meta',
-    'ratatoskr',
-  );
+  const root = getWorkspaceRoot();
+  if (!root) throw new Error('Workspace root not configured');
+  return path.join(root, 'projects', projectName, '.meta', 'ratatoskr');
 }
 
 export function tasksDir(projectName: string): string {

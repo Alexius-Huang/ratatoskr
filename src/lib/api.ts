@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ArchivedTicketRecord,
   PlanResponse,
@@ -146,6 +146,35 @@ export function useTicketPlan(
     queryFn: () => fetchTicketPlan(projectName as string, number as number),
     enabled: enabled && projectName !== null && number !== null,
     retry: false,
+  });
+}
+
+export type AppConfigResponse = {
+  configured: boolean;
+  workspaceRoot: string | null;
+  source: 'env' | 'file' | null;
+};
+
+export function useAppConfig() {
+  return useQuery({
+    queryKey: ['app-config'],
+    queryFn: () => apiFetch<AppConfigResponse>('/api/config'),
+    staleTime: Infinity,
+  });
+}
+
+export function useUpdateAppConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (workspaceRoot: string) =>
+      apiFetch<AppConfigResponse>('/api/config', {
+        method: 'PUT',
+        body: JSON.stringify({ workspaceRoot }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['app-config'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
   });
 }
 

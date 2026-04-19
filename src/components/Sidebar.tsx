@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import { useProjects } from '../lib/api';
+import { SettingsModal } from './SettingsModal';
 import { SidebarRow } from './SidebarRow';
 
 const STORAGE_COLLAPSED = 'ratatoskr:sidebar-collapsed';
@@ -38,6 +39,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [expandedWidth, setExpandedWidth] = useState(readWidth);
   const [isDragging, setIsDragging] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -145,6 +147,22 @@ export function Sidebar() {
           />
         ))}
       </ul>
+
+      {/* Settings footer */}
+      <div className={`border-t border-nord-3 ${collapsed ? 'p-2 flex justify-center' : 'p-2'}`}>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          title="Settings"
+          aria-label="Settings"
+          className={`flex items-center gap-2 text-nord-4 hover:text-nord-6 transition-colors rounded px-1.5 py-1 ${collapsed ? '' : 'w-full'}`}
+        >
+          <Settings size={16} />
+          {!collapsed && <span className="text-sm">Settings</span>}
+        </button>
+      </div>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
 
       {/* Draggable divider — only in expanded mode */}
       {!collapsed && (

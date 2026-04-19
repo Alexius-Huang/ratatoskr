@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 import App from './App';
 
 vi.mock('./components/Sidebar', () => ({
@@ -12,27 +13,43 @@ vi.mock('./components/MainPane', () => ({
   MainPane: () => <div data-testid="main-pane" />,
 }));
 
+beforeEach(() => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({ configured: true, workspaceRoot: '/ws', source: 'env' }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ),
+  );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 function renderApp(initialEntries: string[]) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MemoryRouter initialEntries={initialEntries}>
-      <App />
+      <QueryClientProvider client={qc}>
+        <App />
+      </QueryClientProvider>
     </MemoryRouter>,
   );
 }
 
 describe('App', () => {
-  it('should render NotFound for an unknown route', () => {
+  it('should render NotFound for an unknown route', async () => {
     renderApp(['/completely/wrong']);
-    expect(screen.getByRole('heading', { name: '404' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('heading', { name: '404' })).toBeInTheDocument());
   });
 
-  it('should render the EmptyState at the workspace root', () => {
+  it('should render the EmptyState at the workspace root', async () => {
     renderApp(['/']);
-    expect(screen.getByText('Select a project')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Select a project')).toBeInTheDocument());
   });
 
-  it('should render the main pane for a valid project route', () => {
+  it('should render the main pane for a valid project route', async () => {
     renderApp(['/projects/ratatoskr/tickets']);
-    expect(screen.getByTestId('main-pane')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('main-pane')).toBeInTheDocument());
   });
 });
