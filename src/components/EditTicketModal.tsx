@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { TicketDetail, TicketState, TicketType } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { useUpdateTicket } from '../lib/ticketMutations';
+import { EpicCombobox } from './EpicCombobox';
 import { Modal } from './Modal';
 
 const NON_EPIC_TYPES: TicketType[] = ['Task', 'Bug'];
@@ -25,7 +26,7 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
   const [title, setTitle] = useState(ticket.title);
   const [state, setState] = useState<TicketState>(ticket.state);
   const [type, setType] = useState<TicketType>(ticket.type);
-  const [epicNum, setEpicNum] = useState<string>(ticket.epic !== undefined ? String(ticket.epic) : '');
+  const [epicNum, setEpicNum] = useState<number | null>(ticket.epic ?? null);
   const [body, setBody] = useState(ticket.body);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -37,7 +38,7 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
       setTitle(ticket.title);
       setState(ticket.state);
       setType(ticket.type);
-      setEpicNum(ticket.epic !== undefined ? String(ticket.epic) : '');
+      setEpicNum(ticket.epic ?? null);
       setBody(ticket.body);
       setSubmitError(null);
     }
@@ -68,8 +69,8 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
     if (type !== ticket.type) patch.type = type;
     if (body !== ticket.body) patch.body = body;
 
-    const newEpic = epicNum ? Number(epicNum) : null;
-    const oldEpic = ticket.epic !== undefined ? ticket.epic : null;
+    const newEpic = epicNum;
+    const oldEpic = ticket.epic ?? null;
     if (newEpic !== oldEpic) patch.epic = newEpic;
 
     try {
@@ -139,23 +140,11 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
           {ticket.type !== 'Epic' && (
             <label className="flex flex-col gap-1 flex-1">
               <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Epic (optional)</span>
-              <select
+              <EpicCombobox
+                epics={epicsQuery.data ?? []}
                 value={epicNum}
-                onChange={(e) => setEpicNum(e.target.value)}
-                className="bg-nord-2 border border-nord-3 rounded px-2 py-1.5 text-sm text-nord-6 focus:outline-none focus:border-nord-8"
-              >
-                <option value="">(no epic)</option>
-                {epicsQuery.data?.map((e) => (
-                  <option
-                    key={e.number}
-                    value={String(e.number)}
-                    disabled={e.state === 'DONE'}
-                    title={e.state === 'DONE' ? 'Completed — cannot assign new tickets' : undefined}
-                  >
-                    {e.displayId} — {e.title}{e.state === 'DONE' ? ' (completed)' : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={setEpicNum}
+              />
             </label>
           )}
         </div>

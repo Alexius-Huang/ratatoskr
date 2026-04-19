@@ -127,7 +127,8 @@ describe('EditTicketModal', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it('should disable DONE epic options in the Epic picker', () => {
+  it('should render DONE epics as non-selectable in the Epic picker', async () => {
+    const user = userEvent.setup();
     vi.mocked(useTickets).mockReturnValue({
       data: [
         { number: 1, displayId: 'RAT-1', type: 'Epic', title: 'Active', state: 'IN_PROGRESS', created: '', updated: '' },
@@ -136,11 +137,11 @@ describe('EditTicketModal', () => {
       isLoading: false,
     } as never);
     renderModal({});
-    const select = screen.getByLabelText(/epic \(optional\)/i) as HTMLSelectElement;
-    const options = Array.from(select.options);
-    const finishedOption = options.find((o) => o.text.includes('Finished'));
-    const activeOption = options.find((o) => o.text.includes('Active'));
-    expect(finishedOption?.disabled).toBe(true);
-    expect(activeOption?.disabled).toBe(false);
+    const combobox = screen.getByLabelText(/epic \(optional\)/i);
+    await user.click(combobox);
+    const finishedOption = screen.getByRole('option', { name: /Finished/ });
+    const activeOption = screen.getByRole('option', { name: /Active/ });
+    expect(finishedOption).toHaveAttribute('aria-disabled', 'true');
+    expect(activeOption).not.toHaveAttribute('aria-disabled', 'true');
   });
 });

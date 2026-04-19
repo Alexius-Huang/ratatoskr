@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { TicketState, TicketType } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { useCreateTicket } from '../lib/ticketMutations';
+import { EpicCombobox } from './EpicCombobox';
 import { Modal } from './Modal';
 
 const TICKET_TYPES: TicketType[] = ['Task', 'Bug', 'Epic'];
@@ -30,7 +31,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
   const [type, setType] = useState<TicketType>('Task');
   const [title, setTitle] = useState('');
   const [state, setState] = useState<TicketState>('NOT_READY');
-  const [epicNum, setEpicNum] = useState<string>('');
+  const [epicNum, setEpicNum] = useState<number | null>(null);
   const [body, setBody] = useState('');
   const [bodyTouched, setBodyTouched] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
     setType('Task');
     setTitle('');
     setState('NOT_READY');
-    setEpicNum('');
+    setEpicNum(null);
     setBody('');
     setBodyTouched(false);
     setSubmitError(null);
@@ -68,7 +69,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
         type,
         title: trimmed,
         state,
-        epic: (type !== 'Epic' && epicNum) ? Number(epicNum) : undefined,
+        epic: (type !== 'Epic' && epicNum !== null) ? epicNum : undefined,
         body: body || scaffoldBody(trimmed),
       });
       handleClose();
@@ -119,7 +120,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
               value={type}
               onChange={(e) => {
                 setType(e.target.value as TicketType);
-                if (e.target.value === 'Epic') setEpicNum('');
+                if (e.target.value === 'Epic') setEpicNum(null);
               }}
               className="bg-nord-2 border border-nord-3 rounded px-2 py-1.5 text-sm text-nord-6 focus:outline-none focus:border-nord-8"
             >
@@ -141,23 +142,11 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
           {type !== 'Epic' && (
             <label className="flex flex-col gap-1 flex-1">
               <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Epic (optional)</span>
-              <select
+              <EpicCombobox
+                epics={epicsQuery.data ?? []}
                 value={epicNum}
-                onChange={(e) => setEpicNum(e.target.value)}
-                className="bg-nord-2 border border-nord-3 rounded px-2 py-1.5 text-sm text-nord-6 focus:outline-none focus:border-nord-8"
-              >
-                <option value="">(no epic)</option>
-                {epicsQuery.data?.map((e) => (
-                  <option
-                    key={e.number}
-                    value={String(e.number)}
-                    disabled={e.state === 'DONE'}
-                    title={e.state === 'DONE' ? 'Completed — cannot assign new tickets' : undefined}
-                  >
-                    {e.displayId} — {e.title}{e.state === 'DONE' ? ' (completed)' : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={setEpicNum}
+              />
             </label>
           )}
         </div>
