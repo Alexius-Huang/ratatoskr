@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { vi } from 'vitest';
 import type { TicketSummary } from '../../server/types';
+import { ticketsKey } from './queryKeys';
 import { useTransitionTicketState } from './ticketMutations';
 
 function makeWrapper(qc: QueryClient) {
@@ -25,7 +26,7 @@ const baseTicket: TicketSummary = {
 describe('useTransitionTicketState', () => {
   it('should optimistically update the tickets cache before the PATCH resolves', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    qc.setQueryData(['tickets', 'ratatoskr', 'Task,Bug'], [baseTicket]);
+    qc.setQueryData(ticketsKey('ratatoskr', 'Task,Bug'), [baseTicket]);
 
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
 
@@ -36,7 +37,7 @@ describe('useTransitionTicketState', () => {
     result.current.mutate({ num: 1, state: 'DONE' });
 
     await waitFor(() => {
-      const data = qc.getQueryData<TicketSummary[]>(['tickets', 'ratatoskr', 'Task,Bug']);
+      const data = qc.getQueryData<TicketSummary[]>(ticketsKey('ratatoskr', 'Task,Bug'));
       expect(data?.[0].state).toBe('DONE');
     });
 
@@ -45,7 +46,7 @@ describe('useTransitionTicketState', () => {
 
   it('should roll back the optimistic update when the PATCH fails', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    qc.setQueryData(['tickets', 'ratatoskr', 'Task,Bug'], [baseTicket]);
+    qc.setQueryData(ticketsKey('ratatoskr', 'Task,Bug'), [baseTicket]);
 
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Network error'))));
 
@@ -56,7 +57,7 @@ describe('useTransitionTicketState', () => {
     result.current.mutate({ num: 1, state: 'DONE' });
 
     await waitFor(() => {
-      const data = qc.getQueryData<TicketSummary[]>(['tickets', 'ratatoskr', 'Task,Bug']);
+      const data = qc.getQueryData<TicketSummary[]>(ticketsKey('ratatoskr', 'Task,Bug'));
       expect(data?.[0].state).toBe('READY');
     });
 
@@ -65,7 +66,7 @@ describe('useTransitionTicketState', () => {
 
   it('should invalidate the tickets cache on success', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    qc.setQueryData(['tickets', 'ratatoskr', 'Task,Bug'], [baseTicket]);
+    qc.setQueryData(ticketsKey('ratatoskr', 'Task,Bug'), [baseTicket]);
 
     const ticketDetail = { ...baseTicket, state: 'DONE' };
     vi.stubGlobal('fetch', vi.fn(() =>
@@ -87,7 +88,7 @@ describe('useTransitionTicketState', () => {
     const calls = invalidateSpy.mock.calls;
     const ticketsCacheInvalidated = calls.some(([opts]) => {
       if (opts && 'predicate' in opts && typeof opts.predicate === 'function') {
-        return opts.predicate({ queryKey: ['tickets', 'ratatoskr', 'Task,Bug'] } as unknown as Parameters<typeof opts.predicate>[0]);
+        return opts.predicate({ queryKey: ticketsKey('ratatoskr', 'Task,Bug') } as unknown as Parameters<typeof opts.predicate>[0]);
       }
       return false;
     });

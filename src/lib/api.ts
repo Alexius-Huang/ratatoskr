@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ticketsKey } from './queryKeys';
 import type {
   ArchivedTicketRecord,
   PlanResponse,
@@ -64,7 +65,7 @@ export function useTickets(
 ) {
   const csv = encodeTypes(type);
   return useQuery({
-    queryKey: ['tickets', projectName, csv ?? 'all'],
+    queryKey: ticketsKey(projectName as string, csv),
     queryFn: () => fetchTickets(projectName as string, type),
     enabled: projectName !== null,
   });

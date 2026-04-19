@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CreateTicketRequest, TicketDetail, TicketState, TicketSummary, UpdateTicketRequest } from '../../server/types';
 import { apiFetch } from './api';
+import { ticketsInvalidationPredicate } from './queryKeys';
 
 export function useCreateTicket(projectName: string) {
   const queryClient = useQueryClient();
@@ -12,10 +13,7 @@ export function useCreateTicket(projectName: string) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === 'tickets' &&
-          q.queryKey[1] === projectName,
+        predicate: ticketsInvalidationPredicate(projectName),
       });
     },
   });
@@ -31,10 +29,7 @@ export function useUpdateTicket(projectName: string, number: number) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === 'tickets' &&
-          q.queryKey[1] === projectName,
+        predicate: ticketsInvalidationPredicate(projectName),
       });
       queryClient.invalidateQueries({ queryKey: ['ticket', projectName, number] });
     },
@@ -51,10 +46,7 @@ export function useArchiveTicket(projectName: string) {
       ),
     onSuccess: (_data, num) => {
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === 'tickets' &&
-          q.queryKey[1] === projectName,
+        predicate: ticketsInvalidationPredicate(projectName),
       });
       queryClient.invalidateQueries({ queryKey: ['archive', projectName] });
       queryClient.invalidateQueries({ queryKey: ['ticket', projectName, num] });
@@ -72,10 +64,7 @@ export function useArchiveDoneTickets(projectName: string) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === 'tickets' &&
-          q.queryKey[1] === projectName,
+        predicate: ticketsInvalidationPredicate(projectName),
       });
       queryClient.invalidateQueries({ queryKey: ['archive', projectName] });
     },
@@ -92,10 +81,7 @@ export function useMarkEpicDone(projectName: string) {
       ),
     onSuccess: (_data, num) => {
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === 'tickets' &&
-          q.queryKey[1] === projectName,
+        predicate: ticketsInvalidationPredicate(projectName),
       });
       queryClient.invalidateQueries({ queryKey: ['ticket', projectName, num] });
     },
@@ -104,10 +90,7 @@ export function useMarkEpicDone(projectName: string) {
 
 export function useTransitionTicketState(projectName: string) {
   const queryClient = useQueryClient();
-  const ticketsPredicate = (q: { queryKey: readonly unknown[] }) =>
-    Array.isArray(q.queryKey) &&
-    q.queryKey[0] === 'tickets' &&
-    q.queryKey[1] === projectName;
+  const ticketsPredicate = ticketsInvalidationPredicate(projectName);
   return useMutation({
     mutationFn: ({ num, state }: { num: number; state: TicketState }) =>
       apiFetch<TicketDetail>(
@@ -143,10 +126,7 @@ export function useUnarchiveTicket(projectName: string) {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          q.queryKey[0] === 'tickets' &&
-          q.queryKey[1] === projectName,
+        predicate: ticketsInvalidationPredicate(projectName),
       });
       queryClient.invalidateQueries({ queryKey: ['archive', projectName] });
     },
