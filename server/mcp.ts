@@ -73,6 +73,8 @@ export async function patchTicketHandler(args: {
   body?: string;
   plan_doc?: string | null;
   color?: string | null;
+  branch?: string | null;
+  pr?: string;
 }): Promise<ToolResult> {
   const { project, number, ...payload } = args;
   return dispatch(

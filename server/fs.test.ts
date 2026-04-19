@@ -5,6 +5,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  _gh,
   getWorkspaceRoot,
   listTickets,
   parseTicketFileRaw,
@@ -12,6 +13,7 @@ import {
   readTicketDetail,
   readTicketPlan,
 } from './fs';
+import type { PullRequestInfo } from './types';
 
 const PROJECT = 'ratatoskr';
 const PREFIX = 'RAT';
@@ -270,5 +272,107 @@ describe('readTicketDetail — epicColor propagation', () => {
 
     const detail = await readTicketDetail(PROJECT, 2, PREFIX);
     expect(detail?.epicColor).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+async function makeConfigFile(overrides: Record<string, unknown> = {}) {
+  const { mkdir: mkdirFs } = await import('node:fs/promises');
+  const configDir = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr');
+  await mkdirFs(configDir, { recursive: true });
+  const config = { prefix: PREFIX, name: PROJECT, ...overrides };
+  await writeFile(path.join(configDir, 'config.json'), JSON.stringify(config), 'utf8');
+}
+
+describe('parseTicketFileRaw — branch and prs fields', () => {
+  it('should extract branch when present', async () => {
+    await makeTicketFile(tasksDirPath, 1, { branch: 'feat/my-branch' });
+    const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
+    expect(result?.summary.branch).toBe('feat/my-branch');
+  });
+
+  it('should extract prs array when present', async () => {
+    await makeTicketFile(tasksDirPath, 1, { prs: ['owner/repo/pull/5', 'owner/repo/pull/6'] });
+    const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
+    expect(result?.summary.prs).toEqual(['owner/repo/pull/5', 'owner/repo/pull/6']);
+  });
+
+  it('should ignore non-string entries in prs', async () => {
+    await makeTicketFile(tasksDirPath, 1, { prs: ['owner/repo/pull/1', 42, null, ''] });
+    const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
+    expect(result?.summary.prs).toEqual(['owner/repo/pull/1']);
+  });
+
+  it('should leave summary unchanged when branch/prs absent', async () => {
+    await makeTicketFile(tasksDirPath, 1, {});
+    const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
+    expect(result?.summary.branch).toBeUndefined();
+    expect(result?.summary.prs).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('readTicketDetail — pullRequests enrichment', () => {
+  const fakePR: PullRequestInfo = {
+    url: 'https://github.com/owner/repo/pull/1',
+    number: 1,
+    title: 'Test PR',
+    state: 'OPEN',
+  };
+  const originalFetch = _gh.fetchPullRequest;
+
+  afterEach(() => {
+    _gh.fetchPullRequest = originalFetch;
+  });
+
+  it('should return pullRequests populated by the injected fetcher', async () => {
+    _gh.fetchPullRequest = async () => ({ ...fakePR });
+    await makeTicketFile(tasksDirPath, 1, { prs: ['owner/repo/pull/1'] });
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.pullRequests).toHaveLength(1);
+    expect(detail?.pullRequests?.[0].number).toBe(1);
+    expect(detail?.pullRequests?.[0].title).toBe('Test PR');
+  });
+
+  it('should omit pullRequests when prs is empty', async () => {
+    _gh.fetchPullRequest = async () => ({ ...fakePR });
+    await makeTicketFile(tasksDirPath, 1, {});
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.pullRequests).toBeUndefined();
+  });
+
+  it('should drop entries the fetcher returns null for', async () => {
+    _gh.fetchPullRequest = async () => null;
+    await makeTicketFile(tasksDirPath, 1, { prs: ['owner/repo/pull/1'] });
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.pullRequests).toBeUndefined();
+  });
+
+  it('should skip prs entries that cannot be parsed and have no fallback', async () => {
+    _gh.fetchPullRequest = async () => ({ ...fakePR });
+    await makeTicketFile(tasksDirPath, 1, { prs: ['not-a-valid-path'] });
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.pullRequests).toBeUndefined();
+  });
+
+  it('should use github_repo from config.json as fallback for bare-number prs entries', async () => {
+    await makeConfigFile({ github_repo: 'owner/repo' });
+    _gh.fetchPullRequest = async (parts) => ({
+      url: `https://github.com/${parts.owner}/${parts.repo}/pull/${parts.number}`,
+      number: parts.number,
+      title: 'Fallback PR',
+      state: 'MERGED',
+    });
+    await makeTicketFile(tasksDirPath, 1, { prs: ['42'] });
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.pullRequests).toHaveLength(1);
+    expect(detail?.pullRequests?.[0].number).toBe(42);
   });
 });

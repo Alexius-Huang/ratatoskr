@@ -3,6 +3,14 @@ export type RatatoskrConfig = {
   name?: string;
   description?: string;
   thumbnail?: string | null;
+  github_repo?: string;
+};
+
+export type PullRequestInfo = {
+  url: string;
+  number: number;
+  title: string;
+  state: string;
 };
 
 export type ProjectSummary = {
@@ -38,6 +46,8 @@ export type TicketSummary = {
   color?: string;
   state: TicketState;
   planDoc?: string;
+  branch?: string;
+  prs?: string[];
   created: string;
   updated: string;
   childCounts?: TicketChildCounts;
@@ -45,6 +55,7 @@ export type TicketSummary = {
 
 export type TicketDetail = TicketSummary & {
   body: string;
+  pullRequests?: PullRequestInfo[];
 };
 
 export type ArchivedTicketRecord = TicketSummary & {
@@ -73,6 +84,8 @@ export type UpdateTicketRequest = {
   body?: string;
   plan_doc?: string | null;
   color?: string | null;
+  branch?: string | null;
+  pr?: string;
 };
 
 export type ArchiveBlockedError = {

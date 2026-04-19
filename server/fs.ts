@@ -2,16 +2,21 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { readAppConfigSync } from './appConfig';
+import { fetchPullRequest, parsePrPath } from './github';
+import type { PrPathParts } from './github';
 import type {
   ArchivedTicketRecord,
   PlanResult,
   ProjectSummary,
+  PullRequestInfo,
   RatatoskrConfig,
   TicketDetail,
   TicketState,
   TicketSummary,
   TicketType,
 } from './types';
+
+export const _gh = { fetchPullRequest };
 
 export function getWorkspaceRoot(): string | null {
   const fromEnv = process.env.RATATOSKR_WORKSPACE_ROOT;
@@ -233,6 +238,15 @@ export async function parseTicketFileRaw(
     summary.color = fm.color;
   }
 
+  if (typeof fm.branch === 'string' && fm.branch.length > 0) {
+    summary.branch = fm.branch;
+  }
+
+  if (Array.isArray(fm.prs)) {
+    const valid = fm.prs.filter((p): p is string => typeof p === 'string' && p.length > 0);
+    if (valid.length > 0) summary.prs = valid;
+  }
+
   return { summary, content: parsed.content };
 }
 
@@ -274,9 +288,22 @@ export async function readTicketDetail(
     }
   }
 
+  let pullRequests: PullRequestInfo[] | undefined;
+  if (raw.summary.prs && raw.summary.prs.length > 0) {
+    const { config } = await readProjectConfig(projectName);
+    const fallback = config?.github_repo;
+    const parts = raw.summary.prs
+      .map((p) => parsePrPath(p, fallback))
+      .filter((x): x is PrPathParts => x !== null);
+    const results = await Promise.all(parts.map((p) => _gh.fetchPullRequest(p)));
+    const enriched = results.filter((r): r is PullRequestInfo => r !== null);
+    if (enriched.length > 0) pullRequests = enriched;
+  }
+
   return {
     ...raw.summary,
     body: stripLeadingH1(raw.content),
+    ...(pullRequests ? { pullRequests } : {}),
   };
 }
 

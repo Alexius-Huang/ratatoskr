@@ -463,3 +463,99 @@ describe('markEpicDone', () => {
     if (!result.ok) expect(result.error.kind).toBe('not-found');
   });
 });
+
+// ---------------------------------------------------------------------------
+
+async function makeConfigFile(overrides: Record<string, unknown> = {}) {
+  const configDir = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr');
+  await mkdir(configDir, { recursive: true });
+  const config = { prefix: PREFIX, name: PROJECT, ...overrides };
+  await writeFile(path.join(configDir, 'config.json'), JSON.stringify(config), 'utf8');
+}
+
+async function readFrontmatter(num: number): Promise<Record<string, unknown>> {
+  const raw = await readFile(path.join(tasksPath, `${num}.md`), 'utf8');
+  const parsed = matter(raw);
+  return { ...parsed.data };
+}
+
+describe('updateTicket — branch', () => {
+  it('should set branch on a ticket without one', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { branch: 'feat/my-branch' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.branch).toBe('feat/my-branch');
+    const fm = await readFrontmatter(1);
+    expect(fm.branch).toBe('feat/my-branch');
+  });
+
+  it('should overwrite an existing branch', async () => {
+    await makeTicketFile(tasksPath, 1, { branch: 'old-branch' });
+    await updateTicket(PROJECT, PREFIX, 1, { branch: 'new-branch' });
+    const fm = await readFrontmatter(1);
+    expect(fm.branch).toBe('new-branch');
+  });
+
+  it('should clear branch when patched with empty string', async () => {
+    await makeTicketFile(tasksPath, 1, { branch: 'feat/something' });
+    await updateTicket(PROJECT, PREFIX, 1, { branch: '' });
+    const fm = await readFrontmatter(1);
+    expect(fm.branch).toBeUndefined();
+  });
+
+  it('should clear branch when patched with null', async () => {
+    await makeTicketFile(tasksPath, 1, { branch: 'feat/something' });
+    await updateTicket(PROJECT, PREFIX, 1, { branch: null });
+    const fm = await readFrontmatter(1);
+    expect(fm.branch).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('updateTicket — pr', () => {
+  it('should append a pr to a ticket without prs', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { pr: 'owner/repo/pull/1' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.prs).toEqual(['owner/repo/pull/1']);
+    const fm = await readFrontmatter(1);
+    expect(fm.prs).toEqual(['owner/repo/pull/1']);
+  });
+
+  it('should append a pr to the end of an existing prs array', async () => {
+    await makeTicketFile(tasksPath, 1, { prs: ['owner/repo/pull/1'] });
+    await updateTicket(PROJECT, PREFIX, 1, { pr: 'owner/repo/pull/2' });
+    const fm = await readFrontmatter(1);
+    expect(fm.prs).toEqual(['owner/repo/pull/1', 'owner/repo/pull/2']);
+  });
+
+  it('should not duplicate a pr that already exists', async () => {
+    await makeTicketFile(tasksPath, 1, { prs: ['owner/repo/pull/1'] });
+    await updateTicket(PROJECT, PREFIX, 1, { pr: 'owner/repo/pull/1' });
+    const fm = await readFrontmatter(1);
+    expect(fm.prs).toEqual(['owner/repo/pull/1']);
+  });
+
+  it('should reject a pr with an invalid shape', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { pr: 'not-a-valid-path' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+
+  it('should accept a bare-number pr when github_repo is configured', async () => {
+    await makeConfigFile({ github_repo: 'owner/repo' });
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { pr: '42' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.prs).toEqual(['42']);
+  });
+
+  it('should reject a bare-number pr when github_repo is absent', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { pr: '42' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+});

@@ -4,10 +4,12 @@ import matter from 'gray-matter';
 import {
   archiveDir,
   listTickets,
+  readProjectConfig,
   readTicketDetail,
   TICKET_FILENAME_RE,
   tasksDir,
 } from './fs';
+import { parsePrPath } from './github';
 import { buildEpicSummaryBlock } from './epicSummary';
 import type {
   CreateTicketRequest,
@@ -167,7 +169,7 @@ export async function updateTicket(
   }
 
   const parsed = matter(raw);
-  const fm = parsed.data as Record<string, unknown>;
+  const fm = { ...parsed.data } as Record<string, unknown>;
 
   if (patch.title !== undefined) {
     const t = patch.title.trim();
@@ -229,6 +231,31 @@ export async function updateTicket(
     } else {
       fm.color = patch.color;
     }
+  }
+
+  if ('branch' in patch) {
+    if (patch.branch === null || patch.branch === '' || patch.branch === undefined) {
+      delete fm.branch;
+    } else if (typeof patch.branch !== 'string') {
+      return { ok: false, error: { kind: 'invalid-input', message: 'branch must be a string' } };
+    } else {
+      fm.branch = patch.branch;
+    }
+  }
+
+  if (patch.pr !== undefined) {
+    if (typeof patch.pr !== 'string' || patch.pr.length === 0) {
+      return { ok: false, error: { kind: 'invalid-input', message: 'pr must be a non-empty string' } };
+    }
+    const { config } = await readProjectConfig(projectName);
+    if (!parsePrPath(patch.pr, config?.github_repo)) {
+      return { ok: false, error: { kind: 'invalid-input', message: `invalid pr path: ${patch.pr}` } };
+    }
+    const existing = Array.isArray(fm.prs)
+      ? (fm.prs as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+    if (!existing.includes(patch.pr)) existing.push(patch.pr);
+    fm.prs = existing;
   }
 
   fm.updated = nowIso();
