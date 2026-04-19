@@ -120,6 +120,47 @@ pnpm tauri:build
 
 See the [Tauri code signing docs](https://tauri.app/distribute/sign/macos/) for the full workflow.
 
+## MCP server
+
+Ratatoskr exposes a Model Context Protocol (MCP) server over stdio that Claude Code can use directly — no Vite dev server or Tauri app required. The six tools (`list_projects`, `list_tickets`, `get_ticket`, `create_ticket`, `patch_ticket`, `archive_ticket`) delegate to the same Hono handlers as the HTTP API.
+
+### Dev loop
+
+```sh
+pnpm mcp:dev   # bun server/mcp.ts — runs the server over stdio
+```
+
+Connect an MCP client (e.g., the Claude Code CLI) to test interactively. Logs go to stderr; JSON goes over stdio.
+
+### Production build
+
+```sh
+pnpm build:mcp
+```
+
+Produces `src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin` (ad-hoc signed). This binary is referenced by `.mcp.json` at the workspace root.
+
+### Wiring with Claude Code
+
+`.mcp.json` at `ai-workspace/` root registers the binary:
+
+```json
+{
+  "mcpServers": {
+    "ratatoskr": {
+      "command": "./projects/ratatoskr/src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin"
+    }
+  }
+}
+```
+
+On the first session after adding `.mcp.json`, Claude Code prompts to approve the new `ratatoskr` server. After approval, tools appear as `mcp__ratatoskr__*` in every Claude Code session opened in this workspace.
+
+### Troubleshooting
+
+- **Tools not appearing**: restart Claude Code — MCP servers are loaded at session start.
+- **Binary blocked by Gatekeeper**: run `pnpm build:mcp` again (it re-applies the adhoc codesign). Verify with `codesign -dv src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin`.
+
 ## Related docs
 
 - Spec / draft: `ai-workspace/scratch/20260418_ratatoskr-draft.md`

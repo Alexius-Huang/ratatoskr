@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:server": "~/.bun/bin/bun build ./server/prod.ts --compile --outfile ./src-tauri/binaries/ratatoskr-server-aarch64-apple-darwin && codesign --remove-signature ./src-tauri/binaries/ratatoskr-server-aarch64-apple-darwin 2>/dev/null; codesign --force --sign - ./src-tauri/binaries/ratatoskr-server-aarch64-apple-darwin",
+    "build:mcp": "~/.bun/bin/bun build ./server/mcp.ts --compile --outfile ./src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin && codesign --remove-signature ./src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin 2>/dev/null; codesign --force --sign - ./src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin",
+    "mcp:dev": "~/.bun/bin/bun server/mcp.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "pnpm build && pnpm build:server && tauri build"
@@ -18,6 +20,7 @@
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.8.0",
     "@hono/vite-dev-server": "^0.25.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@tanstack/react-query": "^5.99.0",
     "gray-matter": "^4.0.3",
     "hono": "^4.12.14",
@@ -26,6 +29,7 @@
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.1",
+    "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
