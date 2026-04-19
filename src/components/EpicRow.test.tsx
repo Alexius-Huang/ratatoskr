@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { TicketSummary } from '../../server/types';
 import { EpicRow } from './EpicRow';
 
@@ -95,5 +96,34 @@ describe('EpicRow', () => {
     expect(fill.style.width).toBe('100%');
     expect(screen.getByText(/3\/3/)).toBeDefined();
     expect(screen.getByText('100%')).toBeDefined();
+  });
+
+  it('should render the color swatch button when onColorChange is provided', () => {
+    render(
+      <EpicRow ticket={makeEpic({ color: '#A3BE8C' })} isSelected={false} onClick={noop} onColorChange={vi.fn()} />,
+    );
+    expect(screen.getByRole('button', { name: /epic color/i })).toBeDefined();
+  });
+
+  it('should forward swatch selection to onColorChange', async () => {
+    const user = userEvent.setup();
+    const onColorChange = vi.fn();
+    render(
+      <EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} onColorChange={onColorChange} />,
+    );
+    const swatch = screen.getByRole('button', { name: /epic color|set epic/i });
+    await user.click(swatch);
+    await user.click(screen.getByLabelText('#BF616A'));
+    expect(onColorChange).toHaveBeenCalledWith('#BF616A');
+  });
+
+  it('should not invoke row onClick when the swatch is clicked', async () => {
+    const user = userEvent.setup();
+    const rowClick = vi.fn();
+    render(
+      <EpicRow ticket={makeEpic()} isSelected={false} onClick={rowClick} onColorChange={vi.fn()} />,
+    );
+    await user.click(screen.getByRole('button', { name: /epic color|set epic/i }));
+    expect(rowClick).not.toHaveBeenCalled();
   });
 });

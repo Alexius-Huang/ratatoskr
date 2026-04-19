@@ -1,6 +1,7 @@
 import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useEffect, useRef, useState } from 'react';
 import type { TicketSummary } from '../../server/types';
+import { defaultEpicColor, tagStyle } from '../lib/epicColor';
 
 export function BoardCard({ ticket }: { ticket: TicketSummary }) {
   const epicLabel =
@@ -33,14 +34,14 @@ export function BoardCard({ ticket }: { ticket: TicketSummary }) {
         <span>{ticket.displayId}</span>
       </div>
       <div className="text-nord-6 leading-snug mb-2">{ticket.title}</div>
-      {epicLabel !== null && (
-        <span
-          className="inline-block max-w-full truncate px-2 py-0.5 rounded bg-nord-15/20 text-nord-15 text-xs font-medium"
-          title={epicLabel}
-        >
-          {epicLabel}
-        </span>
-      )}
+      {epicLabel !== null && ticket.epic !== undefined && (() => {
+        const s = tagStyle(ticket.epicColor ?? defaultEpicColor(ticket.epic));
+        return (
+          <span className={s.className} style={s.style} title={epicLabel}>
+            {epicLabel}
+          </span>
+        );
+      })()}
     </article>
   );
 }

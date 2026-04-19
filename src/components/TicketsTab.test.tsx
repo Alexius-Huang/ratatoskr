@@ -179,4 +179,24 @@ describe('TicketsTab', () => {
     expect(screen.getByText('RAT-2')).toBeInTheDocument();
     expect(screen.getByText('RAT-3')).toBeInTheDocument();
   });
+
+  it('should render the epic tag with inline color when epicColor is present on a ticket', () => {
+    const ticketWithColor: TicketSummary = {
+      number: 4,
+      displayId: 'RAT-4',
+      type: 'Task',
+      title: 'Task four',
+      state: 'READY',
+      epic: 10,
+      epicTitle: 'Epic one',
+      epicColor: '#88C0D0',
+      created: '',
+      updated: '',
+    };
+    setupMocks([ticketWithColor]);
+    render();
+    const tag = document.querySelector('[title="Epic one"]') as HTMLElement;
+    expect(tag).not.toBeNull();
+    expect(tag).toHaveStyle({ color: '#88C0D0' });
+  });
 });

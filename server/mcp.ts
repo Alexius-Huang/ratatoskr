@@ -72,6 +72,7 @@ export async function patchTicketHandler(args: {
   epic?: number | null;
   body?: string;
   plan_doc?: string | null;
+  color?: string | null;
 }): Promise<ToolResult> {
   const { project, number, ...payload } = args;
   return dispatch(
@@ -135,6 +136,7 @@ export function buildServer(): McpServer {
       epic: z.number().int().positive().nullable().optional(),
       body: z.string().optional(),
       plan_doc: z.string().nullable().optional(),
+      color: z.string().nullable().optional(),
     },
     async (args) => patchTicketHandler(args),
   );

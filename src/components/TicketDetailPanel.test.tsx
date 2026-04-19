@@ -171,4 +171,17 @@ describe('TicketDetailPanel', () => {
       expect(screen.getByText(/archive failed.*boom/i)).toBeInTheDocument();
     });
   });
+
+  it('should render the epic tag with inline color when epicColor is present', () => {
+    const taskWithColoredEpic: TicketDetail = {
+      ...taskFixture,
+      epic: 3,
+      epicTitle: 'Colored Epic',
+      epicColor: '#A3BE8C',
+    };
+    renderPanel(taskWithColoredEpic);
+    const tag = document.querySelector('[title="Colored Epic"]') as HTMLElement;
+    expect(tag).not.toBeNull();
+    expect(tag).toHaveStyle({ color: '#A3BE8C' });
+  });
 });

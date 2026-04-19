@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
+import { defaultEpicColor, tagStyle } from '../lib/epicColor';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { extractTicketNumber } from '../lib/ticketId';
 import { useArchiveDoneTickets } from '../lib/ticketMutations';
@@ -154,14 +155,18 @@ export function TicketsTab() {
                   </span>
                 </td>
                 <td className="py-2">
-                  {epicLabel !== null && (
-                    <span
-                      className="inline-block max-w-[14rem] truncate align-middle px-2 py-0.5 rounded bg-nord-15/20 text-nord-15 text-xs font-medium"
-                      title={epicLabel}
-                    >
-                      {epicLabel}
-                    </span>
-                  )}
+                  {epicLabel !== null && t.epic !== undefined && (() => {
+                    const s = tagStyle(t.epicColor ?? defaultEpicColor(t.epic));
+                    return (
+                      <span
+                        className={`${s.className} max-w-[14rem] align-middle`}
+                        style={s.style}
+                        title={epicLabel}
+                      >
+                        {epicLabel}
+                      </span>
+                    );
+                  })()}
                 </td>
               </tr>
             );

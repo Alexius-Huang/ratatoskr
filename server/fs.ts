@@ -229,6 +229,10 @@ export async function parseTicketFileRaw(
     summary.planDoc = fm.plan_doc;
   }
 
+  if (fm.type === 'Epic' && typeof fm.color === 'string' && /^#[0-9a-f]{6}$/i.test(fm.color)) {
+    summary.color = fm.color;
+  }
+
   return { summary, content: parsed.content };
 }
 
@@ -266,6 +270,7 @@ export async function readTicketDetail(
     );
     if (epicRaw && epicRaw.summary.type === 'Epic') {
       raw.summary.epicTitle = epicRaw.summary.title;
+      if (epicRaw.summary.color) raw.summary.epicColor = epicRaw.summary.color;
     }
   }
 
@@ -343,10 +348,12 @@ export async function listTickets(
   // reference an epic in page M without the client needing both).
   const epicIds = new Set<number>();
   const epicTitles = new Map<number, string>();
+  const epicColors = new Map<number, string>();
   for (const t of valid) {
     if (t.type === 'Epic') {
       epicIds.add(t.number);
       epicTitles.set(t.number, t.title);
+      if (t.color) epicColors.set(t.number, t.color);
     }
   }
   for (const t of valid) {
@@ -359,6 +366,8 @@ export async function listTickets(
       }
       const title = epicTitles.get(t.epic);
       if (title !== undefined) t.epicTitle = title;
+      const color = epicColors.get(t.epic);
+      if (color !== undefined) t.epicColor = color;
     }
   }
 

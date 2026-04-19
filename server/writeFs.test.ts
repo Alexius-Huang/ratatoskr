@@ -273,3 +273,39 @@ describe('archiveDoneTickets', () => {
     await expect(stat(path.join(tasksPath, '1.md'))).resolves.toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('updateTicket — color field', () => {
+  it('should persist a valid color on an Epic', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { color: '#A3BE8C' });
+    expect(result.ok).toBe(true);
+    const raw = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data } = matter(raw);
+    expect(data.color).toBe('#A3BE8C');
+  });
+
+  it('should delete color when patched with null', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', color: '#A3BE8C' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { color: null });
+    expect(result.ok).toBe(true);
+    const raw = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data } = matter(raw);
+    expect(data.color).toBeUndefined();
+  });
+
+  it('should return invalid-input for a non-hex color string', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { color: 'purple' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+
+  it('should return invalid-input when setting color on a Task', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Task', title: 'T' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { color: '#A3BE8C' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+});

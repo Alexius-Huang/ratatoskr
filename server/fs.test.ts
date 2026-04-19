@@ -9,6 +9,7 @@ import {
   listTickets,
   parseTicketFileRaw,
   readProjectConfig,
+  readTicketDetail,
   readTicketPlan,
 } from './fs';
 
@@ -202,5 +203,72 @@ describe('getWorkspaceRoot', () => {
     } finally {
       process.env.RATATOSKR_WORKSPACE_ROOT = savedEnv;
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('parseTicketFileRaw — color field', () => {
+  it('should extract color from an Epic with a valid hex color', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'E', color: '#BF616A' });
+    const filePath = path.join(tasksDirPath, '1.md');
+    const result = await parseTicketFileRaw(filePath, 1, PREFIX);
+    expect(result?.summary.color).toBe('#BF616A');
+  });
+
+  it('should ignore color on a Task (only Epics may carry color)', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Task', title: 'T', color: '#BF616A' });
+    const filePath = path.join(tasksDirPath, '1.md');
+    const result = await parseTicketFileRaw(filePath, 1, PREFIX);
+    expect(result?.summary.color).toBeUndefined();
+  });
+
+  it('should ignore an invalid hex color on an Epic', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'E', color: 'purple' });
+    const filePath = path.join(tasksDirPath, '1.md');
+    const result = await parseTicketFileRaw(filePath, 1, PREFIX);
+    expect(result?.summary.color).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('listTickets — epicColor propagation', () => {
+  it('should propagate the parent Epic color to child task epicColor', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'E', color: '#A3BE8C' });
+    await makeTicketFile(tasksDirPath, 2, { type: 'Task', title: 'T', epic: 1 });
+
+    const tickets = await listTickets(PROJECT, PREFIX);
+    const task = tickets.find((t) => t.number === 2);
+    expect(task?.epicColor).toBe('#A3BE8C');
+  });
+
+  it('should leave epicColor undefined when parent Epic has no color', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'E' });
+    await makeTicketFile(tasksDirPath, 2, { type: 'Task', title: 'T', epic: 1 });
+
+    const tickets = await listTickets(PROJECT, PREFIX);
+    const task = tickets.find((t) => t.number === 2);
+    expect(task?.epicColor).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('readTicketDetail — epicColor propagation', () => {
+  it('should populate epicColor when parent Epic has a color', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'E', color: '#88C0D0' });
+    await makeTicketFile(tasksDirPath, 2, { type: 'Task', title: 'T', epic: 1 });
+
+    const detail = await readTicketDetail(PROJECT, 2, PREFIX);
+    expect(detail?.epicColor).toBe('#88C0D0');
+  });
+
+  it('should leave epicColor undefined when parent Epic has no color', async () => {
+    await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'E' });
+    await makeTicketFile(tasksDirPath, 2, { type: 'Task', title: 'T', epic: 1 });
+
+    const detail = await readTicketDetail(PROJECT, 2, PREFIX);
+    expect(detail?.epicColor).toBeUndefined();
   });
 });

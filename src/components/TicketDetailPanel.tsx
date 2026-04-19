@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError, useTicketDetail, useTicketPlan } from '../lib/api';
+import { defaultEpicColor, tagStyle } from '../lib/epicColor';
 import { useArchiveTicket } from '../lib/ticketMutations';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { EditTicketModal } from './EditTicketModal';
@@ -146,14 +147,14 @@ export function TicketDetailPanel({
         >
           {stateLabel(data.state)}
         </span>
-        {epicLabel !== null && (
-          <span
-            className="inline-block max-w-full truncate px-2 py-0.5 rounded bg-nord-15/20 text-nord-15 text-xs font-medium"
-            title={epicLabel}
-          >
-            {epicLabel}
-          </span>
-        )}
+        {epicLabel !== null && data.epic !== undefined && (() => {
+          const s = tagStyle(data.epicColor ?? defaultEpicColor(data.epic));
+          return (
+            <span className={s.className} style={s.style} title={epicLabel}>
+              {epicLabel}
+            </span>
+          );
+        })()}
         <span className="text-xs text-nord-4">{data.type}</span>
       </div>
       <MarkdownBody source={data.body} />

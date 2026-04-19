@@ -177,6 +177,19 @@ export async function updateTicket(
     }
   }
 
+  if ('color' in patch) {
+    if (fm.type !== 'Epic') {
+      return { ok: false, error: { kind: 'invalid-input', message: 'color only allowed on Epic' } };
+    }
+    if (patch.color === null || patch.color === '' || patch.color === undefined) {
+      delete fm.color;
+    } else if (typeof patch.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(patch.color)) {
+      return { ok: false, error: { kind: 'invalid-input', message: 'color must be a 6-digit hex (e.g. #7C3AED)' } };
+    } else {
+      fm.color = patch.color;
+    }
+  }
+
   fm.updated = nowIso();
 
   const newContent = patch.body !== undefined ? patch.body : parsed.content;

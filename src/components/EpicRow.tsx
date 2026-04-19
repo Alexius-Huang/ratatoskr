@@ -1,5 +1,6 @@
 import type { TicketState, TicketSummary } from '../../server/types';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
+import { EpicColorSwatchButton } from './EpicColorSwatchButton';
 
 const STATE_ORDER: readonly TicketState[] = [
   'DONE',
@@ -15,11 +16,13 @@ export function EpicRow({
   isSelected,
   onClick,
   onViewTickets,
+  onColorChange,
 }: {
   ticket: TicketSummary;
   isSelected: boolean;
   onClick: () => void;
   onViewTickets?: () => void;
+  onColorChange?: (hex: string | null) => void;
 }) {
   const counts = ticket.childCounts ?? {
     total: 0,
@@ -47,6 +50,13 @@ export function EpicRow({
       }`}
     >
       <div className="flex items-baseline gap-3 mb-1.5">
+        {onColorChange && (
+          <EpicColorSwatchButton
+            epicNumber={ticket.number}
+            color={ticket.color}
+            onChange={onColorChange}
+          />
+        )}
         <span className="font-mono text-nord-8 text-sm shrink-0">
           {ticket.displayId}
         </span>

@@ -93,4 +93,18 @@ describe('EpicSearchFilter', () => {
     const items = screen.getAllByRole('button');
     expect(items.length).toBe(10);
   });
+
+  it('should apply inline color style to the active chip when the epic has a color', () => {
+    const coloredEpic = { ...epic1, color: '#A3BE8C' };
+    render(
+      <EpicSearchFilter
+        epics={[coloredEpic, epic2]}
+        activeEpicNumber={coloredEpic.number}
+        onEpicChange={vi.fn()}
+      />,
+    );
+    // The chip container div should have inline bg and text color
+    const chip = screen.getByText(/Epic one/i).closest('div') as HTMLElement;
+    expect(chip).toHaveStyle({ color: '#A3BE8C' });
+  });
 });

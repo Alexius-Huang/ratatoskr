@@ -2,9 +2,35 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { extractTicketNumber } from '../lib/ticketId';
+import { useUpdateTicket } from '../lib/ticketMutations';
 import { EpicRow } from './EpicRow';
 import { SplitPane } from './SplitPane';
 import { TicketDetailPanel } from './TicketDetailPanel';
+
+function EpicRowWithMutation({
+  epic,
+  isSelected,
+  onClick,
+  onViewTickets,
+  projectName,
+}: {
+  epic: TicketSummary;
+  isSelected: boolean;
+  onClick: () => void;
+  onViewTickets: () => void;
+  projectName: string;
+}) {
+  const updateTicket = useUpdateTicket(projectName, epic.number);
+  return (
+    <EpicRow
+      ticket={epic}
+      isSelected={isSelected}
+      onClick={onClick}
+      onViewTickets={onViewTickets}
+      onColorChange={(hex) => updateTicket.mutate({ color: hex })}
+    />
+  );
+}
 
 export function EpicsTab() {
   const { name } = useParams<{ name: string }>();
@@ -60,12 +86,13 @@ export function EpicsTab() {
   const list = (
     <div className="h-full overflow-y-auto">
       {sorted.map((e) => (
-        <EpicRow
+        <EpicRowWithMutation
           key={e.number}
-          ticket={e}
+          epic={e}
           isSelected={e.displayId === inspectParam}
           onClick={() => toggleInspect(e)}
           onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
+          projectName={name ?? ''}
         />
       ))}
     </div>

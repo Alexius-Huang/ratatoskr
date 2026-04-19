@@ -34,6 +34,8 @@ export type TicketSummary = {
   title: string;
   epic?: number;
   epicTitle?: string;
+  epicColor?: string;
+  color?: string;
   state: TicketState;
   planDoc?: string;
   created: string;
@@ -70,6 +72,7 @@ export type UpdateTicketRequest = {
   epic?: number | null;
   body?: string;
   plan_doc?: string | null;
+  color?: string | null;
 };
 
 export type ArchiveBlockedError = {

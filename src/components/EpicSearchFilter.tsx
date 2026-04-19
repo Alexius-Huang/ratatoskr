@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { useState } from 'react';
 import type { TicketSummary } from '../../server/types';
+import { defaultEpicColor } from '../lib/epicColor';
 
 type EpicSearchFilterProps = {
   epics: TicketSummary[];
@@ -67,8 +68,13 @@ export function EpicSearchFilter({ epics, activeEpicNumber, onEpicChange }: Epic
         )}
       </div>
 
-      {activeEpic && (
-        <div className="flex items-center gap-1 pl-2 pr-1 py-1 rounded bg-nord-10 text-nord-6 text-xs font-medium max-w-56">
+      {activeEpic && (() => {
+        const chipColor = activeEpic.color ?? defaultEpicColor(activeEpic.number);
+        return (
+        <div
+          className="flex items-center gap-1 pl-2 pr-1 py-1 rounded text-xs font-medium max-w-56"
+          style={{ backgroundColor: `${chipColor}33`, color: chipColor }}
+        >
           <span className="truncate">
             {activeEpic.displayId} — {activeEpic.title}
           </span>
@@ -76,12 +82,13 @@ export function EpicSearchFilter({ epics, activeEpicNumber, onEpicChange }: Epic
             type="button"
             onClick={() => onEpicChange(null)}
             aria-label="Clear epic filter"
-            className="shrink-0 ml-0.5 rounded hover:bg-nord-9/50 p-0.5 transition-colors"
+            className="shrink-0 ml-0.5 rounded hover:opacity-70 p-0.5 transition-opacity"
           >
             <X className="w-3 h-3" />
           </button>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
