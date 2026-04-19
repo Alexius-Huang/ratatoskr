@@ -23,6 +23,10 @@ vi.mock('./EditTicketModal', () => ({
   EditTicketModal: () => null,
 }));
 
+vi.mock('../lib/openExternal', () => ({
+  openExternal: vi.fn(),
+}));
+
 vi.mock('./MarkdownBody', () => ({
   MarkdownBody: ({ source }: { source: string }) => (
     <div data-testid="markdown-body">{source}</div>
@@ -30,11 +34,13 @@ vi.mock('./MarkdownBody', () => ({
 }));
 
 import { useTicketDetail, useTicketPlan } from '../lib/api';
+import { openExternal } from '../lib/openExternal';
 import { useArchiveTicket } from '../lib/ticketMutations';
 
 const mockUseTicketDetail = vi.mocked(useTicketDetail);
 const mockUseTicketPlan = vi.mocked(useTicketPlan);
 const mockUseArchiveTicket = vi.mocked(useArchiveTicket);
+const mockOpenExternal = vi.mocked(openExternal);
 
 const taskFixture: TicketDetail = {
   number: 5,
@@ -115,6 +121,7 @@ describe('TicketDetailPanel', () => {
   beforeEach(() => {
     archiveMutateFn.mockReset();
     archiveMutateAsyncFn.mockReset();
+    mockOpenExternal.mockReset();
     setupArchiveMock();
     setupPlanMock('The plan content');
   });
@@ -183,5 +190,40 @@ describe('TicketDetailPanel', () => {
     const tag = document.querySelector('[title="Colored Epic"]') as HTMLElement;
     expect(tag).not.toBeNull();
     expect(tag).toHaveStyle({ color: '#A3BE8C' });
+  });
+
+  it('should render the branch chip when branch is set', () => {
+    renderPanel({ ...taskFixture, branch: 'rat-75-ui' });
+    expect(screen.getByText('Branch')).toBeInTheDocument();
+    expect(screen.getByText('rat-75-ui')).toBeInTheDocument();
+  });
+
+  it('should render a PR row for each pullRequest', () => {
+    renderPanel({
+      ...taskFixture,
+      pullRequests: [
+        { url: 'https://github.com/owner/repo/pull/12', number: 12, title: 'RAT-63: First PR', state: 'OPEN' },
+        { url: 'https://github.com/owner/repo/pull/13', number: 13, title: 'RAT-64: Second PR', state: 'MERGED' },
+      ],
+    });
+    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
+    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.getByText('RAT-63: First PR', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('#13')).toBeInTheDocument();
+    expect(screen.getByText('RAT-64: Second PR', { exact: false })).toBeInTheDocument();
+  });
+
+  it('should call openExternal when a PR row is clicked', async () => {
+    const user = userEvent.setup();
+    const prUrl = 'https://github.com/owner/repo/pull/12';
+    renderPanel({
+      ...taskFixture,
+      pullRequests: [
+        { url: prUrl, number: 12, title: 'RAT-63: Test PR', state: 'OPEN' },
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Open PR #12/i }));
+    expect(mockOpenExternal).toHaveBeenCalledOnce();
+    expect(mockOpenExternal).toHaveBeenCalledWith(prUrl);
   });
 });
