@@ -51,7 +51,7 @@
       "endpoints": [
         "https://github.com/Alexius-Huang/ratatoskr/releases/latest/download/latest.json"
       ],
-      "pubkey": "REPLACE_WITH_PUBKEY_FROM_ratatoskr.key.pub"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhGRUM3NDhENUI0MDkxRQpSV1FlQ2JUVlNNZitDTzh5eWxHbGJaQjJLL01OSUV4VmZya2JXVVJBazZrb3M5aEc2NlNPQTJ2Qgo="
     }
   }
 }
