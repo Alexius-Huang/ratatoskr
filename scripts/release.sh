@@ -12,8 +12,11 @@ if [[ -z "$NOTES" ]]; then
   exit 1
 fi
 
+# Ensure Rust toolchain is on PATH
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
+
 # Check required tools
-for cmd in jq gh pnpm; do
+for cmd in jq gh pnpm cargo; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: $cmd is not installed" >&2
     exit 1
@@ -38,13 +41,13 @@ fi
 
 echo "Building $TAG..."
 
-export TAURI_SIGNING_PRIVATE_KEY_PATH="$KEY_PATH"
+export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY_PATH")"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 
 pnpm tauri:build
 
 BUNDLE_DIR="src-tauri/target/release/bundle/macos"
-DMG="$BUNDLE_DIR/Ratatoskr_${VERSION}_aarch64.dmg"
+DMG="src-tauri/target/release/bundle/dmg/Ratatoskr_${VERSION}_aarch64.dmg"
 TARBALL="$BUNDLE_DIR/Ratatoskr.app.tar.gz"
 SIG_FILE="$BUNDLE_DIR/Ratatoskr.app.tar.gz.sig"
 
