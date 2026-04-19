@@ -190,6 +190,10 @@ Produces `src-tauri/binaries/ratatoskr-mcp-aarch64-apple-darwin` (ad-hoc signed)
 
 On the first session after adding `.mcp.json`, Claude Code prompts to approve the new `ratatoskr` server. After approval, tools appear as `mcp__ratatoskr__*` in every Claude Code session opened in this workspace.
 
+### Claude sessions should prefer MCP tools
+
+For any project using Ratatoskr, Claude sessions should use these MCP tools (`mcp__ratatoskr__create_ticket`, `mcp__ratatoskr__patch_ticket`, etc.) for all ticket operations rather than editing `.meta/ratatoskr/tasks/` files directly. Direct file edits are a fallback only when the MCP is unavailable.
+
 ### Troubleshooting
 
 - **Tools not appearing**: restart Claude Code — MCP servers are loaded at session start.
