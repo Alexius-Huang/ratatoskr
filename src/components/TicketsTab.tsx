@@ -8,6 +8,7 @@ import { extractTicketNumber } from '../lib/ticketId';
 import { useArchiveDoneTickets } from '../lib/ticketMutations';
 import { CreateTicketModal } from './CreateTicketModal';
 import { EpicSearchFilter } from './EpicSearchFilter';
+import { Button } from './ui/Button';
 import { Modal } from './Modal';
 import { SplitPane } from './SplitPane';
 import { TicketDetailPanel } from './TicketDetailPanel';
@@ -96,22 +97,17 @@ export function TicketsTab() {
           onEpicChange={onEpicChange}
         />
         <div className="ml-auto flex gap-2">
-          <button
-            type="button"
+          <Button
+            variant="tertiary"
             onClick={() => setShowArchiveConfirm(true)}
             disabled={doneCount === 0}
             title={doneCount === 0 ? 'No done tickets to archive' : `Archive ${doneCount} done ticket${doneCount === 1 ? '' : 's'}`}
-            className="px-3 py-1.5 text-sm font-medium bg-nord-3 text-nord-4 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-nord-2 enabled:hover:text-nord-6"
           >
             Archive Done Tickets
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="px-3 py-1.5 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 transition-colors"
-          >
+          </Button>
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
             + Create
-          </button>
+          </Button>
         </div>
       </div>
       <table className="w-full text-sm">
@@ -196,18 +192,18 @@ export function TicketsTab() {
             >
               Cancel
             </button>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="md"
               disabled={archiveDone.isPending}
               onClick={() => {
                 archiveDone.mutate(undefined, {
                   onSuccess: () => setShowArchiveConfirm(false),
                 });
               }}
-              className="px-4 py-2 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 transition-colors disabled:opacity-50"
             >
               {archiveDone.isPending ? 'Archiving…' : 'Confirm'}
-            </button>
+            </Button>
           </>
         }
       >

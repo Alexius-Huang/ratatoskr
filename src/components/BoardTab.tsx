@@ -8,6 +8,7 @@ import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMu
 import { BoardColumn } from './BoardColumn';
 import { CreateTicketModal } from './CreateTicketModal';
 import { EpicSearchFilter } from './EpicSearchFilter';
+import { Button } from './ui/Button';
 import { Modal } from './Modal';
 import { TicketDetailModal } from './TicketDetailModal';
 import { Toast } from './Toast';
@@ -133,8 +134,8 @@ export function BoardTab() {
           onEpicChange={onEpicChange}
         />
         <div className="ml-auto flex gap-2">
-          <button
-            type="button"
+          <Button
+            variant="tertiary"
             onClick={() => setShowArchiveConfirm(true)}
             disabled={byState['DONE'].length === 0}
             title={
@@ -142,17 +143,12 @@ export function BoardTab() {
                 ? 'No done tickets to archive'
                 : `Archive ${byState['DONE'].length} done ticket${byState['DONE'].length === 1 ? '' : 's'}`
             }
-            className="px-3 py-1.5 text-sm font-medium bg-nord-3 text-nord-4 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:bg-nord-2 enabled:hover:text-nord-6"
           >
             Archive Done Tickets
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="px-3 py-1.5 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 transition-colors"
-          >
+          </Button>
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
             + Create
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -189,18 +185,18 @@ export function BoardTab() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="md"
                   disabled={archiveDone.isPending}
                   onClick={() => {
                     archiveDone.mutate(undefined, {
                       onSuccess: () => setShowArchiveConfirm(false),
                     });
                   }}
-                  className="px-4 py-2 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 transition-colors disabled:opacity-50"
                 >
                   {archiveDone.isPending ? 'Archiving…' : 'Confirm'}
-                </button>
+                </Button>
               </>
             }
           >

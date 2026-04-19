@@ -3,6 +3,7 @@ import type { TicketDetail, TicketState, TicketType } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { useUpdateTicket } from '../lib/ticketMutations';
 import { EpicCombobox } from './EpicCombobox';
+import { Button } from './ui/Button';
 import { Modal } from './Modal';
 
 const NON_EPIC_TYPES: TicketType[] = ['Task', 'Bug'];
@@ -83,21 +84,12 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
 
   const footer = (
     <>
-      <button
-        type="button"
-        onClick={handleClose}
-        className="px-3 py-1.5 text-sm text-nord-4 hover:text-nord-6 border border-nord-3 rounded transition-colors"
-      >
+      <Button variant="secondary" onClick={handleClose}>
         Cancel
-      </button>
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={updateMutation.isPending}
-        className="px-3 py-1.5 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 disabled:opacity-50 transition-colors"
-      >
+      </Button>
+      <Button variant="primary" onClick={handleSubmit} disabled={updateMutation.isPending}>
         {updateMutation.isPending ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </>
   );
 

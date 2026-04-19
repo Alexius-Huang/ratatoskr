@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useUpdateAppConfig } from '../lib/api';
+import { Button } from './ui/Button';
 
 export function SetupScreen() {
   const [path, setPath] = useState('');
@@ -41,13 +42,11 @@ export function SetupScreen() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="px-4 py-2 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 disabled:opacity-50 transition-colors self-end"
-          >
-            {mutation.isPending ? 'Saving…' : 'Save'}
-          </button>
+          <div className="self-end">
+            <Button variant="primary" size="md" type="submit" disabled={!canSubmit}>
+              {mutation.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
         </form>
       </div>
     </div>

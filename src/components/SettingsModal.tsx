@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppConfig, useUpdateAppConfig } from '../lib/api';
+import { Button } from './ui/Button';
 import { Modal } from './Modal';
 
 type Props = {
@@ -29,22 +30,17 @@ export function SettingsModal({ onClose }: Props) {
 
   const footer = (
     <>
-      <button
-        type="button"
-        onClick={onClose}
-        className="px-3 py-1.5 text-sm text-nord-4 hover:text-nord-6 border border-nord-3 rounded transition-colors"
-      >
+      <Button variant="secondary" onClick={onClose}>
         Cancel
-      </button>
+      </Button>
       {!isEnvControlled && (
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={handleSubmit}
           disabled={mutation.isPending || path.trim().length === 0}
-          className="px-3 py-1.5 text-sm font-medium bg-nord-10 text-nord-6 rounded hover:bg-nord-9 disabled:opacity-50 transition-colors"
         >
           {mutation.isPending ? 'Saving…' : 'Save'}
-        </button>
+        </Button>
       )}
     </>
   );
