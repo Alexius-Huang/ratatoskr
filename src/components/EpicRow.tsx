@@ -71,7 +71,7 @@ export function EpicRow({
       )}
 
       <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {counts.total > 0
             ? STATE_ORDER.map((state) => {
                 const n = counts.byState[state];
