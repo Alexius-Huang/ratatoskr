@@ -276,6 +276,73 @@ describe('archiveDoneTickets', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('auto-promote parent epic', () => {
+  it('updateTicket: flips a NOT_READY epic to IN_PROGRESS when child patched to IN_PROGRESS', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 1, state: 'NOT_READY' });
+    const result = await updateTicket(PROJECT, PREFIX, 2, { state: 'IN_PROGRESS' });
+    expect(result.ok).toBe(true);
+    const { data } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(data.state).toBe('IN_PROGRESS');
+  });
+
+  it('updateTicket: flips a NOT_READY epic when child patched to IN_REVIEW', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 1, state: 'NOT_READY' });
+    const result = await updateTicket(PROJECT, PREFIX, 2, { state: 'IN_REVIEW' });
+    expect(result.ok).toBe(true);
+    const { data } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(data.state).toBe('IN_PROGRESS');
+  });
+
+  it('updateTicket: flips a NOT_READY epic when child patched to DONE', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 1, state: 'NOT_READY' });
+    const result = await updateTicket(PROJECT, PREFIX, 2, { state: 'DONE' });
+    expect(result.ok).toBe(true);
+    const { data } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(data.state).toBe('IN_PROGRESS');
+  });
+
+  it('updateTicket: does NOT flip epic when child patched to READY or PLANNING', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 1, state: 'NOT_READY' });
+    await updateTicket(PROJECT, PREFIX, 2, { state: 'READY' });
+    const { data: d1 } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(d1.state).toBe('NOT_READY');
+
+    await updateTicket(PROJECT, PREFIX, 2, { state: 'PLANNING' });
+    const { data: d2 } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(d2.state).toBe('NOT_READY');
+  });
+
+  it('updateTicket: does NOT mutate an epic already past NOT_READY (one-way rule)', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS', updated: '2026-01-01T00:00:00.000Z' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 1, state: 'NOT_READY' });
+    await updateTicket(PROJECT, PREFIX, 2, { state: 'IN_PROGRESS' });
+    const { data } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(data.state).toBe('IN_PROGRESS');
+    const updatedStr = typeof data.updated === 'string' ? data.updated : (data.updated as Date).toISOString();
+    expect(updatedStr).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('createTicket: flips a NOT_READY epic when child is created directly in IN_PROGRESS', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+    const result = await createTicket(PROJECT, PREFIX, { type: 'Task', title: 'Child', state: 'IN_PROGRESS', epic: 1 });
+    expect(result.ok).toBe(true);
+    const { data } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(data.state).toBe('IN_PROGRESS');
+  });
+
+  it('updateTicket: stale epic ref is a silent no-op — child patch still succeeds', async () => {
+    await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 999, state: 'NOT_READY' });
+    const result = await updateTicket(PROJECT, PREFIX, 2, { state: 'IN_PROGRESS' });
+    expect(result.ok).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('updateTicket — color field', () => {
   it('should persist a valid color on an Epic', async () => {
     await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E' });

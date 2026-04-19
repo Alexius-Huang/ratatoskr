@@ -50,6 +50,36 @@ const VALID_STATES: readonly TicketState[] = [
   'DONE',
 ];
 
+const PROMOTING_STATES: ReadonlySet<TicketState> = new Set([
+  'IN_PROGRESS',
+  'IN_REVIEW',
+  'DONE',
+]);
+
+// Best-effort: lift a NOT_READY parent epic to IN_PROGRESS in the same handler
+// call. Sequential writes mean the next client read sees a consistent pair —
+// true cross-file atomicity is impossible on POSIX without a journal.
+// Only called when the caller has already confirmed the child's new state is
+// in PROMOTING_STATES. Failures (stale ref, unreadable file) are swallowed.
+async function maybePromoteParentEpic(
+  projectName: string,
+  epicNumber: number | undefined,
+): Promise<void> {
+  if (epicNumber === undefined) return;
+  const epicPath = path.join(tasksDir(projectName), `${epicNumber}.md`);
+  let raw: string;
+  try {
+    raw = await readFile(epicPath, 'utf8');
+  } catch {
+    return; // stale epic ref — skip
+  }
+  const parsed = matter(raw);
+  const srcFm = parsed.data as Record<string, unknown>;
+  if (srcFm.type !== 'Epic' || srcFm.state !== 'NOT_READY') return;
+  const fm = { ...srcFm, state: 'IN_PROGRESS', updated: nowIso() };
+  await writeFile(epicPath, matter.stringify(parsed.content, fm), 'utf8');
+}
+
 type DomainError =
   | { kind: 'not-found'; message: string }
   | { kind: 'epic-guard-violated'; message: string; blockers: Partial<Record<TicketState, number>> }
@@ -106,6 +136,10 @@ export async function createTicket(
   const dir = tasksDir(projectName);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, `${num}.md`), fileContent, 'utf8');
+
+  if (ticketType !== 'Epic' && PROMOTING_STATES.has(ticketState)) {
+    await maybePromoteParentEpic(projectName, input.epic ?? undefined);
+  }
 
   const detail = await readTicketDetail(projectName, num, prefix);
   if (!detail) {
@@ -195,6 +229,13 @@ export async function updateTicket(
   const newContent = patch.body !== undefined ? patch.body : parsed.content;
   const fileContent = matter.stringify(newContent, fm);
   await writeFile(filePath, fileContent, 'utf8');
+
+  if (patch.state !== undefined && PROMOTING_STATES.has(patch.state as TicketState)) {
+    await maybePromoteParentEpic(
+      projectName,
+      typeof fm.epic === 'number' ? fm.epic : undefined,
+    );
+  }
 
   const detail = await readTicketDetail(projectName, num, prefix);
   if (!detail) {
