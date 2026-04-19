@@ -70,38 +70,35 @@ export function EpicRow({
         </div>
       )}
 
-      {counts.total > 0 && (
+      <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {STATE_ORDER.map((state) => {
-            const n = counts.byState[state];
-            if (n === 0) return null;
-            return (
-              <span
-                key={state}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium ${stateColorClass(state)}`}
-              >
-                {n} {stateLabel(state)}
-              </span>
-            );
-          })}
+          {counts.total > 0
+            ? STATE_ORDER.map((state) => {
+                const n = counts.byState[state];
+                if (n === 0) return null;
+                return (
+                  <span
+                    key={state}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium ${stateColorClass(state)}`}
+                  >
+                    {n} {stateLabel(state)}
+                  </span>
+                );
+              })
+            : <p className="text-xs text-nord-4 italic">No child tasks yet.</p>
+          }
         </div>
-      )}
 
-      {counts.total === 0 && (
-        <p className="text-xs text-nord-4 italic">No child tasks yet.</p>
-      )}
-
-      {onViewTickets && (
-        <div className="mt-2">
+        {onViewTickets && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onViewTickets(); }}
-            className="text-xs text-nord-8 hover:text-nord-6 hover:underline transition-colors"
+            className="shrink-0 text-xs text-nord-4 border border-nord-3 rounded px-2 py-0.5 hover:text-nord-6 hover:border-nord-8 transition-colors"
           >
             View ticket list →
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
