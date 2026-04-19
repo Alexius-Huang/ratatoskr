@@ -194,28 +194,25 @@ describe('TicketDetailPanel', () => {
 
   it('should render the branch chip when branch is set', () => {
     renderPanel({ ...taskFixture, branch: 'rat-75-ui' });
-    expect(screen.getByText('Branch')).toBeInTheDocument();
     expect(screen.getByText('rat-75-ui')).toBeInTheDocument();
   });
 
-  it('should render a PR row for each pullRequest', () => {
+  it('should render a PR button with number and branch for each pullRequest', () => {
     renderPanel({
       ...taskFixture,
+      branch: 'my-branch',
       pullRequests: [
         { url: 'https://github.com/owner/repo/pull/12', number: 12, title: 'RAT-63: First PR', state: 'OPEN' },
         { url: 'https://github.com/owner/repo/pull/13', number: 13, title: 'RAT-64: Second PR', state: 'MERGED' },
       ],
     });
-    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
     expect(screen.getByText('#12')).toBeInTheDocument();
-    expect(screen.getByText('RAT-63: First PR', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('#13')).toBeInTheDocument();
-    expect(screen.getByText('RAT-64: Second PR', { exact: false })).toBeInTheDocument();
+    expect(screen.getAllByText('my-branch')).toHaveLength(2);
   });
 
   it('should render raw prs paths when pullRequests is absent', () => {
     renderPanel({ ...taskFixture, prs: ['owner/repo/pull/42'] });
-    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
     expect(screen.getByText('owner/repo/pull/42')).toBeInTheDocument();
   });
 
