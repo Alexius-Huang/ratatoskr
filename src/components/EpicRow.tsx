@@ -1,6 +1,19 @@
+import React from 'react';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { EpicColorSwatchButton } from './EpicColorSwatchButton';
+
+const PARTICLES: { dx: string; dy: string; delay: string; pos: React.CSSProperties }[] = [
+  { dx: '-5px', dy: '-18px', delay: '0s',    pos: { left: '15%', top: '-2px' } },
+  { dx: '0px',  dy: '-20px', delay: '0.5s',  pos: { left: '40%', top: '-2px' } },
+  { dx: '5px',  dy: '-18px', delay: '1.0s',  pos: { left: '70%', top: '-2px' } },
+  { dx: '16px', dy: '-8px',  delay: '0.3s',  pos: { right: '-2px', top: '20%' } },
+  { dx: '16px', dy: '8px',   delay: '0.9s',  pos: { right: '-2px', bottom: '20%' } },
+  { dx: '-16px',dy: '-8px',  delay: '0.7s',  pos: { left: '-2px', top: '20%' } },
+  { dx: '-16px',dy: '8px',   delay: '1.3s',  pos: { left: '-2px', bottom: '20%' } },
+  { dx: '-4px', dy: '18px',  delay: '0.2s',  pos: { left: '30%', bottom: '-2px' } },
+  { dx: '4px',  dy: '18px',  delay: '0.8s',  pos: { left: '65%', bottom: '-2px' } },
+];
 
 const STATE_ORDER: readonly TicketState[] = [
   'DONE',
@@ -56,7 +69,7 @@ export function EpicRow({
         isSelected ? 'bg-nord-2' : 'hover:bg-nord-2/70'
       }`}
     >
-      <div className="flex items-baseline gap-3 mb-1.5">
+      <div className="flex items-center gap-3 mb-1.5">
         {onColorChange && (
           <EpicColorSwatchButton
             epicNumber={ticket.number}
@@ -76,6 +89,24 @@ export function EpicRow({
             <span className="ml-1.5 text-nord-6 font-medium">{pct}%</span>
           )}
         </span>
+        {canMarkDone && (
+          <div className="relative shrink-0">
+            {PARTICLES.map((p, i) => (
+              <span
+                key={i}
+                className="epic-particle"
+                style={{ '--dx': p.dx, '--dy': p.dy, animationDelay: p.delay, ...p.pos } as React.CSSProperties}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMarkDone!(); }}
+              className="epic-mark-done-btn text-sm font-semibold bg-nord-8 text-nord-0 rounded-md px-3 py-1 border border-nord-8 transition-colors"
+            >
+              🎉 Mark Epic as Done!
+            </button>
+          </div>
+        )}
       </div>
 
       {counts.total > 0 && (
@@ -106,15 +137,6 @@ export function EpicRow({
           }
         </div>
 
-        {canMarkDone && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onMarkDone!(); }}
-            className="shrink-0 text-xs font-medium bg-nord-14 text-nord-0 rounded px-2 py-0.5 hover:bg-nord-14/80 transition-colors"
-          >
-            🎉 Mark Epic as Done!
-          </button>
-        )}
         {onViewTickets && (
           <button
             type="button"

@@ -104,14 +104,16 @@ export function EpicsTab() {
   );
 
   const list = (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto pb-72">
       {active.map(renderRow)}
       {completed.length > 0 && (
         <>
           <div className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-nord-4 bg-nord-1 border-y border-nord-3">
             Completed ({completed.length})
           </div>
-          {completed.map(renderRow)}
+          <div className="opacity-40 grayscale-[40%]">
+            {completed.map(renderRow)}
+          </div>
         </>
       )}
     </div>

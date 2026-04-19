@@ -25,3 +25,45 @@ body {
   color: var(--color-nord-6);
   color-scheme: dark;
 }
+
+@keyframes epic-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px 2px var(--color-nord-8), 0 0 14px 4px color-mix(in srgb, var(--color-nord-8) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 14px 4px var(--color-nord-8), 0 0 28px 8px color-mix(in srgb, var(--color-nord-7) 45%, transparent);
+  }
+}
+
+@keyframes epic-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20%       { transform: translateX(-3px) rotate(-2deg); }
+  40%       { transform: translateX(3px) rotate(2deg); }
+  60%       { transform: translateX(-2px) rotate(-1deg); }
+  80%       { transform: translateX(2px) rotate(1deg); }
+}
+
+.epic-mark-done-btn {
+  animation: epic-glow 2s ease-in-out infinite;
+}
+
+.epic-mark-done-btn:hover {
+  animation: epic-glow 2s ease-in-out infinite, epic-shake 0.45s ease-in-out;
+}
+
+@keyframes epic-particle {
+  0%   { transform: translate(0, 0) scale(1.2); opacity: 1; }
+  40%  { opacity: 0.8; }
+  100% { transform: translate(var(--dx, 0px), var(--dy, -20px)) scale(0); opacity: 0; }
+}
+
+.epic-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-nord-8);
+  animation: epic-particle 2s ease-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
