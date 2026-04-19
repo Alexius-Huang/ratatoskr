@@ -19,6 +19,37 @@ vi.mock('./CreateTicketModal', () => ({
   CreateTicketModal: () => null,
 }));
 
+vi.mock('./EpicSearchFilter', () => ({
+  EpicSearchFilter: ({
+    epics,
+    activeEpicNumber,
+    onEpicChange,
+  }: {
+    epics: TicketSummary[];
+    activeEpicNumber: number | null;
+    onEpicChange: (n: number | null) => void;
+  }) => (
+    <div>
+      <input
+        aria-label="Filter by epic"
+        onChange={(e) => {
+          const match = epics.find((ep) => ep.title.toLowerCase().includes(e.target.value.toLowerCase()));
+          onEpicChange(match ? match.number : null);
+        }}
+      />
+      {activeEpicNumber !== null && (
+        <button
+          type="button"
+          aria-pressed
+          onClick={() => onEpicChange(null)}
+        >
+          {epics.find((ep) => ep.number === activeEpicNumber)?.title ?? String(activeEpicNumber)}
+        </button>
+      )}
+    </div>
+  ),
+}));
+
 vi.mock('./BoardColumn', () => ({
   BoardColumn: ({ state, tickets }: { state: string; tickets: TicketSummary[] }) => (
     <section data-testid={`col-${state}`}>
@@ -78,11 +109,11 @@ describe('BoardTab', () => {
     expect(within(screen.getByTestId('col-DONE')).getByTestId('card-4')).toBeInTheDocument();
   });
 
-  it('should filter tickets by epic when an epic is selected', async () => {
+  it('should filter tickets by epic when a matching chip is selected', async () => {
     const user = userEvent.setup();
     render();
-    const select = screen.getByRole('combobox', { name: /epic/i });
-    await user.selectOptions(select, String(epic2.number));
+    const input = screen.getByRole('textbox', { name: /filter by epic/i });
+    await user.type(input, 'two');
     // epic2 tickets: RAT-3 (IN_REVIEW), RAT-4 (DONE)
     expect(screen.queryByTestId('card-1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('card-2')).not.toBeInTheDocument();
@@ -90,12 +121,13 @@ describe('BoardTab', () => {
     expect(screen.getByTestId('card-4')).toBeInTheDocument();
   });
 
-  it('should show all tickets when epic filter is set to All', async () => {
+  it('should show all tickets when the active epic chip is clicked again', async () => {
     const user = userEvent.setup();
     render();
-    const select = screen.getByRole('combobox', { name: /epic/i });
-    await user.selectOptions(select, String(epic2.number));
-    await user.selectOptions(select, 'all');
+    const input = screen.getByRole('textbox', { name: /filter by epic/i });
+    await user.type(input, 'two');
+    const activeChip = screen.getByRole('button', { name: /epic two/i });
+    await user.click(activeChip);
     expect(screen.getByTestId('card-1')).toBeInTheDocument();
     expect(screen.getByTestId('card-2')).toBeInTheDocument();
     expect(screen.getByTestId('card-3')).toBeInTheDocument();

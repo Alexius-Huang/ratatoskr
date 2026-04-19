@@ -6,6 +6,7 @@ import { useTickets } from '../lib/api';
 import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMutations';
 import { BoardColumn } from './BoardColumn';
 import { CreateTicketModal } from './CreateTicketModal';
+import { EpicSearchFilter } from './EpicSearchFilter';
 import { Modal } from './Modal';
 import { Toast } from './Toast';
 
@@ -39,14 +40,11 @@ export function BoardTab() {
     return exists ? epicParamNumber : null;
   }, [epicParamNumber, epics.data]);
 
-  const onEpicChange = (value: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (value === 'all') {
-      next.delete('epic');
-    } else {
-      next.set('epic', value);
-    }
-    setSearchParams(next, { replace: true });
+  const onEpicChange = (next: number | null) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === null) nextParams.delete('epic');
+    else nextParams.set('epic', String(next));
+    setSearchParams(nextParams, { replace: true });
   };
 
   const byState = useMemo(() => {
@@ -110,25 +108,11 @@ export function BoardTab() {
   return (
     <div className="p-6 h-full flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <label
-          htmlFor="epic-filter"
-          className="text-xs font-medium text-nord-4 uppercase tracking-wider"
-        >
-          Epic
-        </label>
-        <select
-          id="epic-filter"
-          value={activeEpicNumber === null ? 'all' : String(activeEpicNumber)}
-          onChange={(e) => onEpicChange(e.target.value)}
-          className="bg-nord-2 border border-nord-3 rounded px-2 py-1 text-sm text-nord-6 focus:outline-none focus:border-nord-8"
-        >
-          <option value="all">All</option>
-          {epics.data?.map((e) => (
-            <option key={e.number} value={String(e.number)}>
-              {e.displayId} — {e.title}
-            </option>
-          ))}
-        </select>
+        <EpicSearchFilter
+          epics={epics.data ?? []}
+          activeEpicNumber={activeEpicNumber}
+          onEpicChange={onEpicChange}
+        />
         <div className="ml-auto flex gap-2">
           <button
             type="button"
