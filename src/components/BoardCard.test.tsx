@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { TicketSummary } from '../../server/types';
 import { BoardCard } from './BoardCard';
@@ -20,6 +21,21 @@ function makeTask(overrides: Partial<TicketSummary> = {}): TicketSummary {
     ...overrides,
   };
 }
+
+describe('BoardCard — click handler', () => {
+  it('should call onClick when the card is clicked', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(<BoardCard ticket={makeTask()} onClick={onClick} />);
+    await user.click(screen.getByRole('button'));
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  it('should render without onClick prop', () => {
+    render(<BoardCard ticket={makeTask()} />);
+    expect(screen.getByRole('button')).toBeInTheDocument();
+  });
+});
 
 describe('BoardCard — epic tag color', () => {
   it('should not render an epic tag when ticket has no epic', () => {

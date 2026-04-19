@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { TicketSummary } from '../../server/types';
 import { defaultEpicColor, tagStyle } from '../lib/epicColor';
 
-export function BoardCard({ ticket }: { ticket: TicketSummary }) {
+export function BoardCard({ ticket, onClick }: { ticket: TicketSummary; onClick?: () => void }) {
   const epicLabel =
     ticket.epicTitle ?? (ticket.epic !== undefined ? `#${ticket.epic}` : null);
   const ref = useRef<HTMLElement>(null);
@@ -23,7 +23,10 @@ export function BoardCard({ ticket }: { ticket: TicketSummary }) {
   return (
     <article
       ref={ref}
-      className={`bg-nord-2 border border-nord-3 rounded p-3 text-sm hover:border-nord-8 transition-colors ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-grab'}`}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      className={`bg-nord-2 border border-nord-3 rounded p-3 text-sm hover:border-nord-8 transition-colors ${isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-pointer'}`}
     >
       <div className="font-mono text-xs text-nord-8 mb-1 flex items-center gap-1.5">
         {ticket.type === 'Bug' && (

@@ -7,9 +7,11 @@ import { BoardCard } from './BoardCard';
 export function BoardColumn({
   state,
   tickets,
+  onCardClick,
 }: {
   state: TicketState;
   tickets: TicketSummary[];
+  onCardClick?: (ticket: TicketSummary) => void;
 }) {
   const sorted = [...tickets].sort((a, b) => a.number - b.number);
   const ref = useRef<HTMLElement>(null);
@@ -45,7 +47,7 @@ export function BoardColumn({
             nothing here
           </p>
         ) : (
-          sorted.map((t) => <BoardCard key={t.number} ticket={t} />)
+          sorted.map((t) => <BoardCard key={t.number} ticket={t} onClick={onCardClick ? () => onCardClick(t) : undefined} />)
         )}
       </div>
     </section>

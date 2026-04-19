@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketState, TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
+import { extractTicketNumber } from '../lib/ticketId';
 import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMutations';
 import { BoardColumn } from './BoardColumn';
 import { CreateTicketModal } from './CreateTicketModal';
 import { EpicSearchFilter } from './EpicSearchFilter';
 import { Modal } from './Modal';
+import { TicketDetailModal } from './TicketDetailModal';
 import { Toast } from './Toast';
 
 const BOARD_STATES: readonly TicketState[] = [
@@ -25,6 +27,23 @@ export function BoardTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  const inspectParam = searchParams.get('inspect');
+  const inspectedNumber = extractTicketNumber(inspectParam);
+
+  const clearInspect = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('inspect');
+    next.delete('view');
+    setSearchParams(next, { replace: true });
+  };
+
+  const openInspect = (ticket: TicketSummary) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('inspect', ticket.displayId);
+    next.delete('view');
+    setSearchParams(next, { replace: true });
+  };
   const archiveDone = useArchiveDoneTickets(name ?? '');
   const transition = useTransitionTicketState(name ?? '');
 
@@ -139,9 +158,17 @@ export function BoardTab() {
 
       <div className="flex-1 min-h-0 flex gap-3">
         {BOARD_STATES.map((state) => (
-          <BoardColumn key={state} state={state} tickets={byState[state]} />
+          <BoardColumn key={state} state={state} tickets={byState[state]} onCardClick={openInspect} />
         ))}
       </div>
+      {name && inspectParam && inspectedNumber !== null && (
+        <TicketDetailModal
+          projectName={name}
+          number={inspectedNumber}
+          displayId={inspectParam}
+          onClose={clearInspect}
+        />
+      )}
       {name && (
         <>
           <CreateTicketModal

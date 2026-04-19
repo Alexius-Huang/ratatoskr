@@ -51,14 +51,43 @@ vi.mock('./EpicSearchFilter', () => ({
 }));
 
 vi.mock('./BoardColumn', () => ({
-  BoardColumn: ({ state, tickets }: { state: string; tickets: TicketSummary[] }) => (
+  BoardColumn: ({
+    state,
+    tickets,
+    onCardClick,
+  }: {
+    state: string;
+    tickets: TicketSummary[];
+    onCardClick?: (ticket: TicketSummary) => void;
+  }) => (
     <section data-testid={`col-${state}`}>
       {tickets.map((t) => (
-        <div key={t.number} data-testid={`card-${t.number}`}>
+        <div
+          key={t.number}
+          data-testid={`card-${t.number}`}
+          onClick={() => onCardClick?.(t)}
+          role="button"
+        >
           {t.displayId}
         </div>
       ))}
     </section>
+  ),
+}));
+
+vi.mock('./TicketDetailModal', () => ({
+  TicketDetailModal: ({
+    displayId,
+    onClose,
+  }: {
+    displayId: string;
+    onClose: () => void;
+  }) => (
+    <div data-testid="ticket-modal" data-display-id={displayId}>
+      <button type="button" onClick={onClose}>
+        close
+      </button>
+    </div>
   ),
 }));
 
@@ -149,5 +178,42 @@ describe('BoardTab', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: 'Archive Done Tickets' })).toBeInTheDocument();
+  });
+
+  it('should open TicketDetailModal when a card is clicked', async () => {
+    const user = userEvent.setup();
+    render();
+    await user.click(screen.getByTestId('card-1'));
+    const modal = screen.getByTestId('ticket-modal');
+    expect(modal).toBeInTheDocument();
+    expect(modal).toHaveAttribute('data-display-id', 'RAT-1');
+  });
+
+  it('should show TicketDetailModal with correct displayId when a card is clicked', async () => {
+    const user = userEvent.setup();
+    render();
+    await user.click(screen.getByTestId('card-2'));
+    const modal = screen.getByTestId('ticket-modal');
+    expect(modal).toHaveAttribute('data-display-id', 'RAT-2');
+  });
+
+  it('should close TicketDetailModal and clear inspect param when onClose is called', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<BoardTab />, {
+      initialEntries: ['/projects/ratatoskr/board?inspect=RAT-1'],
+    });
+    expect(screen.getByTestId('ticket-modal')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /close/i }));
+    expect(screen.queryByTestId('ticket-modal')).not.toBeInTheDocument();
+    expect(window.location.search).not.toContain('inspect');
+  });
+
+  it('should open TicketDetailModal when inspect param is in the URL on mount', () => {
+    renderWithProviders(<BoardTab />, {
+      initialEntries: ['/projects/ratatoskr/board?inspect=RAT-1'],
+    });
+    const modal = screen.getByTestId('ticket-modal');
+    expect(modal).toBeInTheDocument();
+    expect(modal).toHaveAttribute('data-display-id', 'RAT-1');
   });
 });

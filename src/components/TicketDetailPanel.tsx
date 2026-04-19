@@ -12,6 +12,7 @@ type Props = {
   number: number;
   displayId: string;
   onClose: () => void;
+  variant?: 'pane' | 'modal';
 };
 
 export function TicketDetailPanel({
@@ -19,6 +20,7 @@ export function TicketDetailPanel({
   number,
   displayId,
   onClose,
+  variant = 'pane',
 }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,6 +67,7 @@ export function TicketDetailPanel({
         onClose={onClose}
         title={displayId}
         actions={[]}
+        variant={variant}
       >
         <div className="text-nord-4">Loading…</div>
       </PanelShell>
@@ -74,7 +77,7 @@ export function TicketDetailPanel({
   if (error) {
     const isNotFound = error instanceof ApiError && error.status === 404;
     return (
-      <PanelShell onClose={onClose} title={displayId} actions={[]}>
+      <PanelShell onClose={onClose} title={displayId} actions={[]} variant={variant}>
         {isNotFound ? (
           <div className="text-nord-4 italic">
             Ticket {displayId} not found.
@@ -97,6 +100,7 @@ export function TicketDetailPanel({
         onClose={onClose}
         title={data.displayId}
         actions={planAction ? [planAction] : []}
+        variant={variant}
       >
         <PlanBody
           path={data.planDoc}
@@ -139,7 +143,7 @@ export function TicketDetailPanel({
 
   return (
     <>
-    <PanelShell onClose={onClose} title={data.displayId} actions={actions}>
+    <PanelShell onClose={onClose} title={data.displayId} actions={actions} variant={variant}>
       <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <span
@@ -228,14 +232,16 @@ function PanelShell({
   title,
   actions,
   children,
+  variant = 'pane',
 }: {
   onClose: () => void;
   title: string;
   actions: HeaderAction[];
   children: React.ReactNode;
+  variant?: 'pane' | 'modal';
 }) {
   return (
-    <div className="h-full flex flex-col bg-nord-0 border-l border-nord-3">
+    <div className={`h-full flex flex-col bg-nord-0${variant === 'pane' ? ' border-l border-nord-3' : ''}`}>
       <header className="flex items-center justify-between px-6 py-3 border-b border-nord-3 bg-nord-1 gap-3">
         <span className="font-mono text-sm text-nord-8 shrink-0">{title}</span>
         <div className="flex items-center gap-2 shrink-0">
