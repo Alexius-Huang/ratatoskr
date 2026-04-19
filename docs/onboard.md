@@ -131,42 +131,14 @@ After generating, paste the public key (the long base64 line printed to stdout, 
 #### Per-release steps
 
 1. **Bump version** in `src-tauri/tauri.conf.json` (e.g. `"0.1.0"` → `"0.1.1"`). Commit: `chore: release v0.1.1`.
-2. **Tag**: `git tag v0.1.1 && git push --tags`.
-3. **Export signing vars**:
+2. **Tag and push**: `git tag v0.1.1 && git push && git push --tags`.
+3. **Run the release script** from the project root:
    ```sh
-   export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/ratatoskr.key)"
-   export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+   ./scripts/release.sh "What's new in this release."
    ```
-4. **Build**: `pnpm tauri:build`. Artifacts land in `src-tauri/target/release/bundle/macos/`:
-   - `Ratatoskr.app` — full app bundle
-   - `Ratatoskr_0.1.1_aarch64.dmg` — drag-to-install disk image (first-install artifact)
-   - `Ratatoskr.app.tar.gz` — updater artifact (what existing installs download)
-   - `Ratatoskr.app.tar.gz.sig` — minisign signature
-5. **Write `latest.json`** using this schema:
-   ```json
-   {
-     "version": "0.1.1",
-     "notes": "Release notes here.",
-     "pub_date": "2026-04-20T12:00:00Z",
-     "platforms": {
-       "darwin-aarch64": {
-         "signature": "<literal contents of Ratatoskr.app.tar.gz.sig>",
-         "url": "https://github.com/Alexius-Huang/ratatoskr/releases/download/v0.1.1/Ratatoskr.app.tar.gz"
-       }
-     }
-   }
-   ```
-   The `signature` value is the **file contents** of `.sig` (a short base64-ish blob), not a path.
-6. **Publish**:
-   ```sh
-   gh release create v0.1.1 \
-     --title "v0.1.1" \
-     --notes "Release notes." \
-     src-tauri/target/release/bundle/macos/Ratatoskr_0.1.1_aarch64.dmg \
-     "src-tauri/target/release/bundle/macos/Ratatoskr.app.tar.gz" \
-     "src-tauri/target/release/bundle/macos/Ratatoskr.app.tar.gz.sig" \
-     latest.json
-   ```
+   The script builds the app, signs the updater artifact, generates `latest.json`, and publishes the GitHub Release automatically.
+
+Requirements for the script: `jq`, `gh` (GitHub CLI), and the signing key at `~/.tauri/ratatoskr.key`.
 
 On the next launch, installed copies will detect the new version and show an Install/Skip dialog automatically.
 
