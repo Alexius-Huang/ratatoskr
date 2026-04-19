@@ -42,20 +42,29 @@ export function EpicRow({
         isSelected ? 'bg-nord-2' : 'hover:bg-nord-2/70'
       }`}
     >
-      <div className="flex items-baseline gap-3 mb-2">
+      <div className="flex items-baseline gap-3 mb-1.5">
         <span className="font-mono text-nord-8 text-sm shrink-0">
           {ticket.displayId}
         </span>
         <span className="text-nord-6 text-sm flex-1 truncate">
           {ticket.title}
         </span>
-        <span className="text-xs text-nord-4 shrink-0 font-mono">
+        <span className="text-xs text-nord-4 shrink-0 font-mono whitespace-nowrap">
           {done}/{counts.total}
           {counts.total > 0 && (
-            <span className="ml-2 text-nord-6 font-medium">{pct}%</span>
+            <span className="ml-1.5 text-nord-6 font-medium">{pct}%</span>
           )}
         </span>
       </div>
+
+      {counts.total > 0 && (
+        <div className="mb-2 h-1.5 rounded-full bg-nord-3 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-nord-8 transition-[width] duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
 
       {counts.total > 0 && (
         <div className="flex flex-wrap gap-1.5">

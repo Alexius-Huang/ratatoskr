@@ -367,6 +367,36 @@ export async function listTickets(
       bucket[t.state] += 1;
     }
   }
+
+  // Also count archived tickets so DONE work is not invisible in epic progress.
+  const archivedPath = archiveDir(projectName);
+  let archivedEntries: import('node:fs').Dirent[] = [];
+  try {
+    archivedEntries = await readdir(archivedPath, { withFileTypes: true });
+  } catch {
+    // archive dir may not exist yet
+  }
+  const archivedNums = archivedEntries
+    .filter((e) => e.isFile())
+    .flatMap((e) => {
+      const m = e.name.match(TICKET_FILENAME_RE);
+      return m ? [Number(m[1])] : [];
+    });
+  await Promise.all(
+    archivedNums.map(async (num) => {
+      const fp = path.join(archivedPath, `${num}.md`);
+      const summary = await parseTicketFile(fp, num, prefix);
+      if (!summary) return;
+      if ((summary.type !== 'Task' && summary.type !== 'Bug') || summary.epic === undefined) return;
+      let bucket = childCountsByEpic.get(summary.epic);
+      if (!bucket) {
+        bucket = emptyStateCounts();
+        childCountsByEpic.set(summary.epic, bucket);
+      }
+      bucket[summary.state] += 1;
+    }),
+  );
+
   for (const t of valid) {
     if (t.type !== 'Epic') continue;
     const byState = childCountsByEpic.get(t.number) ?? emptyStateCounts();

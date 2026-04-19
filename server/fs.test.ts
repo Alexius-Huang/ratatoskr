@@ -110,17 +110,18 @@ describe('listTickets', () => {
     expect(task?.epicTitle).toBe('The Epic');
   });
 
-  it('should exclude archived tickets from counts', async () => {
+  it('should include archived tickets in epic child counts', async () => {
     const archiveDirPath = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr', 'archive');
     await makeTicketFile(tasksDirPath, 1, { type: 'Epic', title: 'My Epic' });
     await makeTicketFile(tasksDirPath, 2, { type: 'Task', epic: 1, state: 'DONE' });
-    // ticket 3 in archive — should not appear in listTickets or child counts
+    // ticket 3 in archive — not returned by listTickets itself but counts toward epic totals
     await makeTicketFile(archiveDirPath, 3, { type: 'Task', epic: 1, state: 'DONE', archived: '2026-01-02T00:00:00.000Z' });
 
     const tickets = await listTickets(PROJECT, PREFIX);
     expect(tickets.find((t) => t.number === 3)).toBeUndefined();
     const epic = tickets.find((t) => t.number === 1);
-    expect(epic?.childCounts?.total).toBe(1);
+    expect(epic?.childCounts?.total).toBe(2);
+    expect(epic?.childCounts?.byState.DONE).toBe(2);
   });
 });
 

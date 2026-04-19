@@ -1,0 +1,99 @@
+// @vitest-environment jsdom
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import type { TicketSummary } from '../../server/types';
+import { EpicRow } from './EpicRow';
+
+function makeEpic(overrides: Partial<TicketSummary> = {}): TicketSummary {
+  return {
+    number: 1,
+    displayId: 'RAT-1',
+    type: 'Epic',
+    title: 'Ratatoskr Project Foundation',
+    state: 'IN_PROGRESS',
+    created: '2026-01-01T00:00:00.000Z',
+    updated: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function noop() {}
+
+describe('EpicRow', () => {
+  it('should render the epic display ID and title', () => {
+    render(<EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} />);
+    expect(screen.getByText('RAT-1')).toBeDefined();
+    expect(screen.getByText('Ratatoskr Project Foundation')).toBeDefined();
+  });
+
+  it('should show "No child tasks yet." when total is 0', () => {
+    render(<EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} />);
+    expect(screen.getByText('No child tasks yet.')).toBeDefined();
+  });
+
+  it('should not render a progress bar when total is 0', () => {
+    const { container } = render(
+      <EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} />,
+    );
+    const bars = container.querySelectorAll('[style*="width"]');
+    expect(bars.length).toBe(0);
+  });
+
+  it('should render a progress bar when counts.total > 0', () => {
+    const ticket = makeEpic({
+      childCounts: {
+        total: 4,
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3 },
+      },
+    });
+    const { container } = render(
+      <EpicRow ticket={ticket} isSelected={false} onClick={noop} />,
+    );
+    const bar = container.querySelector('[style*="width"]');
+    expect(bar).not.toBeNull();
+  });
+
+  it('should set bar fill width to the percentage of DONE tickets', () => {
+    const ticket = makeEpic({
+      childCounts: {
+        total: 5,
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 4 },
+      },
+    });
+    const { container } = render(
+      <EpicRow ticket={ticket} isSelected={false} onClick={noop} />,
+    );
+    const fill = container.querySelector('[style*="width"]') as HTMLElement;
+    expect(fill.style.width).toBe('80%');
+  });
+
+  it('should show non-zero state badges and hide zero-count states', () => {
+    const ticket = makeEpic({
+      childCounts: {
+        total: 3,
+        byState: { NOT_READY: 2, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0 },
+      },
+    });
+    render(<EpicRow ticket={ticket} isSelected={false} onClick={noop} />);
+    expect(screen.getByText(/2 NOT READY/i)).toBeDefined();
+    expect(screen.getByText(/1 READY/i)).toBeDefined();
+    expect(screen.queryByText(/PLANNING/i)).toBeNull();
+    expect(screen.queryByText(/IN_PROGRESS/i)).toBeNull();
+  });
+
+  it('should reflect 100% completion when all tickets are DONE', () => {
+    const ticket = makeEpic({
+      childCounts: {
+        total: 3,
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3 },
+      },
+    });
+    const { container } = render(
+      <EpicRow ticket={ticket} isSelected={false} onClick={noop} />,
+    );
+    const fill = container.querySelector('[style*="width"]') as HTMLElement;
+    expect(fill.style.width).toBe('100%');
+    expect(screen.getByText(/3\/3/)).toBeDefined();
+    expect(screen.getByText('100%')).toBeDefined();
+  });
+});
