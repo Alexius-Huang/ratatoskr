@@ -148,8 +148,13 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
               >
                 <option value="">(no epic)</option>
                 {epicsQuery.data?.map((e) => (
-                  <option key={e.number} value={String(e.number)}>
-                    {e.displayId} — {e.title}
+                  <option
+                    key={e.number}
+                    value={String(e.number)}
+                    disabled={e.state === 'DONE'}
+                    title={e.state === 'DONE' ? 'Completed — cannot assign new tickets' : undefined}
+                  >
+                    {e.displayId} — {e.title}{e.state === 'DONE' ? ' (completed)' : ''}
                   </option>
                 ))}
               </select>

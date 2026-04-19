@@ -17,6 +17,7 @@ import {
   archiveDoneTickets,
   archiveTicket,
   createTicket,
+  markEpicDone,
   unarchiveTicket,
   updateTicket,
 } from './writeFs';
@@ -216,6 +217,21 @@ app.post('/api/projects/:name/tickets/:number/archive', async (c) => {
     return c.json({ error: result.error.message }, 400);
   }
   return c.json({ ok: true });
+});
+
+app.post('/api/projects/:name/tickets/:number/mark-epic-done', async (c) => {
+  const name = c.req.param('name');
+  const numberParam = c.req.param('number');
+  const n = Number(numberParam);
+  if (!Number.isInteger(n) || n <= 0) return c.json({ error: 'Invalid ticket number' }, 400);
+  const { config } = await readProjectConfig(name);
+  if (!config || !config.prefix) return c.json({ error: 'Project has no prefix configured' }, 400);
+  const result = await markEpicDone(name, config.prefix, n);
+  if (!result.ok) {
+    const status = result.error.kind === 'not-found' ? 404 : 400;
+    return c.json({ error: result.error.message }, status);
+  }
+  return c.json(result.data);
 });
 
 app.post('/api/projects/:name/archive/:number/unarchive', async (c) => {

@@ -8,6 +8,7 @@ import {
   TICKET_FILENAME_RE,
   tasksDir,
 } from './fs';
+import { buildEpicSummaryBlock } from './epicSummary';
 import type {
   CreateTicketRequest,
   TicketDetail,
@@ -114,6 +115,9 @@ export async function createTicket(
     if (!parent || parent.type !== 'Epic') {
       return { ok: false, error: { kind: 'invalid-input', message: `Epic #${input.epic} not found` } };
     }
+    if (parent.state === 'DONE') {
+      return { ok: false, error: { kind: 'invalid-input', message: `Cannot assign tickets to a completed epic (${parent.displayId})` } };
+    }
   }
 
   const num = await computeNextTicketNumber(projectName);
@@ -197,6 +201,9 @@ export async function updateTicket(
       if (!parent || parent.type !== 'Epic') {
         return { ok: false, error: { kind: 'invalid-input', message: `Epic #${patch.epic} not found` } };
       }
+      if (parent.state === 'DONE') {
+        return { ok: false, error: { kind: 'invalid-input', message: `Cannot assign tickets to a completed epic (${parent.displayId})` } };
+      }
       fm.epic = patch.epic;
     }
   }
@@ -240,6 +247,53 @@ export async function updateTicket(
   const detail = await readTicketDetail(projectName, num, prefix);
   if (!detail) {
     return { ok: false, error: { kind: 'not-found', message: `Ticket ${prefix}-${num} not found after update` } };
+  }
+  return { ok: true, data: detail };
+}
+
+export async function markEpicDone(
+  projectName: string,
+  prefix: string,
+  num: number,
+): Promise<WriteResult<TicketDetail>> {
+  const filePath = path.join(tasksDir(projectName), `${num}.md`);
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf8');
+  } catch {
+    return { ok: false, error: { kind: 'not-found', message: `Ticket ${prefix}-${num} not found` } };
+  }
+  const parsed = matter(raw);
+  const fm = parsed.data as Record<string, unknown>;
+
+  if (fm.type !== 'Epic') {
+    return { ok: false, error: { kind: 'invalid-input', message: 'Only Epics can be marked as done via this endpoint' } };
+  }
+  if (fm.state !== 'IN_PROGRESS') {
+    return { ok: false, error: { kind: 'invalid-input', message: `Epic must be IN_PROGRESS (currently ${fm.state})` } };
+  }
+
+  const tickets = await listTickets(projectName, prefix);
+  const children = tickets.filter(
+    (t) => (t.type === 'Task' || t.type === 'Bug') && t.epic === num,
+  );
+  if (children.length === 0) {
+    return { ok: false, error: { kind: 'invalid-input', message: 'Epic has no children — nothing to summarize' } };
+  }
+  const nonDone = children.filter((c) => c.state !== 'DONE');
+  if (nonDone.length > 0) {
+    return { ok: false, error: { kind: 'invalid-input', message: `Epic still has ${nonDone.length} non-DONE children` } };
+  }
+
+  const now = nowIso();
+  const newBody = parsed.content.trimEnd() + buildEpicSummaryBlock(children, now);
+  fm.state = 'DONE';
+  fm.updated = now;
+  await writeFile(filePath, matter.stringify(newBody, fm), 'utf8');
+
+  const detail = await readTicketDetail(projectName, num, prefix);
+  if (!detail) {
+    return { ok: false, error: { kind: 'not-found', message: `Ticket ${prefix}-${num} not found after finalize` } };
   }
   return { ok: true, data: detail };
 }

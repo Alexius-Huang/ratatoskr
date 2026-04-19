@@ -1,8 +1,9 @@
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
+import { fireEpicDoneConfetti } from '../lib/confetti';
 import { extractTicketNumber } from '../lib/ticketId';
-import { useUpdateTicket } from '../lib/ticketMutations';
+import { useMarkEpicDone, useUpdateTicket } from '../lib/ticketMutations';
 import { EpicRow } from './EpicRow';
 import { SplitPane } from './SplitPane';
 import { TicketDetailPanel } from './TicketDetailPanel';
@@ -21,6 +22,7 @@ function EpicRowWithMutation({
   projectName: string;
 }) {
   const updateTicket = useUpdateTicket(projectName, epic.number);
+  const markEpicDone = useMarkEpicDone(projectName);
   return (
     <EpicRow
       ticket={epic}
@@ -28,6 +30,11 @@ function EpicRowWithMutation({
       onClick={onClick}
       onViewTickets={onViewTickets}
       onColorChange={(hex) => updateTicket.mutate({ color: hex })}
+      onMarkDone={() =>
+        markEpicDone.mutate(epic.number, {
+          onSuccess: () => fireEpicDoneConfetti(),
+        })
+      }
     />
   );
 }
@@ -82,19 +89,31 @@ export function EpicsTab() {
   }
 
   const sorted = [...epics].sort((a, b) => a.number - b.number);
+  const active = sorted.filter((e) => e.state !== 'DONE');
+  const completed = sorted.filter((e) => e.state === 'DONE');
+
+  const renderRow = (e: TicketSummary) => (
+    <EpicRowWithMutation
+      key={e.number}
+      epic={e}
+      isSelected={e.displayId === inspectParam}
+      onClick={() => toggleInspect(e)}
+      onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
+      projectName={name ?? ''}
+    />
+  );
 
   const list = (
     <div className="h-full overflow-y-auto">
-      {sorted.map((e) => (
-        <EpicRowWithMutation
-          key={e.number}
-          epic={e}
-          isSelected={e.displayId === inspectParam}
-          onClick={() => toggleInspect(e)}
-          onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
-          projectName={name ?? ''}
-        />
-      ))}
+      {active.map(renderRow)}
+      {completed.length > 0 && (
+        <>
+          <div className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-nord-4 bg-nord-1 border-y border-nord-3">
+            Completed ({completed.length})
+          </div>
+          {completed.map(renderRow)}
+        </>
+      )}
     </div>
   );
 

@@ -17,12 +17,14 @@ export function EpicRow({
   onClick,
   onViewTickets,
   onColorChange,
+  onMarkDone,
 }: {
   ticket: TicketSummary;
   isSelected: boolean;
   onClick: () => void;
   onViewTickets?: () => void;
   onColorChange?: (hex: string | null) => void;
+  onMarkDone?: () => void;
 }) {
   const counts = ticket.childCounts ?? {
     total: 0,
@@ -38,6 +40,11 @@ export function EpicRow({
 
   const done = counts.byState.DONE;
   const pct = counts.total === 0 ? 0 : Math.round((done / counts.total) * 100);
+  const canMarkDone =
+    onMarkDone !== undefined &&
+    ticket.state === 'IN_PROGRESS' &&
+    counts.total > 0 &&
+    counts.byState.DONE === counts.total;
 
   return (
     <div
@@ -99,6 +106,15 @@ export function EpicRow({
           }
         </div>
 
+        {canMarkDone && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMarkDone!(); }}
+            className="shrink-0 text-xs font-medium bg-nord-14 text-nord-0 rounded px-2 py-0.5 hover:bg-nord-14/80 transition-colors"
+          >
+            🎉 Mark Epic as Done!
+          </button>
+        )}
         {onViewTickets && (
           <button
             type="button"

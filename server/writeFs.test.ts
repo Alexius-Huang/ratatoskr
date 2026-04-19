@@ -8,6 +8,7 @@ import {
   archiveTicket,
   computeNextTicketNumber,
   createTicket,
+  markEpicDone,
   unarchiveTicket,
   updateTicket,
 } from './writeFs';
@@ -374,5 +375,91 @@ describe('updateTicket — color field', () => {
     const result = await updateTicket(PROJECT, PREFIX, 1, { color: '#A3BE8C' });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+});
+
+describe('DONE-epic assignment guardrail', () => {
+  it('should reject createTicket when assigning a child to a DONE epic', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'DONE' });
+    const result = await createTicket(PROJECT, PREFIX, { type: 'Task', title: 'T', epic: 1 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toMatch(/completed epic/i);
+    }
+  });
+
+  it('should reject updateTicket when patching epic field to a DONE epic', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'DONE' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'T' });
+    const result = await updateTicket(PROJECT, PREFIX, 2, { epic: 1 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toMatch(/completed epic/i);
+    }
+  });
+});
+
+describe('markEpicDone', () => {
+  it('should append the summary block and flip state to DONE', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'My Epic', state: 'IN_PROGRESS' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'Child A', state: 'DONE', epic: 1, updated: '2026-03-01T00:00:00.000Z' });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.state).toBe('DONE');
+      expect(result.data.body).toContain('## Summary');
+      expect(result.data.body).toContain('RAT-2');
+      expect(result.data.body).toContain('Child A');
+    }
+  });
+
+  it('should return invalid-input when ticket is not an Epic', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Task', title: 'T', state: 'IN_PROGRESS' });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+
+  it('should return invalid-input when epic is NOT_READY', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+
+  it('should return invalid-input when epic is already DONE', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'DONE' });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+
+  it('should return invalid-input when an epic has a non-DONE child', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'C', state: 'IN_PROGRESS', epic: 1 });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toMatch(/non-DONE/i);
+    }
+  });
+
+  it('should return invalid-input when the epic has no children', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS' });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toMatch(/no children/i);
+    }
+  });
+
+  it('should return not-found when the ticket file is missing', async () => {
+    const result = await markEpicDone(PROJECT, PREFIX, 999);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('not-found');
   });
 });

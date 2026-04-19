@@ -126,4 +126,21 @@ describe('EditTicketModal', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('should disable DONE epic options in the Epic picker', () => {
+    vi.mocked(useTickets).mockReturnValue({
+      data: [
+        { number: 1, displayId: 'RAT-1', type: 'Epic', title: 'Active', state: 'IN_PROGRESS', created: '', updated: '' },
+        { number: 2, displayId: 'RAT-2', type: 'Epic', title: 'Finished', state: 'DONE', created: '', updated: '' },
+      ],
+      isLoading: false,
+    } as never);
+    renderModal({});
+    const select = screen.getByLabelText(/epic \(optional\)/i) as HTMLSelectElement;
+    const options = Array.from(select.options);
+    const finishedOption = options.find((o) => o.text.includes('Finished'));
+    const activeOption = options.find((o) => o.text.includes('Active'));
+    expect(finishedOption?.disabled).toBe(true);
+    expect(activeOption?.disabled).toBe(false);
+  });
 });

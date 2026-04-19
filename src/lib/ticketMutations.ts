@@ -82,6 +82,26 @@ export function useArchiveDoneTickets(projectName: string) {
   });
 }
 
+export function useMarkEpicDone(projectName: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (num: number) =>
+      apiFetch<TicketDetail>(
+        `/api/projects/${encodeURIComponent(projectName)}/tickets/${num}/mark-epic-done`,
+        { method: 'POST' },
+      ),
+    onSuccess: (_data, num) => {
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'tickets' &&
+          q.queryKey[1] === projectName,
+      });
+      queryClient.invalidateQueries({ queryKey: ['ticket', projectName, num] });
+    },
+  });
+}
+
 export function useTransitionTicketState(projectName: string) {
   const queryClient = useQueryClient();
   const ticketsPredicate = (q: { queryKey: readonly unknown[] }) =>
