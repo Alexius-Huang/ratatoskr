@@ -1,20 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { TicketDetail, TicketState, TicketType } from '../../server/types';
 import { useTickets } from '../lib/api';
 import { useUpdateTicket } from '../lib/ticketMutations';
-import { EpicCombobox } from './EpicCombobox';
-import { Button } from './ui/Button';
-import { Modal } from './Modal';
+import { TicketFormModal } from './TicketFormModal';
 
 const NON_EPIC_TYPES: TicketType[] = ['Task', 'Bug'];
-const TICKET_STATES: TicketState[] = [
-  'NOT_READY',
-  'PLANNING',
-  'READY',
-  'IN_PROGRESS',
-  'IN_REVIEW',
-  'DONE',
-];
 
 type Props = {
   open: boolean;
@@ -33,17 +23,6 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
 
   const epicsQuery = useTickets(projectName, 'Epic');
   const updateMutation = useUpdateTicket(projectName, ticket.number);
-
-  useEffect(() => {
-    if (open) {
-      setTitle(ticket.title);
-      setState(ticket.state);
-      setType(ticket.type);
-      setEpicNum(ticket.epic ?? null);
-      setBody(ticket.body);
-      setSubmitError(null);
-    }
-  }, [open, ticket]);
 
   const handleClose = () => {
     setSubmitError(null);
@@ -69,10 +48,7 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
     if (state !== ticket.state) patch.state = state;
     if (type !== ticket.type) patch.type = type;
     if (body !== ticket.body) patch.body = body;
-
-    const newEpic = epicNum;
-    const oldEpic = ticket.epic ?? null;
-    if (newEpic !== oldEpic) patch.epic = newEpic;
+    if (epicNum !== (ticket.epic ?? null)) patch.epic = epicNum;
 
     try {
       await updateMutation.mutateAsync(patch);
@@ -82,86 +58,30 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
     }
   };
 
-  const footer = (
-    <>
-      <Button variant="secondary" onClick={handleClose}>
-        Cancel
-      </Button>
-      <Button variant="primary" onClick={handleSubmit} disabled={updateMutation.isPending}>
-        {updateMutation.isPending ? 'Saving…' : 'Save'}
-      </Button>
-    </>
-  );
-
   return (
-    <Modal open={open} onClose={handleClose} title={`Edit ${ticket.displayId}`} footer={footer}>
-      {submitError && (
-        <div className="mb-4 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
-          {submitError}
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-4">
-          <label className="flex flex-col gap-1 w-32 shrink-0">
-            <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Type</span>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as TicketType)}
-              disabled={ticket.type === 'Epic'}
-              className="bg-nord-2 border border-nord-3 rounded px-2 py-1.5 text-sm text-nord-6 focus:outline-none focus:border-nord-8 disabled:opacity-50"
-            >
-              {ticket.type === 'Epic'
-                ? <option value="Epic">Epic</option>
-                : NON_EPIC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)
-              }
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1 w-40 shrink-0">
-            <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">State</span>
-            <select
-              value={state}
-              onChange={(e) => setState(e.target.value as TicketState)}
-              className="bg-nord-2 border border-nord-3 rounded px-2 py-1.5 text-sm text-nord-6 focus:outline-none focus:border-nord-8"
-            >
-              {TICKET_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </label>
-
-          {ticket.type !== 'Epic' && (
-            <label className="flex flex-col gap-1 flex-1">
-              <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Epic (optional)</span>
-              <EpicCombobox
-                epics={epicsQuery.data ?? []}
-                value={epicNum}
-                onChange={setEpicNum}
-              />
-            </label>
-          )}
-        </div>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Title</span>
-          <input
-            autoFocus
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="bg-nord-2 border border-nord-3 rounded px-3 py-2 text-sm text-nord-6 focus:outline-none focus:border-nord-8"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Body</span>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={12}
-            className="bg-nord-2 border border-nord-3 rounded px-3 py-2 text-sm font-mono text-nord-6 focus:outline-none focus:border-nord-8 resize-y"
-          />
-        </label>
-      </div>
-    </Modal>
+    <TicketFormModal
+      open={open}
+      modalTitle={`Edit ${ticket.displayId}`}
+      submitLabel="Save"
+      submittingLabel="Saving…"
+      isSubmitting={updateMutation.isPending}
+      onSubmit={handleSubmit}
+      onClose={handleClose}
+      error={submitError}
+      type={type}
+      onTypeChange={setType}
+      typeOptions={ticket.type === 'Epic' ? ['Epic' as TicketType] : NON_EPIC_TYPES}
+      typeDisabled={ticket.type === 'Epic'}
+      state={state}
+      onStateChange={setState}
+      showEpic={ticket.type !== 'Epic'}
+      epics={epicsQuery.data ?? []}
+      epicNum={epicNum}
+      onEpicChange={setEpicNum}
+      title={title}
+      onTitleChange={setTitle}
+      body={body}
+      onBodyChange={setBody}
+    />
   );
 }

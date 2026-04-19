@@ -169,6 +169,7 @@ export function TicketDetailPanel({
       )}
     </PanelShell>
     <EditTicketModal
+      key={showEdit ? data.updated : 'closed'}
       open={showEdit}
       onClose={() => setShowEdit(false)}
       projectName={projectName}
