@@ -22,13 +22,22 @@ const epic2 = makeEpic(11, 'Epic two');
 const epics = [epic1, epic2];
 
 describe('EpicSearchFilter', () => {
-  it('should render only the search input when no query is typed and no epic is active', () => {
+  it('should render only the search input when no epic is active', () => {
     render(<EpicSearchFilter epics={epics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
     expect(screen.getByRole('textbox', { name: /filter by epic/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /clear epic filter/i })).not.toBeInTheDocument();
   });
 
-  it('should show matching epic chips after the user types a query', async () => {
+  it('should show a dropdown with top-5 epics when the input is focused without typing', async () => {
+    const user = userEvent.setup();
+    const manyEpics = Array.from({ length: 8 }, (_, i) => makeEpic(i + 1, `Epic ${i + 1}`));
+    render(<EpicSearchFilter epics={manyEpics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
+    await user.click(screen.getByRole('textbox'));
+    const items = screen.getAllByRole('button');
+    expect(items.length).toBe(5);
+  });
+
+  it('should show matching epics in the dropdown as the user types', async () => {
     const user = userEvent.setup();
     render(<EpicSearchFilter epics={epics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
     await user.type(screen.getByRole('textbox'), 'two');
@@ -47,10 +56,11 @@ describe('EpicSearchFilter', () => {
     const user = userEvent.setup();
     render(<EpicSearchFilter epics={epics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
     await user.type(screen.getByRole('textbox'), 'RAT-10');
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Epic one/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Epic two/i })).not.toBeInTheDocument();
   });
 
-  it('should call onEpicChange with the epic number when an unselected chip is clicked', async () => {
+  it('should call onEpicChange with the epic number when a dropdown item is clicked', async () => {
     const user = userEvent.setup();
     const onEpicChange = vi.fn();
     render(<EpicSearchFilter epics={epics} activeEpicNumber={null} onEpicChange={onEpicChange} />);
@@ -59,33 +69,28 @@ describe('EpicSearchFilter', () => {
     expect(onEpicChange).toHaveBeenCalledWith(epic1.number);
   });
 
-  it('should call onEpicChange with null when the currently-active chip is clicked (toggle off)', async () => {
+  it('should display the active epic as an inline tag next to the input', () => {
+    render(<EpicSearchFilter epics={epics} activeEpicNumber={epic1.number} onEpicChange={vi.fn()} />);
+    expect(screen.getByText(/Epic one/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear epic filter/i })).toBeInTheDocument();
+  });
+
+  it('should call onEpicChange with null when the X button on the active tag is clicked', async () => {
     const user = userEvent.setup();
     const onEpicChange = vi.fn();
     render(<EpicSearchFilter epics={epics} activeEpicNumber={epic1.number} onEpicChange={onEpicChange} />);
-    // active chip is visible even with no query (pinned)
-    await user.click(screen.getByRole('button', { name: /Epic one/i }));
+    await user.click(screen.getByRole('button', { name: /clear epic filter/i }));
     expect(onEpicChange).toHaveBeenCalledWith(null);
   });
 
-  it('should show the active epic chip even when the query does not match its title', async () => {
-    const user = userEvent.setup();
-    render(<EpicSearchFilter epics={epics} activeEpicNumber={epic1.number} onEpicChange={vi.fn()} />);
-    await user.type(screen.getByRole('textbox'), 'two');
-    // epic1 (active) still shows pinned even though "two" doesn't match "Epic one"
-    expect(screen.getByRole('button', { name: /Epic one/i })).toBeInTheDocument();
-    // epic2 also shows (matches query)
-    expect(screen.getByRole('button', { name: /Epic two/i })).toBeInTheDocument();
-  });
-
-  it('should cap the visible match count at 10', async () => {
+  it('should cap the dropdown results to 10 when many epics match', async () => {
     const user = userEvent.setup();
     const manyEpics = Array.from({ length: 15 }, (_, i) =>
       makeEpic(i + 1, `Alpha epic ${i + 1}`),
     );
     render(<EpicSearchFilter epics={manyEpics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
     await user.type(screen.getByRole('textbox'), 'alpha');
-    const chips = screen.getAllByRole('button');
-    expect(chips.length).toBe(10);
+    const items = screen.getAllByRole('button');
+    expect(items.length).toBe(10);
   });
 });

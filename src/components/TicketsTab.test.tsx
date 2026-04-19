@@ -18,6 +18,37 @@ vi.mock('./CreateTicketModal', () => ({
   CreateTicketModal: () => null,
 }));
 
+vi.mock('./EpicSearchFilter', () => ({
+  EpicSearchFilter: ({
+    epics,
+    activeEpicNumber,
+    onEpicChange,
+  }: {
+    epics: TicketSummary[];
+    activeEpicNumber: number | null;
+    onEpicChange: (n: number | null) => void;
+  }) => (
+    <div>
+      <input
+        aria-label="Filter by epic"
+        onChange={(e) => {
+          const match = epics.find((ep) => ep.title.toLowerCase().includes(e.target.value.toLowerCase()));
+          onEpicChange(match ? match.number : null);
+        }}
+      />
+      {activeEpicNumber !== null && (
+        <button
+          type="button"
+          aria-pressed
+          onClick={() => onEpicChange(null)}
+        >
+          {epics.find((ep) => ep.number === activeEpicNumber)?.title ?? String(activeEpicNumber)}
+        </button>
+      )}
+    </div>
+  ),
+}));
+
 vi.mock('./TicketDetailPanel', () => ({
   TicketDetailPanel: ({ displayId }: { displayId: string }) => (
     <div data-testid="detail-panel">{displayId}</div>
@@ -39,10 +70,13 @@ import { useArchiveDoneTickets } from '../lib/ticketMutations';
 const mockUseTickets = vi.mocked(useTickets);
 const mockUseArchiveDoneTickets = vi.mocked(useArchiveDoneTickets);
 
+const epic1 = { number: 10, displayId: 'RAT-10', type: 'Epic' as const, title: 'Epic one', state: 'IN_PROGRESS' as const, created: '', updated: '' };
+const epic2 = { number: 11, displayId: 'RAT-11', type: 'Epic' as const, title: 'Epic two', state: 'IN_PROGRESS' as const, created: '', updated: '' };
+
 const fixtures: TicketSummary[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', created: '', updated: '' },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', created: '', updated: '' },
-  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'Task three', state: 'DONE', created: '', updated: '' },
+  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', epic: 10, created: '', updated: '' },
+  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', epic: 10, created: '', updated: '' },
+  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'Task three', state: 'DONE', epic: 11, created: '', updated: '' },
 ];
 
 const fixturesNoDone: TicketSummary[] = [
@@ -50,8 +84,13 @@ const fixturesNoDone: TicketSummary[] = [
   { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', created: '', updated: '' },
 ];
 
-function setupMocks(tickets = fixtures) {
-  mockUseTickets.mockReturnValue({ data: tickets, isLoading: false, error: null } as ReturnType<typeof useTickets>);
+function setupMocks(taskList = fixtures) {
+  mockUseTickets.mockImplementation((_name, type) => {
+    if (Array.isArray(type)) {
+      return { data: taskList, isLoading: false, error: null } as ReturnType<typeof useTickets>;
+    }
+    return { data: [epic1, epic2], isLoading: false, error: null } as ReturnType<typeof useTickets>;
+  });
   mockUseArchiveDoneTickets.mockReturnValue({ mutate: vi.fn(), isPending: false, error: null } as unknown as ReturnType<typeof useArchiveDoneTickets>);
 }
 
@@ -116,5 +155,28 @@ describe('TicketsTab', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: 'Archive Done Tickets' })).toBeInTheDocument();
+  });
+
+  it('should filter ticket rows by epic when a matching chip is selected', async () => {
+    const user = userEvent.setup();
+    render();
+    const input = screen.getByRole('textbox', { name: /filter by epic/i });
+    await user.type(input, 'two');
+    // Only RAT-3 belongs to epic2 (number 11)
+    expect(screen.queryByText('RAT-1')).not.toBeInTheDocument();
+    expect(screen.queryByText('RAT-2')).not.toBeInTheDocument();
+    expect(screen.getByText('RAT-3')).toBeInTheDocument();
+  });
+
+  it('should show all ticket rows when the active epic chip is clicked again', async () => {
+    const user = userEvent.setup();
+    render();
+    const input = screen.getByRole('textbox', { name: /filter by epic/i });
+    await user.type(input, 'two');
+    const activeChip = screen.getByRole('button', { name: /epic two/i });
+    await user.click(activeChip);
+    expect(screen.getByText('RAT-1')).toBeInTheDocument();
+    expect(screen.getByText('RAT-2')).toBeInTheDocument();
+    expect(screen.getByText('RAT-3')).toBeInTheDocument();
   });
 });
