@@ -7,11 +7,11 @@ import {
   getWorkspaceRootSource,
   listArchivedTickets,
   listTickets,
-  readProjectConfig,
   readTicketDetail,
   readTicketPlan,
   scanProjects,
 } from './fs';
+import { HttpError, parseJsonBody, requireProjectConfig, requireTicketNumber } from './routeHelpers';
 import type { CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
 import {
   archiveDoneTickets,
@@ -26,6 +26,13 @@ const VALID_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 
 const app = new Hono();
 
+app.onError((err, c) => {
+  if (err instanceof HttpError) {
+    return c.json(err.payload, err.status as Parameters<typeof c.json>[1]);
+  }
+  throw err;
+});
+
 app.get('/api/config', (c) => {
   const workspaceRoot = getWorkspaceRoot();
   const source = getWorkspaceRootSource();
@@ -33,12 +40,7 @@ app.get('/api/config', (c) => {
 });
 
 app.put('/api/config', async (c) => {
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'Invalid JSON body' }, 400);
-  }
+  const body = await parseJsonBody(c);
   const candidate = (body as { workspaceRoot?: unknown })?.workspaceRoot;
   if (typeof candidate !== 'string' || candidate.length === 0) {
     return c.json({ error: 'workspaceRoot must be a non-empty string' }, 400);
@@ -64,11 +66,8 @@ app.get('/api/projects', async (c) => {
 app.get('/api/projects/:name/tickets', async (c) => {
   const name = c.req.param('name');
   const typeParam = c.req.query('type');
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  let tickets = await listTickets(name, config.prefix);
+  const { prefix } = await requireProjectConfig(name);
+  let tickets = await listTickets(name, prefix);
   if (typeParam) {
     const allowed = new Set<TicketType>(
       typeParam
@@ -87,38 +86,22 @@ app.get('/api/projects/:name/tickets', async (c) => {
 
 app.get('/api/projects/:name/tickets/:number', async (c) => {
   const name = c.req.param('name');
-  const numberParam = c.req.param('number');
-  const n = Number(numberParam);
-  if (!Number.isInteger(n) || n <= 0) {
-    return c.json({ error: 'Invalid ticket number' }, 400);
-  }
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  const detail = await readTicketDetail(name, n, config.prefix);
-  if (!detail) {
-    return c.json({ error: `Ticket ${config.prefix}-${n} not found` }, 404);
-  }
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const detail = await readTicketDetail(name, n, prefix);
+  if (!detail) return c.json({ error: `Ticket ${prefix}-${n} not found` }, 404);
   return c.json(detail);
 });
 
 app.get('/api/projects/:name/tickets/:number/plan', async (c) => {
   const name = c.req.param('name');
-  const numberParam = c.req.param('number');
-  const n = Number(numberParam);
-  if (!Number.isInteger(n) || n <= 0) {
-    return c.json({ error: 'Invalid ticket number' }, 400);
-  }
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  const result = await readTicketPlan(name, n, config.prefix);
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const result = await readTicketPlan(name, n, prefix);
   if (!result.ok) {
     switch (result.reason) {
       case 'ticket-not-found':
-        return c.json({ error: `Ticket ${config.prefix}-${n} not found` }, 404);
+        return c.json({ error: `Ticket ${prefix}-${n} not found` }, 404);
       case 'no-plan-doc':
         return c.json({ error: 'Ticket has no plan_doc' }, 404);
       case 'out-of-scope':
@@ -132,37 +115,23 @@ app.get('/api/projects/:name/tickets/:number/plan', async (c) => {
 
 app.get('/api/projects/:name/archive', async (c) => {
   const name = c.req.param('name');
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  return c.json(await listArchivedTickets(name, config.prefix));
+  const { prefix } = await requireProjectConfig(name);
+  return c.json(await listArchivedTickets(name, prefix));
 });
 
 app.post('/api/projects/:name/tickets/archive-done', async (c) => {
   const name = c.req.param('name');
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  const result = await archiveDoneTickets(name, config.prefix);
+  const { prefix } = await requireProjectConfig(name);
+  const result = await archiveDoneTickets(name, prefix);
   if (!result.ok) return c.json({ error: result.error.message }, 400);
   return c.json(result.data);
 });
 
 app.post('/api/projects/:name/tickets', async (c) => {
   const name = c.req.param('name');
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'Invalid JSON body' }, 400);
-  }
-  const result = await createTicket(name, config.prefix, body as CreateTicketRequest);
+  const { prefix } = await requireProjectConfig(name);
+  const body = await parseJsonBody(c);
+  const result = await createTicket(name, prefix, body as CreateTicketRequest);
   if (!result.ok) {
     const status = result.error.kind === 'not-found' ? 404 : 400;
     return c.json({ error: result.error.message }, status);
@@ -172,22 +141,10 @@ app.post('/api/projects/:name/tickets', async (c) => {
 
 app.patch('/api/projects/:name/tickets/:number', async (c) => {
   const name = c.req.param('name');
-  const numberParam = c.req.param('number');
-  const n = Number(numberParam);
-  if (!Number.isInteger(n) || n <= 0) {
-    return c.json({ error: 'Invalid ticket number' }, 400);
-  }
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'Invalid JSON body' }, 400);
-  }
-  const result = await updateTicket(name, config.prefix, n, body as UpdateTicketRequest);
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const body = await parseJsonBody(c);
+  const result = await updateTicket(name, prefix, n, body as UpdateTicketRequest);
   if (!result.ok) {
     const status = result.error.kind === 'not-found' ? 404 : 400;
     return c.json({ error: result.error.message }, status);
@@ -197,16 +154,9 @@ app.patch('/api/projects/:name/tickets/:number', async (c) => {
 
 app.post('/api/projects/:name/tickets/:number/archive', async (c) => {
   const name = c.req.param('name');
-  const numberParam = c.req.param('number');
-  const n = Number(numberParam);
-  if (!Number.isInteger(n) || n <= 0) {
-    return c.json({ error: 'Invalid ticket number' }, 400);
-  }
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  const result = await archiveTicket(name, config.prefix, n);
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const result = await archiveTicket(name, prefix, n);
   if (!result.ok) {
     if (result.error.kind === 'not-found') {
       return c.json({ error: result.error.message }, 404);
@@ -221,12 +171,9 @@ app.post('/api/projects/:name/tickets/:number/archive', async (c) => {
 
 app.post('/api/projects/:name/tickets/:number/mark-epic-done', async (c) => {
   const name = c.req.param('name');
-  const numberParam = c.req.param('number');
-  const n = Number(numberParam);
-  if (!Number.isInteger(n) || n <= 0) return c.json({ error: 'Invalid ticket number' }, 400);
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) return c.json({ error: 'Project has no prefix configured' }, 400);
-  const result = await markEpicDone(name, config.prefix, n);
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const result = await markEpicDone(name, prefix, n);
   if (!result.ok) {
     const status = result.error.kind === 'not-found' ? 404 : 400;
     return c.json({ error: result.error.message }, status);
@@ -236,16 +183,9 @@ app.post('/api/projects/:name/tickets/:number/mark-epic-done', async (c) => {
 
 app.post('/api/projects/:name/archive/:number/unarchive', async (c) => {
   const name = c.req.param('name');
-  const numberParam = c.req.param('number');
-  const n = Number(numberParam);
-  if (!Number.isInteger(n) || n <= 0) {
-    return c.json({ error: 'Invalid ticket number' }, 400);
-  }
-  const { config } = await readProjectConfig(name);
-  if (!config || !config.prefix) {
-    return c.json({ error: 'Project has no prefix configured' }, 400);
-  }
-  const result = await unarchiveTicket(name, config.prefix, n);
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const result = await unarchiveTicket(name, prefix, n);
   if (!result.ok) {
     if (result.error.kind === 'not-found') {
       return c.json({ error: result.error.message }, 404);
