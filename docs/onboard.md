@@ -108,6 +108,68 @@ This is a one-time step per machine. Subsequent launches via Dock / Spotlight wo
 - **WebView**: loads `http://localhost:17653`. Remains hidden until the sidecar prints "listening", then becomes visible.
 - **Config persistence**: workspace root is stored at `~/.config/ratatoskr/config.json` (from RAT-24). The `.app` reads this on launch; if missing, the SetupScreen appears.
 
+### Release workflow
+
+Releases require a **minisign keypair** for Tauri's updater. This is a one-time setup; the private key must live outside the repo.
+
+#### One-time setup
+
+```sh
+mkdir -p ~/.tauri
+cd projects/ratatoskr
+pnpm tauri signer generate -w ~/.tauri/ratatoskr.key
+# Press Enter twice when prompted for a password (no password).
+```
+
+This prints a public key and writes two files:
+
+- `~/.tauri/ratatoskr.key` — **private key** (keep safe; losing it bricks auto-update for all installed copies).
+- `~/.tauri/ratatoskr.key.pub` — public key.
+
+After generating, paste the public key (the long base64 line printed to stdout, or `cat ~/.tauri/ratatoskr.key.pub`) into `src-tauri/tauri.conf.json` at `plugins.updater.pubkey`, replacing the placeholder `"REPLACE_WITH_PUBKEY_FROM_ratatoskr.key.pub"`. Commit that change.
+
+#### Per-release steps
+
+1. **Bump version** in `src-tauri/tauri.conf.json` (e.g. `"0.1.0"` → `"0.1.1"`). Commit: `chore: release v0.1.1`.
+2. **Tag**: `git tag v0.1.1 && git push --tags`.
+3. **Export signing vars**:
+   ```sh
+   export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/ratatoskr.key)"
+   export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+   ```
+4. **Build**: `pnpm tauri:build`. Artifacts land in `src-tauri/target/release/bundle/macos/`:
+   - `Ratatoskr.app` — full app bundle
+   - `Ratatoskr_0.1.1_aarch64.dmg` — drag-to-install disk image (first-install artifact)
+   - `Ratatoskr.app.tar.gz` — updater artifact (what existing installs download)
+   - `Ratatoskr.app.tar.gz.sig` — minisign signature
+5. **Write `latest.json`** using this schema:
+   ```json
+   {
+     "version": "0.1.1",
+     "notes": "Release notes here.",
+     "pub_date": "2026-04-20T12:00:00Z",
+     "platforms": {
+       "darwin-aarch64": {
+         "signature": "<literal contents of Ratatoskr.app.tar.gz.sig>",
+         "url": "https://github.com/Alexius-Huang/ratatoskr/releases/download/v0.1.1/Ratatoskr.app.tar.gz"
+       }
+     }
+   }
+   ```
+   The `signature` value is the **file contents** of `.sig` (a short base64-ish blob), not a path.
+6. **Publish**:
+   ```sh
+   gh release create v0.1.1 \
+     --title "v0.1.1" \
+     --notes "Release notes." \
+     src-tauri/target/release/bundle/macos/Ratatoskr_0.1.1_aarch64.dmg \
+     "src-tauri/target/release/bundle/macos/Ratatoskr.app.tar.gz" \
+     "src-tauri/target/release/bundle/macos/Ratatoskr.app.tar.gz.sig" \
+     latest.json
+   ```
+
+On the next launch, installed copies will detect the new version and show an Install/Skip dialog automatically.
+
 ### Signing / notarization (future)
 
 To distribute without the Gatekeeper prompt, you need an Apple Developer ID certificate. Once available:

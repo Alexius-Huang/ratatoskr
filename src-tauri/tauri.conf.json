@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,6 +44,14 @@
     },
     "macOS": {
       "minimumSystemVersion": "12.0"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Alexius-Huang/ratatoskr/releases/latest/download/latest.json"
+      ],
+      "pubkey": "REPLACE_WITH_PUBKEY_FROM_ratatoskr.key.pub"
     }
   }
 }

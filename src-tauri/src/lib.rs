@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_updater::UpdaterExt;
 
 fn kill_child(slot: &Arc<Mutex<Option<tauri_plugin_shell::process::CommandChild>>>) {
   if let Ok(mut guard) = slot.lock() {
@@ -9,6 +11,32 @@ fn kill_child(slot: &Arc<Mutex<Option<tauri_plugin_shell::process::CommandChild>
       let _ = child.kill();
     }
   }
+}
+
+async fn check_for_update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
+  let updater = app.updater()?;
+  if let Some(update) = updater.check().await? {
+    let current = app.package_info().version.to_string();
+    let next = update.version.clone();
+
+    let should_install = app
+      .dialog()
+      .message(format!(
+        "Ratatoskr {next} is available.\nYou're on {current}. Install now?"
+      ))
+      .title("Update available")
+      .buttons(MessageDialogButtons::OkCancelCustom(
+        "Install".into(),
+        "Skip".into(),
+      ))
+      .blocking_show();
+
+    if should_install {
+      update.download_and_install(|_chunk, _total| {}, || {}).await?;
+      app.restart();
+    }
+  }
+  Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -19,11 +47,21 @@ pub fn run() {
 
   let app = tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_dialog::init())
     .setup(move |app| {
-      // In dev mode, the window points at the Vite dev server (devUrl) — no sidecar needed.
+      // In dev mode, the window points at the Vite dev server (devUrl) — no sidecar or update check needed.
       if cfg!(debug_assertions) {
         return Ok(());
       }
+
+      // Spawn update check in the background so a slow/offline network doesn't stall startup.
+      let update_handle = app.handle().clone();
+      tauri::async_runtime::spawn(async move {
+        if let Err(e) = check_for_update(update_handle).await {
+          eprintln!("[updater] check failed: {e}");
+        }
+      });
 
       // Prod: get the resource dir so the sidecar can find the bundled dist/ folder.
       let resource_dir = app
