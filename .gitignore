@@ -25,3 +25,9 @@ dist-ssr
 
 # Ratatoskr's own task data (per workspace convention)
 .meta/
+
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+src-tauri/Cargo.lock

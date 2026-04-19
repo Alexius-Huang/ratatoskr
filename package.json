@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:server": "~/.bun/bin/bun build ./server/prod.ts --compile --outfile ./src-tauri/binaries/ratatoskr-server-aarch64-apple-darwin && codesign --remove-signature ./src-tauri/binaries/ratatoskr-server-aarch64-apple-darwin 2>/dev/null; codesign --force --sign - ./src-tauri/binaries/ratatoskr-server-aarch64-apple-darwin",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "pnpm build && pnpm build:server && tauri build"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.8.0",
@@ -27,9 +31,11 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@tailwindcss/vite": "^4.2.2",
+    "@tauri-apps/cli": "^2.10.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/bun": "^1.3.12",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

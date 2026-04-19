@@ -242,4 +242,5 @@ app.post('/api/projects/:name/archive/:number/unarchive', async (c) => {
   return c.json({ ok: true });
 });
 
+export { app };
 export default app;
