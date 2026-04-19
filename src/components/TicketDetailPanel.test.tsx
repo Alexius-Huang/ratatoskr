@@ -213,6 +213,12 @@ describe('TicketDetailPanel', () => {
     expect(screen.getByText('RAT-64: Second PR', { exact: false })).toBeInTheDocument();
   });
 
+  it('should render raw prs paths when pullRequests is absent', () => {
+    renderPanel({ ...taskFixture, prs: ['owner/repo/pull/42'] });
+    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
+    expect(screen.getByText('owner/repo/pull/42')).toBeInTheDocument();
+  });
+
   it('should call openExternal when a PR row is clicked', async () => {
     const user = userEvent.setup();
     const prUrl = 'https://github.com/owner/repo/pull/12';
