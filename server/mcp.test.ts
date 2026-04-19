@@ -147,4 +147,43 @@ describe('mcp tools', () => {
     const body = JSON.parse(result.content[0].text) as { error: string };
     expect(body.error).toBeDefined();
   });
+
+  it('patch_ticket sets the branch field', async () => {
+    await makeTicket(1);
+    const result = await patchTicketHandler({
+      project: PROJECT,
+      number: 1,
+      branch: 'rat-74-mcp-branch-pr',
+    });
+    expect(result.isError).toBeUndefined();
+    const patched = JSON.parse(result.content[0].text) as { branch?: string };
+    expect(patched.branch).toBe('rat-74-mcp-branch-pr');
+  });
+
+  it('patch_ticket appends a pr to the prs array', async () => {
+    await makeTicket(1);
+    const result = await patchTicketHandler({
+      project: PROJECT,
+      number: 1,
+      pr: 'owner/repo/pull/42',
+    });
+    expect(result.isError).toBeUndefined();
+    const patched = JSON.parse(result.content[0].text) as { prs?: string[] };
+    expect(patched.prs).toEqual(['owner/repo/pull/42']);
+  });
+
+  it('get_ticket returns branch and prs when present', async () => {
+    await makeTicket(1, {
+      branch: 'feature/x',
+      prs: ['owner/repo/pull/7'],
+    });
+    const result = await getTicketHandler({ project: PROJECT, number: 1 });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as {
+      branch?: string;
+      prs?: string[];
+    };
+    expect(ticket.branch).toBe('feature/x');
+    expect(ticket.prs).toEqual(['owner/repo/pull/7']);
+  });
 });

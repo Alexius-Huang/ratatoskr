@@ -139,6 +139,8 @@ export function buildServer(): McpServer {
       body: z.string().optional(),
       plan_doc: z.string().nullable().optional(),
       color: z.string().nullable().optional(),
+      branch: z.string().nullable().optional(),
+      pr: z.string().optional(),
     },
     async (args) => patchTicketHandler(args),
   );
