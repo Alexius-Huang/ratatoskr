@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
@@ -51,6 +51,31 @@ export function EpicsTab() {
   const inspectParam = searchParams.get('inspect');
   const inspectedNumber = extractTicketNumber(inspectParam);
 
+  const rowRefs = useRef<Map<number, HTMLElement>>(new Map());
+
+  useEffect(() => {
+    if (inspectedNumber === null) return;
+    const el = rowRefs.current.get(inspectedNumber);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [inspectedNumber]);
+
+  useEffect(() => {
+    if (inspectedNumber === null || !epics) return;
+    const targetExists = epics.some((e) => e.number === inspectedNumber);
+    if (!targetExists) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuery((prev) => {
+      if (prev === '') return prev;
+      const q = prev.trim().toLowerCase();
+      const targetVisible = epics.some(
+        (e) =>
+          e.number === inspectedNumber &&
+          `${e.displayId} — ${e.title}`.toLowerCase().includes(q),
+      );
+      return targetVisible ? prev : '';
+    });
+  }, [inspectedNumber, epics]);
+
   const clearInspect = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('inspect');
@@ -60,11 +85,11 @@ export function EpicsTab() {
 
   const toggleInspect = (ticket: TicketSummary) => {
     const next = new URLSearchParams(searchParams);
-    if (inspectParam === ticket.displayId) {
+    if (inspectedNumber !== null && inspectedNumber === ticket.number) {
       next.delete('inspect');
       next.delete('view');
     } else {
-      next.set('inspect', ticket.displayId);
+      next.set('inspect', String(ticket.number));
       next.delete('view');
     }
     setSearchParams(next, { replace: true });
@@ -102,15 +127,21 @@ export function EpicsTab() {
   const completedFiltered = completed.filter(matches);
   const hasMatches = activeFiltered.length > 0 || completedFiltered.length > 0;
 
+  const setRowRef = (n: number) => (el: HTMLElement | null) => {
+    if (el) rowRefs.current.set(n, el);
+    else rowRefs.current.delete(n);
+  };
+
   const renderRow = (e: TicketSummary) => (
-    <EpicRowWithMutation
-      key={e.number}
-      epic={e}
-      isSelected={e.displayId === inspectParam}
-      onClick={() => toggleInspect(e)}
-      onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
-      projectName={name ?? ''}
-    />
+    <div key={e.number} ref={setRowRef(e.number)}>
+      <EpicRowWithMutation
+        epic={e}
+        isSelected={inspectedNumber !== null && e.number === inspectedNumber}
+        onClick={() => toggleInspect(e)}
+        onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
+        projectName={name ?? ''}
+      />
+    </div>
   );
 
   const list = (

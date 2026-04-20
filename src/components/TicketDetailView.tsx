@@ -1,7 +1,7 @@
 import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
-import { defaultEpicColor, tagStyle } from '../lib/epicColor';
+import { EpicTag } from './EpicTag';
 import { openExternal } from '../lib/openExternal';
 import { formatTimestamp } from '../lib/time';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
@@ -55,16 +55,9 @@ export function TicketDetailView({
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${stateColorClass(data.state)}`}>
             {stateLabel(data.state)}
           </span>
-          {epicLabel !== null && data.epic !== undefined
-            ? (() => {
-                const s = tagStyle(data.epicColor ?? defaultEpicColor(data.epic));
-                return (
-                  <span className={s.className} style={s.style} title={epicLabel}>
-                    {epicLabel}
-                  </span>
-                );
-              })()
-            : null}
+          {epicLabel !== null && data.epic !== undefined && (
+            <EpicTag projectName={projectName} epic={data.epic} label={epicLabel} color={data.epicColor} />
+          )}
           <span className="text-xs text-nord-4">{data.type}</span>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-4">

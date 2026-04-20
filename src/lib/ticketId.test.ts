@@ -7,6 +7,10 @@ describe('ticketId', () => {
       expect(extractTicketNumber('RAT-12')).toBe(12);
     });
 
+    it('should accept a bare numeric string', () => {
+      expect(extractTicketNumber('10')).toBe(10);
+    });
+
     it('should return null for a non-numeric suffix', () => {
       expect(extractTicketNumber('RAT-abc')).toBeNull();
     });

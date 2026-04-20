@@ -178,6 +178,41 @@ describe('EpicsTab — Completed section', () => {
   });
 });
 
+describe('EpicsTab — inspect by number', () => {
+  beforeEach(() => {
+    markDoneMutateFn.mockReset();
+    mockFireConfetti.mockReset();
+    // JSDOM does not define scrollIntoView; define it so we can spy on it
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterEach(() => {
+    // @ts-expect-error — resetting JSDOM polyfill
+    delete HTMLElement.prototype.scrollIntoView;
+  });
+
+  it('?inspect=10 selects the epic with number 10 (calls scrollIntoView)', () => {
+    setupMocks([
+      makeEpic({ number: 10, displayId: 'RAT-10', title: 'Target Epic' }),
+      makeEpic({ number: 11, displayId: 'RAT-11', title: 'Other Epic' }),
+    ]);
+    renderWithProviders(<EpicsTab />, {
+      initialEntries: ['/projects/ratatoskr/epics?inspect=10'],
+      routePath: '/projects/:name/*',
+    });
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('legacy ?inspect=RAT-10 still selects epic with number 10', () => {
+    setupMocks([makeEpic({ number: 10, displayId: 'RAT-10', title: 'Legacy Epic' })]);
+    renderWithProviders(<EpicsTab />, {
+      initialEntries: ['/projects/ratatoskr/epics?inspect=RAT-10'],
+      routePath: '/projects/:name/*',
+    });
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+});
+
 describe('EpicsTab — scroll containers', () => {
   beforeEach(() => {
     markDoneMutateFn.mockReset();
