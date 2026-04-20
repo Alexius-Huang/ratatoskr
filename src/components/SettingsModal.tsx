@@ -13,9 +13,8 @@ export function SettingsModal({ onClose }: Props) {
   const [path, setPath] = useState(config?.workspaceRoot ?? '');
   const isEnvControlled = config?.source === 'env';
 
-  useEffect(() => {
-    setPath(config?.workspaceRoot ?? '');
-  }, [config?.workspaceRoot]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setPath(config?.workspaceRoot ?? ''); }, [config?.workspaceRoot]);
 
   const handleSubmit = async () => {
     const trimmed = path.trim();

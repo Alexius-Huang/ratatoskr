@@ -54,7 +54,7 @@ describe('SettingsModal', () => {
 
   it('should call PUT /api/config and close on submit', async () => {
     let callCount = 0;
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       callCount++;
       const body = callCount === 1
         ? { configured: true, workspaceRoot: '/old', source: 'file' }
