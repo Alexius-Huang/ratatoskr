@@ -105,8 +105,8 @@ export function TicketsTab() {
   const doneCount = tickets?.filter((t) => t.state === 'DONE').length ?? 0;
 
   const table = (
-    <div className="p-6 h-full overflow-y-auto">
-      <div className="flex items-center gap-3 mb-4">
+    <div className="h-full flex flex-col min-h-0">
+      <div className="shrink-0 px-6 pt-6 pb-4 flex items-center gap-3">
         <EpicSearchFilter
           epics={epics.data ?? []}
           activeEpicNumber={activeEpicNumber}
@@ -127,8 +127,9 @@ export function TicketsTab() {
           </Button>
         </div>
       </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-nord-0">
           <tr className="text-left text-nord-4 border-b border-nord-3">
             <th className="pb-2 pr-4 font-medium">ID</th>
             <th className="pb-2 pr-4 font-medium">Title</th>
@@ -191,6 +192,7 @@ export function TicketsTab() {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 
