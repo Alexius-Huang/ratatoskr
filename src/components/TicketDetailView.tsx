@@ -1,4 +1,4 @@
-import { GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed } from 'lucide-react';
+import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
 import { defaultEpicColor, tagStyle } from '../lib/epicColor';
@@ -67,10 +67,16 @@ export function TicketDetailView({
             : null}
           <span className="text-xs text-nord-4">{data.type}</span>
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-3">
-          <span title={data.created}>Created {formatTimestamp(data.created)}</span>
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-4">
+          <span title={data.created} className="flex items-center gap-1">
+            <CalendarDays size={11} className="text-nord-9 shrink-0" />
+            Created {formatTimestamp(data.created)}
+          </span>
           {data.updated !== data.created && (
-            <span title={data.updated}>Updated {formatTimestamp(data.updated)}</span>
+            <span title={data.updated} className="flex items-center gap-1">
+              <Clock size={11} className="text-nord-9 shrink-0" />
+              Updated {formatTimestamp(data.updated)}
+            </span>
           )}
         </div>
         {data.state === 'WONT_DO' && (
