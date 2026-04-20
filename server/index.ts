@@ -113,6 +113,34 @@ app.get('/api/projects/:name/tickets/:number/plan', async (c) => {
   return c.json(result.data);
 });
 
+app.get('/api/tickets/by-id/:displayId', async (c) => {
+  const raw = c.req.param('displayId');
+  const match = /^([A-Za-z][A-Za-z0-9]*)-(\d+)$/.exec(raw);
+  if (!match) {
+    return c.json(
+      { error: `Invalid displayId: '${raw}'. Expected '{prefix}-{number}' (e.g. RAT-76).` },
+      400,
+    );
+  }
+  const [, prefixRaw, numStr] = match;
+  const prefix = prefixRaw.toUpperCase();
+  const number = Number(numStr);
+
+  const projects = await scanProjects();
+  const project = projects.find(
+    (p) => p.config?.prefix?.toUpperCase() === prefix,
+  );
+  if (!project || !project.config) {
+    return c.json({ error: `No project found for prefix '${prefix}'.` }, 404);
+  }
+
+  const detail = await readTicketDetail(project.name, number, project.config.prefix);
+  if (!detail) {
+    return c.json({ error: `Ticket ${prefix}-${number} not found.` }, 404);
+  }
+  return c.json({ ...detail, project: project.name });
+});
+
 app.get('/api/projects/:name/archive', async (c) => {
   const name = c.req.param('name');
   const { prefix } = await requireProjectConfig(name);

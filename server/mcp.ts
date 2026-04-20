@@ -87,6 +87,12 @@ export async function patchTicketHandler(args: {
   );
 }
 
+export async function getTicketByIdHandler(args: {
+  displayId: string;
+}): Promise<ToolResult> {
+  return dispatch(`/api/tickets/by-id/${encodeURIComponent(args.displayId)}`);
+}
+
 export async function archiveTicketHandler(args: {
   project: string;
   number: number;
@@ -112,6 +118,12 @@ export function buildServer(): McpServer {
     'get_ticket',
     { project: z.string(), number: z.number().int().positive() },
     async (args) => getTicketHandler(args),
+  );
+
+  server.tool(
+    'get_ticket_by_id',
+    { displayId: z.string().min(1) },
+    async (args) => getTicketByIdHandler(args),
   );
 
   server.tool(
