@@ -8,6 +8,7 @@ import { extractTicketNumber } from '../lib/ticketId';
 import { useArchiveDoneTickets } from '../lib/ticketMutations';
 import { CreateTicketModal } from './CreateTicketModal';
 import { EpicSearchFilter } from './EpicSearchFilter';
+import { TicketSearchFilter } from './TicketSearchFilter';
 import { Button } from './ui/Button';
 import { Modal } from './Modal';
 import { SplitPane } from './SplitPane';
@@ -34,6 +35,8 @@ export function TicketsTab() {
     return exists ? epicParamNumber : null;
   }, [epicParamNumber, epics.data]);
 
+  const qParam = searchParams.get('q') ?? '';
+
   const onEpicChange = (next: number | null) => {
     const nextParams = new URLSearchParams(searchParams);
     if (next === null) nextParams.delete('epic');
@@ -41,10 +44,23 @@ export function TicketsTab() {
     setSearchParams(nextParams, { replace: true });
   };
 
+  const onQueryChange = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    const trimmed = next.trim();
+    if (trimmed === '') nextParams.delete('q');
+    else nextParams.set('q', trimmed);
+    setSearchParams(nextParams, { replace: true });
+  };
+
   const filteredTickets = useMemo(() => {
-    if (activeEpicNumber === null) return tickets ?? [];
-    return (tickets ?? []).filter((t) => t.epic === activeEpicNumber);
-  }, [tickets, activeEpicNumber]);
+    const q = qParam.trim().toLowerCase();
+    let result = tickets ?? [];
+    if (activeEpicNumber !== null) result = result.filter((t) => t.epic === activeEpicNumber);
+    if (q !== '') result = result.filter((t) =>
+      t.displayId.toLowerCase().includes(q) || t.title.toLowerCase().includes(q)
+    );
+    return result;
+  }, [tickets, activeEpicNumber, qParam]);
 
   const clearInspect = () => {
     const next = new URLSearchParams(searchParams);
@@ -96,6 +112,7 @@ export function TicketsTab() {
           activeEpicNumber={activeEpicNumber}
           onEpicChange={onEpicChange}
         />
+        <TicketSearchFilter query={qParam} onQueryChange={onQueryChange} />
         <div className="ml-auto flex gap-2">
           <Button
             variant="tertiary"
@@ -120,6 +137,11 @@ export function TicketsTab() {
           </tr>
         </thead>
         <tbody>
+          {filteredTickets.length === 0 && (
+            <tr>
+              <td colSpan={4} className="py-6 text-center text-nord-4">No matching tickets</td>
+            </tr>
+          )}
           {filteredTickets.map((t: TicketSummary) => {
             const epicLabel =
               t.epicTitle ?? (t.epic !== undefined ? `#${t.epic}` : null);

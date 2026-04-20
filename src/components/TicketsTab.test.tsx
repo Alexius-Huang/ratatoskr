@@ -49,6 +49,22 @@ vi.mock('./EpicSearchFilter', () => ({
   ),
 }));
 
+vi.mock('./TicketSearchFilter', () => ({
+  TicketSearchFilter: ({
+    query,
+    onQueryChange,
+  }: {
+    query: string;
+    onQueryChange: (v: string) => void;
+  }) => (
+    <input
+      aria-label="Filter by title or ID"
+      value={query}
+      onChange={(e) => onQueryChange(e.target.value)}
+    />
+  ),
+}));
+
 vi.mock('./TicketDetailPanel', () => ({
   TicketDetailPanel: ({ displayId }: { displayId: string }) => (
     <div data-testid="detail-panel">{displayId}</div>
@@ -198,5 +214,63 @@ describe('TicketsTab', () => {
     const tag = document.querySelector('[title="Epic one"]') as HTMLElement;
     expect(tag).not.toBeNull();
     expect(tag).toHaveStyle({ color: '#88C0D0' });
+  });
+
+  it('should filter ticket rows by title when the title/ID query matches a title', async () => {
+    const user = userEvent.setup();
+    render();
+    const input = screen.getByRole('textbox', { name: /filter by title or id/i });
+    await user.type(input, 'one');
+    expect(screen.getByText('RAT-1')).toBeInTheDocument();
+    expect(screen.queryByText('RAT-2')).not.toBeInTheDocument();
+    expect(screen.queryByText('RAT-3')).not.toBeInTheDocument();
+  });
+
+  it('should filter ticket rows by displayId when the title/ID query matches an ID', async () => {
+    const user = userEvent.setup();
+    render();
+    const input = screen.getByRole('textbox', { name: /filter by title or id/i });
+    await user.type(input, 'RAT-2');
+    expect(screen.getByText('RAT-2')).toBeInTheDocument();
+    expect(screen.queryByText('RAT-1')).not.toBeInTheDocument();
+    expect(screen.queryByText('RAT-3')).not.toBeInTheDocument();
+  });
+
+  it('should match the title/ID query case-insensitively', async () => {
+    const user = userEvent.setup();
+    render();
+    const input = screen.getByRole('textbox', { name: /filter by title or id/i });
+    await user.type(input, 'TASK');
+    expect(screen.getByText('RAT-1')).toBeInTheDocument();
+    expect(screen.getByText('RAT-2')).toBeInTheDocument();
+    expect(screen.getByText('RAT-3')).toBeInTheDocument();
+  });
+
+  it('should intersect epic filter and title/ID filter when both are active', async () => {
+    const user = userEvent.setup();
+    render();
+    // Select epic one first
+    const epicInput = screen.getByRole('textbox', { name: /filter by epic/i });
+    await user.type(epicInput, 'one');
+    // Now narrow by title containing "two"
+    const titleInput = screen.getByRole('textbox', { name: /filter by title or id/i });
+    await user.type(titleInput, 'two');
+    // RAT-2 is in epic one and its title contains "two"
+    expect(screen.getByText('RAT-2')).toBeInTheDocument();
+    expect(screen.queryByText('RAT-1')).not.toBeInTheDocument();
+    expect(screen.queryByText('RAT-3')).not.toBeInTheDocument();
+  });
+
+  it('should show "No matching tickets" when combined filters yield no rows', async () => {
+    const user = userEvent.setup();
+    render();
+    const input = screen.getByRole('textbox', { name: /filter by title or id/i });
+    await user.type(input, 'zzz');
+    expect(screen.getByText('No matching tickets')).toBeInTheDocument();
+  });
+
+  it('should not show "No matching tickets" when no filters are active', () => {
+    render();
+    expect(screen.queryByText('No matching tickets')).not.toBeInTheDocument();
   });
 });
