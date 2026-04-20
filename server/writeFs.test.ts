@@ -436,14 +436,14 @@ describe('markEpicDone', () => {
     if (!result.ok) expect(result.error.kind).toBe('invalid-input');
   });
 
-  it('should return invalid-input when an epic has a non-DONE child', async () => {
+  it('should return invalid-input when an epic has a non-terminal child', async () => {
     await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS' });
     await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'C', state: 'IN_PROGRESS', epic: 1 });
     const result = await markEpicDone(PROJECT, PREFIX, 1);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('invalid-input');
-      expect(result.error.message).toMatch(/non-DONE/i);
+      expect(result.error.message).toMatch(/non-terminal/i);
     }
   });
 
@@ -478,6 +478,129 @@ async function readFrontmatter(num: number): Promise<Record<string, unknown>> {
   const parsed = matter(raw);
   return { ...parsed.data };
 }
+
+// ---------------------------------------------------------------------------
+
+describe('WONT_DO state', () => {
+  describe('updateTicket', () => {
+    it('persists wont_do_reason when transitioning to WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 1, { state: 'NOT_READY' });
+      const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'WONT_DO', wont_do_reason: 'Out of scope.' });
+      expect(result.ok).toBe(true);
+      const fm = await readFrontmatter(1);
+      expect(fm.state).toBe('WONT_DO');
+      expect(fm.wont_do_reason).toBe('Out of scope.');
+    });
+
+    it('rejects WONT_DO without a reason', async () => {
+      await makeTicketFile(tasksPath, 1, { state: 'NOT_READY' });
+      const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'WONT_DO' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.kind).toBe('invalid-input');
+        expect(result.error.message).toMatch(/wont_do_reason is required/i);
+      }
+    });
+
+    it('rejects whitespace-only reason', async () => {
+      await makeTicketFile(tasksPath, 1, { state: 'NOT_READY' });
+      const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'WONT_DO', wont_do_reason: '   ' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+    });
+
+    it('rejects wont_do_reason when state is not WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 1, { state: 'NOT_READY' });
+      const result = await updateTicket(PROJECT, PREFIX, 1, { wont_do_reason: 'sneaky' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.kind).toBe('invalid-input');
+        expect(result.error.message).toMatch(/can only be set when state is WONT_DO/i);
+      }
+    });
+
+    it('clears wont_do_reason when transitioning away from WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 1, { state: 'WONT_DO', wont_do_reason: 'was dropped' });
+      const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'READY' });
+      expect(result.ok).toBe(true);
+      const fm = await readFrontmatter(1);
+      expect(fm.state).toBe('READY');
+      expect(fm.wont_do_reason).toBeUndefined();
+    });
+
+    it('preserves existing wont_do_reason when re-patching a WONT_DO ticket with no new reason', async () => {
+      await makeTicketFile(tasksPath, 1, { state: 'WONT_DO', wont_do_reason: 'original reason' });
+      const result = await updateTicket(PROJECT, PREFIX, 1, { title: 'Updated title' });
+      expect(result.ok).toBe(true);
+      const fm = await readFrontmatter(1);
+      expect(fm.wont_do_reason).toBe('original reason');
+    });
+  });
+
+  describe('createTicket', () => {
+    it('requires non-empty wont_do_reason when state is WONT_DO', async () => {
+      const result = await createTicket(PROJECT, PREFIX, { type: 'Task', title: 'X', state: 'WONT_DO' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+    });
+
+    it('persists wont_do_reason when creating a ticket in WONT_DO', async () => {
+      const result = await createTicket(PROJECT, PREFIX, { type: 'Task', title: 'X', state: 'WONT_DO', wont_do_reason: 'Never needed.' });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const fm = await readFrontmatter(result.data.number);
+      expect(fm.wont_do_reason).toBe('Never needed.');
+    });
+
+    it('rejects wont_do_reason when state is not WONT_DO', async () => {
+      const result = await createTicket(PROJECT, PREFIX, { type: 'Task', title: 'X', wont_do_reason: 'nope' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+    });
+  });
+
+  describe('auto-promote parent epic', () => {
+    it('flips a NOT_READY epic to IN_PROGRESS when child is patched to WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'NOT_READY' });
+      await makeTicketFile(tasksPath, 2, { type: 'Task', epic: 1, state: 'NOT_READY' });
+      const result = await updateTicket(PROJECT, PREFIX, 2, { state: 'WONT_DO', wont_do_reason: 'Dropped.' });
+      expect(result.ok).toBe(true);
+      const { data } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+      expect(data.state).toBe('IN_PROGRESS');
+    });
+  });
+
+  describe('markEpicDone', () => {
+    it('succeeds when children are a mix of DONE and WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS' });
+      await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'A', state: 'DONE', epic: 1 });
+      await makeTicketFile(tasksPath, 3, { type: 'Task', title: 'B', state: 'WONT_DO', wont_do_reason: 'Dropped.', epic: 1 });
+      const result = await markEpicDone(PROJECT, PREFIX, 1);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.data.state).toBe('DONE');
+    });
+
+    it('succeeds when all children are WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 4, { type: 'Epic', title: 'E2', state: 'IN_PROGRESS' });
+      await makeTicketFile(tasksPath, 5, { type: 'Task', title: 'A', state: 'WONT_DO', wont_do_reason: 'Dropped.', epic: 4 });
+      const result = await markEpicDone(PROJECT, PREFIX, 4);
+      if (!result.ok) throw new Error(`markEpicDone failed: ${result.error.message}`);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('archiveTicket epic guard', () => {
+    it('archives epic when children are a mix of DONE and WONT_DO', async () => {
+      await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'DONE' });
+      await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'A', state: 'DONE', epic: 1 });
+      await makeTicketFile(tasksPath, 3, { type: 'Task', title: 'B', state: 'WONT_DO', wont_do_reason: 'Dropped.', epic: 1 });
+      const result = await archiveTicket(PROJECT, PREFIX, 1);
+      expect(result.ok).toBe(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 
 describe('updateTicket — branch', () => {
   it('should set branch on a ticket without one', async () => {

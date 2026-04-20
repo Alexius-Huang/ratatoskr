@@ -127,6 +127,7 @@ const TICKET_STATES: readonly TicketState[] = [
   'IN_PROGRESS',
   'IN_REVIEW',
   'DONE',
+  'WONT_DO',
 ];
 
 function isTicketType(value: unknown): value is TicketType {
@@ -245,6 +246,10 @@ export async function parseTicketFileRaw(
   if (Array.isArray(fm.prs)) {
     const valid = fm.prs.filter((p): p is string => typeof p === 'string' && p.length > 0);
     if (valid.length > 0) summary.prs = valid;
+  }
+
+  if (fm.state === 'WONT_DO' && typeof fm.wont_do_reason === 'string' && fm.wont_do_reason.length > 0) {
+    summary.wontDoReason = fm.wont_do_reason;
   }
 
   return { summary, content: parsed.content };
@@ -461,6 +466,7 @@ function emptyStateCounts(): Record<TicketState, number> {
     IN_PROGRESS: 0,
     IN_REVIEW: 0,
     DONE: 0,
+    WONT_DO: 0,
   };
 }
 

@@ -18,6 +18,7 @@ const BOARD_STATES: readonly TicketState[] = [
   'IN_PROGRESS',
   'IN_REVIEW',
   'DONE',
+  'WONT_DO',
 ];
 
 const BOARD_STATE_SET = new Set<TicketState>(BOARD_STATES);
@@ -75,6 +76,7 @@ export function BoardTab() {
       IN_PROGRESS: [],
       IN_REVIEW: [],
       DONE: [],
+      WONT_DO: [],
     };
     for (const t of tasks.data ?? []) {
       if (!BOARD_STATE_SET.has(t.state)) continue;

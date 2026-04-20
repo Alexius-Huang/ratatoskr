@@ -19,6 +19,7 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
   const [type, setType] = useState<TicketType>(ticket.type);
   const [epicNum, setEpicNum] = useState<number | null>(ticket.epic ?? null);
   const [body, setBody] = useState(ticket.body);
+  const [wontDoReason, setWontDoReason] = useState(ticket.wontDoReason ?? '');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const epicsQuery = useTickets(projectName, 'Epic');
@@ -43,12 +44,14 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
       type?: TicketType;
       epic?: number | null;
       body?: string;
+      wont_do_reason?: string | null;
     } = {};
     if (trimmed !== ticket.title) patch.title = trimmed;
     if (state !== ticket.state) patch.state = state;
     if (type !== ticket.type) patch.type = type;
     if (body !== ticket.body) patch.body = body;
     if (epicNum !== (ticket.epic ?? null)) patch.epic = epicNum;
+    patch.wont_do_reason = state === 'WONT_DO' ? wontDoReason.trim() : null;
 
     try {
       await updateMutation.mutateAsync(patch);
@@ -74,6 +77,8 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
       typeDisabled={ticket.type === 'Epic'}
       state={state}
       onStateChange={setState}
+      wontDoReason={wontDoReason}
+      onWontDoReasonChange={setWontDoReason}
       showEpic={ticket.type !== 'Epic'}
       epics={epicsQuery.data ?? []}
       epicNum={epicNum}

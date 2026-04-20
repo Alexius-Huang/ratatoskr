@@ -18,5 +18,7 @@ export function stateColorClass(state: TicketState): string {
       return 'bg-nord-12 text-nord-0';
     case 'DONE':
       return 'bg-nord-14 text-nord-0';
+    case 'WONT_DO':
+      return 'bg-nord-11/20 text-nord-11';
   }
 }

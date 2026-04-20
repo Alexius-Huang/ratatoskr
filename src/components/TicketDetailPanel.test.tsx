@@ -72,6 +72,7 @@ const epicFixture: TicketDetail = {
       IN_PROGRESS: 1,
       IN_REVIEW: 0,
       DONE: 1,
+      WONT_DO: 0,
     },
   },
 };
@@ -229,5 +230,16 @@ describe('TicketDetailPanel', () => {
     await user.click(screen.getByRole('button', { name: /Open PR #12/i }));
     expect(mockOpenExternal).toHaveBeenCalledOnce();
     expect(mockOpenExternal).toHaveBeenCalledWith(prUrl);
+  });
+
+  it('should render the WONT_DO callout with reason when state is WONT_DO', () => {
+    renderPanel({ ...taskFixture, state: 'WONT_DO', wontDoReason: 'Out of scope for v1.' });
+    expect(screen.getByText("Won't do")).toBeDefined();
+    expect(screen.getByText('Out of scope for v1.')).toBeDefined();
+  });
+
+  it('should not render the WONT_DO callout when state is not WONT_DO', () => {
+    renderPanel({ ...taskFixture, state: 'IN_PROGRESS' });
+    expect(screen.queryByText("Won't do")).toBeNull();
   });
 });

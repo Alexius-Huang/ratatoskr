@@ -42,7 +42,7 @@ const mockFireConfetti = vi.mocked(fireEpicDoneConfetti);
 
 const allDoneChildCounts = {
   total: 1,
-  byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1 },
+  byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1, WONT_DO: 0 },
 };
 
 function makeEpic(overrides: Partial<TicketSummary> = {}): TicketSummary {

@@ -11,6 +11,7 @@ const TICKET_STATES: TicketState[] = [
   'IN_PROGRESS',
   'IN_REVIEW',
   'DONE',
+  'WONT_DO',
 ];
 
 type Props = {
@@ -28,6 +29,8 @@ type Props = {
   typeDisabled?: boolean;
   state: TicketState;
   onStateChange: (s: TicketState) => void;
+  wontDoReason: string;
+  onWontDoReasonChange: (v: string) => void;
   showEpic: boolean;
   epics: TicketSummary[];
   epicNum: number | null;
@@ -43,14 +46,16 @@ export function TicketFormModal({
   onSubmit, onClose, error,
   type, onTypeChange, typeOptions, typeDisabled,
   state, onStateChange,
+  wontDoReason, onWontDoReasonChange,
   showEpic, epics, epicNum, onEpicChange,
   title, onTitleChange,
   body, onBodyChange,
 }: Props) {
+  const wontDoReasonMissing = state === 'WONT_DO' && wontDoReason.trim() === '';
   const footer = (
     <>
       <Button variant="secondary" onClick={onClose}>Cancel</Button>
-      <Button variant="primary" onClick={onSubmit} disabled={isSubmitting}>
+      <Button variant="primary" onClick={onSubmit} disabled={isSubmitting || wontDoReasonMissing}>
         {isSubmitting ? submittingLabel : submitLabel}
       </Button>
     </>
@@ -93,6 +98,21 @@ export function TicketFormModal({
             </label>
           )}
         </div>
+        {state === 'WONT_DO' && (
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-nord-11 uppercase tracking-wider">Reason (required)</span>
+            <textarea
+              value={wontDoReason}
+              onChange={(e) => onWontDoReasonChange(e.target.value)}
+              rows={3}
+              placeholder="Why won't this be done?"
+              className="bg-nord-2 border border-nord-11/60 rounded px-3 py-2 text-sm text-nord-6 placeholder-nord-4 focus:outline-none focus:border-nord-11 resize-y"
+            />
+            {wontDoReasonMissing && (
+              <span className="text-xs text-nord-11">A reason is required before saving.</span>
+            )}
+          </label>
+        )}
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Title</span>
           <input
