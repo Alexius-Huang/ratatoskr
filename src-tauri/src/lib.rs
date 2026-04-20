@@ -1,4 +1,6 @@
+use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_shell::process::CommandEvent;
@@ -11,6 +13,21 @@ fn kill_child(slot: &Arc<Mutex<Option<tauri_plugin_shell::process::CommandChild>
       let _ = child.kill();
     }
   }
+}
+
+// Polls the given TCP port until it accepts connections or the timeout elapses.
+fn wait_for_port_ready(host: &str, port: u16, timeout: Duration) -> bool {
+  let deadline = Instant::now() + timeout;
+  let addr = format!("{host}:{port}");
+  while Instant::now() < deadline {
+    if TcpStream::connect_timeout(&addr.parse().expect("invalid addr"), Duration::from_millis(200))
+      .is_ok()
+    {
+      return true;
+    }
+    std::thread::sleep(Duration::from_millis(50));
+  }
+  false
 }
 
 async fn check_for_update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
@@ -63,6 +80,27 @@ pub fn run() {
         }
       });
 
+      // Tracks whether the window has been shown so the sidecar path and the 15s fallback
+      // don't both fire.
+      let shown = Arc::new(Mutex::new(false));
+      let shown_timeout = shown.clone();
+
+      // Hard timeout fallback: show the window after 15s regardless, so a sidecar crash or
+      // other error never leaves the user staring at a permanently hidden window.
+      let timeout_handle = app.handle().clone();
+      std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(15));
+        if let Ok(mut guard) = shown_timeout.lock() {
+          if !*guard {
+            *guard = true;
+            if let Some(win) = timeout_handle.get_webview_window("main") {
+              let _ = win.show();
+              eprintln!("[boot] window shown (15s fallback)");
+            }
+          }
+        }
+      });
+
       // Prod: get the resource dir so the sidecar can find the bundled dist/ folder.
       let resource_dir = app
         .path()
@@ -87,10 +125,35 @@ pub fn run() {
           match event {
             CommandEvent::Stdout(line) => {
               let text = String::from_utf8_lossy(&line);
-              println!("[server] {}", text);
+              eprintln!("[server] {}", text);
               if text.contains("listening") {
-                if let Some(win) = handle.get_webview_window("main") {
-                  let _ = win.show();
+                // The WebView's initial navigation to http://localhost:17653 was launched at
+                // window-create time, before the sidecar was ready, and failed with
+                // ERR_CONNECTION_REFUSED. Now that the sidecar is up, reload the page.
+                //
+                // Belt-and-suspenders: probe the TCP port first to confirm the OS has actually
+                // bound the socket (there's a microscopic gap between Bun.serve() returning
+                // and the kernel accepting connections).
+                if wait_for_port_ready("127.0.0.1", 17653, Duration::from_secs(3)) {
+                  if let Some(win) = handle.get_webview_window("main") {
+                    let _ = win.reload();
+                    eprintln!("[boot] sidecar ready, webview reload triggered");
+                  }
+                  // Wait for the WebView to complete its reload before revealing the window.
+                  // The server is local; HTML parse + React hydration of the pre-built bundle
+                  // completes well within 1s even on first run.
+                  std::thread::sleep(Duration::from_millis(1000));
+                } else {
+                  eprintln!("[boot] TCP probe timed out after 3s");
+                }
+                if let Ok(mut guard) = shown.lock() {
+                  if !*guard {
+                    *guard = true;
+                    if let Some(win) = handle.get_webview_window("main") {
+                      let _ = win.show();
+                      eprintln!("[boot] window shown");
+                    }
+                  }
                 }
               }
             }
