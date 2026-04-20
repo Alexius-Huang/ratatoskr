@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   archiveTicketHandler,
   createTicketHandler,
+  getTicketByIdHandler,
   getTicketHandler,
   listProjectsHandler,
   listTicketsHandler,
@@ -170,6 +171,53 @@ describe('mcp tools', () => {
     expect(result.isError).toBeUndefined();
     const patched = JSON.parse(result.content[0].text) as { prs?: string[] };
     expect(patched.prs).toEqual(['owner/repo/pull/42']);
+  });
+
+  it('get_ticket_by_id resolves a ticket from its display ID', async () => {
+    await makeTicket(1, { title: 'by-id ticket' });
+    const result = await getTicketByIdHandler({ displayId: `${PREFIX}-1` });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as {
+      number: number;
+      displayId: string;
+      project: string;
+      title: string;
+      body: string;
+    };
+    expect(ticket.number).toBe(1);
+    expect(ticket.displayId).toBe(`${PREFIX}-1`);
+    expect(ticket.project).toBe(PROJECT);
+    expect(ticket.title).toBe('by-id ticket');
+    expect(typeof ticket.body).toBe('string');
+  });
+
+  it('get_ticket_by_id is case-insensitive on the prefix', async () => {
+    await makeTicket(1, { title: 'case-insensitive ticket' });
+    const result = await getTicketByIdHandler({ displayId: `${PREFIX.toLowerCase()}-1` });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as { project: string };
+    expect(ticket.project).toBe(PROJECT);
+  });
+
+  it('get_ticket_by_id errors on malformed displayId', async () => {
+    const result = await getTicketByIdHandler({ displayId: 'not-a-ticket' });
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text) as { error: string };
+    expect(body.error).toMatch(/Invalid displayId/);
+  });
+
+  it('get_ticket_by_id errors when no project owns the prefix', async () => {
+    const result = await getTicketByIdHandler({ displayId: 'ZZZ-1' });
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text) as { error: string };
+    expect(body.error).toMatch(/No project found for prefix 'ZZZ'/);
+  });
+
+  it('get_ticket_by_id errors when the ticket does not exist', async () => {
+    const result = await getTicketByIdHandler({ displayId: `${PREFIX}-999` });
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text) as { error: string };
+    expect(body.error).toMatch(/Ticket TST-999 not found/);
   });
 
   it('get_ticket returns branch and prs when present', async () => {
