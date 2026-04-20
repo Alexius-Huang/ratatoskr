@@ -1,9 +1,11 @@
 import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
-import { defaultEpicColor, tagStyle } from '../lib/epicColor';
+import { EpicTag } from './EpicTag';
 
 export function BoardCard({ ticket, onClick }: { ticket: TicketSummary; onClick?: () => void }) {
+  const { name } = useParams<{ name: string }>();
   const epicLabel =
     ticket.epicTitle ?? (ticket.epic !== undefined ? `#${ticket.epic}` : null);
   const ref = useRef<HTMLElement>(null);
@@ -37,14 +39,14 @@ export function BoardCard({ ticket, onClick }: { ticket: TicketSummary; onClick?
         <span>{ticket.displayId}</span>
       </div>
       <div className="text-nord-6 leading-snug mb-2">{ticket.title}</div>
-      {epicLabel !== null && ticket.epic !== undefined && (() => {
-        const s = tagStyle(ticket.epicColor ?? defaultEpicColor(ticket.epic));
-        return (
-          <span className={s.className} style={s.style} title={epicLabel}>
-            {epicLabel}
-          </span>
-        );
-      })()}
+      {epicLabel !== null && ticket.epic !== undefined && (
+        <EpicTag
+          projectName={name ?? ''}
+          epic={ticket.epic}
+          label={epicLabel}
+          color={ticket.epicColor}
+        />
+      )}
     </article>
   );
 }
