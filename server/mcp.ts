@@ -20,6 +20,7 @@ const TicketState = z.enum([
   'IN_PROGRESS',
   'IN_REVIEW',
   'DONE',
+  'WONT_DO',
 ]);
 
 const TicketType = z.enum(['Task', 'Epic', 'Bug']);
@@ -58,6 +59,7 @@ export async function createTicketHandler(args: {
   state?: string;
   epic?: number;
   body?: string;
+  wont_do_reason?: string;
 }): Promise<ToolResult> {
   const { project, ...payload } = args;
   return dispatch(`/api/projects/${encodeURIComponent(project)}/tickets`, {
@@ -79,6 +81,7 @@ export async function patchTicketHandler(args: {
   color?: string | null;
   branch?: string | null;
   pr?: string;
+  wont_do_reason?: string | null;
 }): Promise<ToolResult> {
   const { project, number, ...payload } = args;
   return dispatch(
@@ -143,6 +146,7 @@ export function buildServer(): McpServer {
       state: TicketState.optional(),
       epic: z.number().int().positive().optional(),
       body: z.string().optional(),
+      wont_do_reason: z.string().optional(),
     },
     async (args) => createTicketHandler(args),
   );
@@ -161,6 +165,7 @@ export function buildServer(): McpServer {
       color: z.string().nullable().optional(),
       branch: z.string().nullable().optional(),
       pr: z.string().optional(),
+      wont_do_reason: z.string().nullable().optional(),
     },
     async (args) => patchTicketHandler(args),
   );

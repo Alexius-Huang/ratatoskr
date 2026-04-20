@@ -25,6 +25,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
   const [epicNum, setEpicNum] = useState<number | null>(null);
   const [body, setBody] = useState('');
   const [bodyTouched, setBodyTouched] = useState(false);
+  const [wontDoReason, setWontDoReason] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const epicsQuery = useTickets(projectName, 'Epic');
@@ -42,6 +43,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
     setEpicNum(null);
     setBody('');
     setBodyTouched(false);
+    setWontDoReason('');
     setSubmitError(null);
     onClose();
   };
@@ -60,6 +62,7 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
         state,
         epic: (type !== 'Epic' && epicNum !== null) ? epicNum : undefined,
         body: body || scaffoldBody(trimmed),
+        wont_do_reason: state === 'WONT_DO' ? wontDoReason.trim() : undefined,
       });
       handleClose();
       setSearchParams((prev) => {
@@ -88,6 +91,8 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
       typeOptions={TICKET_TYPES}
       state={state}
       onStateChange={setState}
+      wontDoReason={wontDoReason}
+      onWontDoReasonChange={setWontDoReason}
       showEpic={type !== 'Epic'}
       epics={epicsQuery.data ?? []}
       epicNum={epicNum}

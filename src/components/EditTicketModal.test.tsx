@@ -76,7 +76,7 @@ describe('EditTicketModal', () => {
     expect(screen.getByLabelText('Type')).toBeDisabled();
   });
 
-  it('should only include changed fields in the PATCH payload', async () => {
+  it('should only include changed fields in the PATCH payload (plus wont_do_reason: null)', async () => {
     const user = userEvent.setup();
     const mutateAsync = vi.fn().mockResolvedValue({ ...baseTicket, title: 'New title' });
     vi.mocked(useUpdateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
@@ -85,7 +85,7 @@ describe('EditTicketModal', () => {
     await user.clear(titleInput);
     await user.type(titleInput, 'New title');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(mutateAsync).toHaveBeenCalledWith({ title: 'New title' });
+    expect(mutateAsync).toHaveBeenCalledWith({ title: 'New title', wont_do_reason: null });
   });
 
   it('should call the update mutation on submit', async () => {
@@ -125,6 +125,61 @@ describe('EditTicketModal', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('shows the reason textarea when state is changed to WONT_DO', async () => {
+    const user = userEvent.setup();
+    renderModal({});
+    const stateSelect = screen.getByLabelText('State') as HTMLSelectElement;
+    await user.selectOptions(stateSelect, 'WONT_DO');
+    expect(screen.getByPlaceholderText(/why won't this be done/i)).toBeDefined();
+  });
+
+  it('disables Save when state is WONT_DO and reason is empty', async () => {
+    const user = userEvent.setup();
+    renderModal({});
+    await user.selectOptions(screen.getByLabelText('State') as HTMLSelectElement, 'WONT_DO');
+    const saveBtn = screen.getByRole('button', { name: 'Save' });
+    expect(saveBtn).toBeDisabled();
+  });
+
+  it('enables Save when WONT_DO and reason is non-empty', async () => {
+    const user = userEvent.setup();
+    renderModal({});
+    await user.selectOptions(screen.getByLabelText('State') as HTMLSelectElement, 'WONT_DO');
+    await user.type(screen.getByPlaceholderText(/why won't this be done/i), 'Out of scope.');
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+  });
+
+  it('submits with wont_do_reason when state is WONT_DO', async () => {
+    const user = userEvent.setup();
+    const mutateAsync = vi.fn().mockResolvedValue({ ...baseTicket, state: 'WONT_DO' });
+    vi.mocked(useUpdateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+    renderModal({});
+    await user.selectOptions(screen.getByLabelText('State') as HTMLSelectElement, 'WONT_DO');
+    await user.type(screen.getByPlaceholderText(/why won't this be done/i), 'Dropped.');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ state: 'WONT_DO', wont_do_reason: 'Dropped.' }),
+    );
+  });
+
+  it('pre-fills reason when editing a ticket already in WONT_DO', () => {
+    renderModal({ ticket: { ...baseTicket, state: 'WONT_DO', wontDoReason: 'Was never needed.' } });
+    const reasonInput = screen.getByPlaceholderText(/why won't this be done/i) as HTMLTextAreaElement;
+    expect(reasonInput.value).toBe('Was never needed.');
+  });
+
+  it('sends wont_do_reason: null when switching away from WONT_DO', async () => {
+    const user = userEvent.setup();
+    const mutateAsync = vi.fn().mockResolvedValue({ ...baseTicket, state: 'READY' });
+    vi.mocked(useUpdateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+    renderModal({ ticket: { ...baseTicket, state: 'WONT_DO', wontDoReason: 'old reason' } });
+    await user.selectOptions(screen.getByLabelText('State') as HTMLSelectElement, 'READY');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ state: 'READY', wont_do_reason: null }),
+    );
   });
 
   it('should render DONE epics as non-selectable in the Epic picker', async () => {

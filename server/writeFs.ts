@@ -51,12 +51,14 @@ const VALID_STATES: readonly TicketState[] = [
   'IN_PROGRESS',
   'IN_REVIEW',
   'DONE',
+  'WONT_DO',
 ];
 
 const PROMOTING_STATES: ReadonlySet<TicketState> = new Set([
   'IN_PROGRESS',
   'IN_REVIEW',
   'DONE',
+  'WONT_DO',
 ]);
 
 // Best-effort: lift a NOT_READY parent epic to IN_PROGRESS in the same handler
@@ -108,6 +110,15 @@ export async function createTicket(
     ? input.state as TicketState
     : 'NOT_READY';
 
+  if (ticketState === 'WONT_DO') {
+    const reason = input.wont_do_reason?.trim();
+    if (!reason) {
+      return { ok: false, error: { kind: 'invalid-input', message: 'wont_do_reason is required when state is WONT_DO' } };
+    }
+  } else if (input.wont_do_reason) {
+    return { ok: false, error: { kind: 'invalid-input', message: 'wont_do_reason can only be set when state is WONT_DO' } };
+  }
+
   if (input.epic !== undefined && input.epic !== null) {
     if (ticketType === 'Epic') {
       return { ok: false, error: { kind: 'invalid-input', message: 'Epics cannot have a parent epic' } };
@@ -134,6 +145,10 @@ export async function createTicket(
   };
   if ((ticketType === 'Task' || ticketType === 'Bug') && input.epic !== undefined && input.epic !== null) {
     fm.epic = input.epic;
+  }
+
+  if (ticketState === 'WONT_DO') {
+    fm.wont_do_reason = input.wont_do_reason!.trim();
   }
 
   const body = input.body !== undefined ? input.body : scaffoldBody(title);
@@ -182,6 +197,33 @@ export async function updateTicket(
     }
     fm.state = patch.state;
   }
+
+  {
+    const resultingState = (patch.state ?? fm.state) as TicketState;
+    const wasWontDo = parsed.data.state === 'WONT_DO';
+    const isWontDo = resultingState === 'WONT_DO';
+
+    if (isWontDo) {
+      if ('wont_do_reason' in patch && patch.wont_do_reason !== undefined && patch.wont_do_reason !== null) {
+        const trimmed = patch.wont_do_reason.trim();
+        if (!trimmed) {
+          return { ok: false, error: { kind: 'invalid-input', message: 'wont_do_reason cannot be empty when state is WONT_DO' } };
+        }
+        fm.wont_do_reason = trimmed;
+      } else if (!wasWontDo) {
+        return { ok: false, error: { kind: 'invalid-input', message: 'wont_do_reason is required when state is WONT_DO' } };
+      }
+      // wasWontDo && no new reason supplied → keep existing fm.wont_do_reason unchanged
+    } else {
+      if ('wont_do_reason' in patch && patch.wont_do_reason) {
+        return { ok: false, error: { kind: 'invalid-input', message: 'wont_do_reason can only be set when state is WONT_DO' } };
+      }
+      if (wasWontDo) {
+        delete fm.wont_do_reason;
+      }
+    }
+  }
+
   if (patch.type !== undefined) {
     if (fm.type === 'Epic') {
       return { ok: false, error: { kind: 'invalid-input', message: 'Cannot change type of an Epic' } };
@@ -291,7 +333,7 @@ export async function markEpicDone(
     return { ok: false, error: { kind: 'not-found', message: `Ticket ${prefix}-${num} not found` } };
   }
   const parsed = matter(raw);
-  const fm = parsed.data as Record<string, unknown>;
+  const fm = { ...parsed.data } as Record<string, unknown>;
 
   if (fm.type !== 'Epic') {
     return { ok: false, error: { kind: 'invalid-input', message: 'Only Epics can be marked as done via this endpoint' } };
@@ -307,9 +349,9 @@ export async function markEpicDone(
   if (children.length === 0) {
     return { ok: false, error: { kind: 'invalid-input', message: 'Epic has no children — nothing to summarize' } };
   }
-  const nonDone = children.filter((c) => c.state !== 'DONE');
+  const nonDone = children.filter((c) => c.state !== 'DONE' && c.state !== 'WONT_DO');
   if (nonDone.length > 0) {
-    return { ok: false, error: { kind: 'invalid-input', message: `Epic still has ${nonDone.length} non-DONE children` } };
+    return { ok: false, error: { kind: 'invalid-input', message: `Epic still has ${nonDone.length} non-terminal children` } };
   }
 
   const now = nowIso();
@@ -346,7 +388,7 @@ export async function archiveTicket(
     const children = tickets.filter((t) => (t.type === 'Task' || t.type === 'Bug') && t.epic === num);
     const blockers: Partial<Record<TicketState, number>> = {};
     for (const child of children) {
-      if (child.state !== 'DONE') {
+      if (child.state !== 'DONE' && child.state !== 'WONT_DO') {
         blockers[child.state] = (blockers[child.state] ?? 0) + 1;
       }
     }

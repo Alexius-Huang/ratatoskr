@@ -66,6 +66,12 @@ export function TicketDetailView({
             : null}
           <span className="text-xs text-nord-4">{data.type}</span>
         </div>
+        {data.state === 'WONT_DO' && (
+          <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
+            <div className="text-nord-11 font-medium mb-1">Won't do</div>
+            <div className="text-nord-4 whitespace-pre-wrap">{data.wontDoReason ?? 'No reason provided.'}</div>
+          </div>
+        )}
         {hasGitContext && (
           <div className="flex flex-wrap gap-2 mb-6">
             {data.pullRequests && data.pullRequests.length > 0

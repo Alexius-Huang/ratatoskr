@@ -28,7 +28,8 @@ export type TicketState =
   | 'READY'
   | 'IN_PROGRESS'
   | 'IN_REVIEW'
-  | 'DONE';
+  | 'DONE'
+  | 'WONT_DO';
 
 export type TicketChildCounts = {
   total: number;
@@ -48,6 +49,7 @@ export type TicketSummary = {
   planDoc?: string;
   branch?: string;
   prs?: string[];
+  wontDoReason?: string;
   created: string;
   updated: string;
   childCounts?: TicketChildCounts;
@@ -74,6 +76,7 @@ export type CreateTicketRequest = {
   state?: string;
   epic?: number | null;
   body?: string;
+  wont_do_reason?: string;
 };
 
 export type UpdateTicketRequest = {
@@ -86,6 +89,7 @@ export type UpdateTicketRequest = {
   color?: string | null;
   branch?: string | null;
   pr?: string;
+  wont_do_reason?: string | null;
 };
 
 export type ArchiveBlockedError = {

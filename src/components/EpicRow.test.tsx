@@ -44,7 +44,7 @@ describe('EpicRow', () => {
     const ticket = makeEpic({
       childCounts: {
         total: 4,
-        byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3 },
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3, WONT_DO: 0 },
       },
     });
     const { container } = render(
@@ -58,7 +58,7 @@ describe('EpicRow', () => {
     const ticket = makeEpic({
       childCounts: {
         total: 5,
-        byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 4 },
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 4, WONT_DO: 0 },
       },
     });
     const { container } = render(
@@ -72,7 +72,7 @@ describe('EpicRow', () => {
     const ticket = makeEpic({
       childCounts: {
         total: 3,
-        byState: { NOT_READY: 2, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0 },
+        byState: { NOT_READY: 2, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0, WONT_DO: 0 },
       },
     });
     render(<EpicRow ticket={ticket} isSelected={false} onClick={noop} />);
@@ -86,7 +86,7 @@ describe('EpicRow', () => {
     const ticket = makeEpic({
       childCounts: {
         total: 3,
-        byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3 },
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3, WONT_DO: 0 },
       },
     });
     const { container } = render(
@@ -131,11 +131,11 @@ describe('EpicRow', () => {
 describe('EpicRow — Mark-Done button', () => {
   const doneChildCounts = {
     total: 2,
-    byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 2 },
+    byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 2, WONT_DO: 0 },
   };
   const partialChildCounts = {
     total: 2,
-    byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 1, IN_REVIEW: 0, DONE: 1 },
+    byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 1, IN_REVIEW: 0, DONE: 1, WONT_DO: 0 },
   };
 
   it('should render the Mark-Done button when IN_PROGRESS and all children DONE', () => {
@@ -204,5 +204,48 @@ describe('EpicRow — Mark-Done button', () => {
     await user.click(markDoneBtn);
     expect(onMarkDone).toHaveBeenCalledOnce();
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('should render Mark-Done when all children are a mix of DONE and WONT_DO', () => {
+    const mixedCounts = {
+      total: 3,
+      byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 2, WONT_DO: 1 },
+    };
+    render(
+      <EpicRow
+        ticket={makeEpic({ state: 'IN_PROGRESS', childCounts: mixedCounts })}
+        isSelected={false}
+        onClick={noop}
+        onMarkDone={vi.fn()}
+      />,
+    );
+    const btns = screen.getAllByRole('button', { name: /mark epic as done/i });
+    expect(btns.some((el) => el.tagName === 'BUTTON')).toBe(true);
+  });
+});
+
+describe('EpicRow — WONT_DO progress', () => {
+  it('counts WONT_DO as completed in progress percentage', () => {
+    const ticket = makeEpic({
+      childCounts: {
+        total: 3,
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 2, WONT_DO: 1 },
+      },
+    });
+    const { container } = render(<EpicRow ticket={ticket} isSelected={false} onClick={noop} />);
+    const fill = container.querySelector('[style*="width"]') as HTMLElement;
+    expect(fill.style.width).toBe('100%');
+    expect(screen.getByText('100%')).toBeDefined();
+  });
+
+  it('renders a WONT DO state chip', () => {
+    const ticket = makeEpic({
+      childCounts: {
+        total: 2,
+        byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1, WONT_DO: 1 },
+      },
+    });
+    render(<EpicRow ticket={ticket} isSelected={false} onClick={noop} />);
+    expect(screen.getByText(/1 WONT DO/i)).toBeDefined();
   });
 });

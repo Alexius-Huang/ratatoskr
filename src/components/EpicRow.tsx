@@ -17,6 +17,7 @@ const PARTICLES: { dx: string; dy: string; delay: string; pos: React.CSSProperti
 
 const STATE_ORDER: readonly TicketState[] = [
   'DONE',
+  'WONT_DO',
   'IN_REVIEW',
   'IN_PROGRESS',
   'READY',
@@ -48,16 +49,17 @@ export function EpicRow({
       IN_PROGRESS: 0,
       IN_REVIEW: 0,
       DONE: 0,
+      WONT_DO: 0,
     },
   };
 
-  const done = counts.byState.DONE;
+  const done = counts.byState.DONE + (counts.byState.WONT_DO ?? 0);
   const pct = counts.total === 0 ? 0 : Math.round((done / counts.total) * 100);
   const canMarkDone =
     onMarkDone !== undefined &&
     ticket.state === 'IN_PROGRESS' &&
     counts.total > 0 &&
-    counts.byState.DONE === counts.total;
+    done === counts.total;
 
   return (
     <div
@@ -122,7 +124,7 @@ export function EpicRow({
         <div className="flex flex-wrap items-center gap-1.5">
           {counts.total > 0
             ? STATE_ORDER.map((state) => {
-                const n = counts.byState[state];
+                const n = counts.byState[state] ?? 0;
                 if (n === 0) return null;
                 return (
                   <span
