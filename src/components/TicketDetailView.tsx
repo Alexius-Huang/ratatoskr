@@ -69,12 +69,12 @@ export function TicketDetailView({
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-4">
           <span title={data.created} className="flex items-center gap-1">
-            <CalendarDays size={13} className="text-nord-9 shrink-0" />
+            <CalendarDays size={16} className="text-nord-9 shrink-0" />
             Created {formatTimestamp(data.created)}
           </span>
           {data.updated !== data.created && (
             <span title={data.updated} className="flex items-center gap-1">
-              <Clock size={13} className="text-nord-9 shrink-0" />
+              <Clock size={16} className="text-nord-9 shrink-0" />
               Updated {formatTimestamp(data.updated)}
             </span>
           )}
