@@ -33,8 +33,12 @@ export async function listProjectsHandler(): Promise<ToolResult> {
 export async function listTicketsHandler(args: {
   project: string;
   type?: 'Task' | 'Epic' | 'Bug';
+  epic?: number;
 }): Promise<ToolResult> {
-  const qs = args.type ? `?type=${encodeURIComponent(args.type)}` : '';
+  const params = new URLSearchParams();
+  if (args.type) params.set('type', args.type);
+  if (args.epic !== undefined) params.set('epic', String(args.epic));
+  const qs = params.toString() ? `?${params.toString()}` : '';
   return dispatch(`/api/projects/${encodeURIComponent(args.project)}/tickets${qs}`);
 }
 
@@ -110,7 +114,11 @@ export function buildServer(): McpServer {
 
   server.tool(
     'list_tickets',
-    { project: z.string(), type: TicketType.optional() },
+    {
+      project: z.string(),
+      type: TicketType.optional(),
+      epic: z.number().int().positive().optional(),
+    },
     async (args) => listTicketsHandler(args),
   );
 

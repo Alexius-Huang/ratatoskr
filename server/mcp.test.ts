@@ -79,6 +79,46 @@ describe('mcp tools', () => {
     expect(tickets[0].title).toBe('seeded ticket');
   });
 
+  it('list_tickets filters by epic when epic param is provided', async () => {
+    await makeTicket(10, { type: 'Epic', title: 'epic ticket' });
+    await makeTicket(1, { epic: 10, title: 'task in epic 10' });
+    await makeTicket(2, { epic: 20, title: 'task in epic 20' });
+    const result = await listTicketsHandler({ project: PROJECT, epic: 10 });
+    expect(result.isError).toBeUndefined();
+    const tickets = JSON.parse(result.content[0].text) as { number: number; title: string }[];
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0].title).toBe('task in epic 10');
+  });
+
+  it('list_tickets returns all tickets when epic param is omitted', async () => {
+    await makeTicket(10, { type: 'Epic', title: 'epic ticket' });
+    await makeTicket(1, { epic: 10, title: 'task in epic 10' });
+    await makeTicket(2, { epic: 20, title: 'task in epic 20' });
+    const result = await listTicketsHandler({ project: PROJECT });
+    expect(result.isError).toBeUndefined();
+    const tickets = JSON.parse(result.content[0].text) as { number: number }[];
+    expect(tickets).toHaveLength(3);
+  });
+
+  it('list_tickets combines type and epic filters', async () => {
+    await makeTicket(10, { type: 'Epic', title: 'parent epic' });
+    await makeTicket(1, { epic: 10, type: 'Task', title: 'task in epic' });
+    await makeTicket(2, { epic: 10, type: 'Bug', title: 'bug in epic' });
+    const result = await listTicketsHandler({ project: PROJECT, type: 'Task', epic: 10 });
+    expect(result.isError).toBeUndefined();
+    const tickets = JSON.parse(result.content[0].text) as { number: number; type: string }[];
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0].type).toBe('Task');
+  });
+
+  it('list_tickets with unknown epic returns empty array', async () => {
+    await makeTicket(1, { epic: 5, title: 'task in epic 5' });
+    const result = await listTicketsHandler({ project: PROJECT, epic: 999 });
+    expect(result.isError).toBeUndefined();
+    const tickets = JSON.parse(result.content[0].text) as unknown[];
+    expect(tickets).toHaveLength(0);
+  });
+
   it('get_ticket returns body and frontmatter', async () => {
     await makeTicket(1, { title: 'detail ticket' });
     const result = await getTicketHandler({ project: PROJECT, number: 1 });

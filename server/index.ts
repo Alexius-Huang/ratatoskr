@@ -66,6 +66,7 @@ app.get('/api/projects', async (c) => {
 app.get('/api/projects/:name/tickets', async (c) => {
   const name = c.req.param('name');
   const typeParam = c.req.query('type');
+  const epicParam = c.req.query('epic');
   const { prefix } = await requireProjectConfig(name);
   let tickets = await listTickets(name, prefix);
   if (typeParam) {
@@ -79,6 +80,12 @@ app.get('/api/projects/:name/tickets', async (c) => {
     );
     if (allowed.size > 0) {
       tickets = tickets.filter((t) => allowed.has(t.type));
+    }
+  }
+  if (epicParam !== undefined) {
+    const epicNum = Number(epicParam);
+    if (Number.isInteger(epicNum) && epicNum > 0) {
+      tickets = tickets.filter((t) => t.epic === epicNum);
     }
   }
   return c.json(tickets);
