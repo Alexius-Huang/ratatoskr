@@ -6,7 +6,8 @@ describe('cn', () => {
   });
 
   it('drops falsy values', () => {
-    expect(cn('a', false && 'b', 'c')).toBe('a c');
+    const falsy = false as const;
+    expect(cn('a', falsy && 'b', 'c')).toBe('a c');
   });
 
   it('merges conflicting Tailwind classes (last wins)', () => {
