@@ -3,6 +3,7 @@ import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
 import { defaultEpicColor, tagStyle } from '../lib/epicColor';
 import { openExternal } from '../lib/openExternal';
+import { formatTimestamp } from '../lib/time';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { EditTicketModal } from './EditTicketModal';
 import { MarkdownBody } from './MarkdownBody';
@@ -65,6 +66,12 @@ export function TicketDetailView({
               })()
             : null}
           <span className="text-xs text-nord-4">{data.type}</span>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-3">
+          <span title={data.created}>Created {formatTimestamp(data.created)}</span>
+          {data.updated !== data.created && (
+            <span title={data.updated}>Updated {formatTimestamp(data.updated)}</span>
+          )}
         </div>
         {data.state === 'WONT_DO' && (
           <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
