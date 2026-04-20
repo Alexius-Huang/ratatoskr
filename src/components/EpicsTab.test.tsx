@@ -177,3 +177,50 @@ describe('EpicsTab — Completed section', () => {
     expect(markDoneMutateFn).toHaveBeenCalledWith(1, expect.any(Object));
   });
 });
+
+describe('EpicsTab — scroll containers', () => {
+  beforeEach(() => {
+    markDoneMutateFn.mockReset();
+    mockFireConfetti.mockReset();
+  });
+
+  it('renders the filter bar outside the rows scroll container', () => {
+    render([makeEpic()]);
+    const input = screen.getByRole('textbox', { name: /filter epics/i });
+    // Walk up to find the nearest ancestor with overflow-y-auto (the rows container)
+    // The filter input's immediate parent chain must NOT include overflow-y-auto before
+    // the outer wrapper — i.e., the filter bar is in the non-scrolling header section.
+    let el: HTMLElement | null = input.parentElement;
+    while (el) {
+      if (el.className.includes('overflow-y-auto')) {
+        throw new Error('Filter input is inside a scroll container — it should be outside');
+      }
+      // Stop at the list root (h-full flex flex-col)
+      if (el.className.includes('h-full') && el.className.includes('flex-col')) break;
+      el = el.parentElement;
+    }
+    // The rows container (sibling of the header) must have overflow-y-auto
+    const listRoot = input.closest('.flex-col');
+    expect(listRoot).not.toBeNull();
+    const scrollContainer = listRoot!.querySelector('.overflow-y-auto');
+    expect(scrollContainer).not.toBeNull();
+  });
+
+  it('does not apply pb-72 to the rows scroll container', () => {
+    render([makeEpic()]);
+    const input = screen.getByRole('textbox', { name: /filter epics/i });
+    const listRoot = input.closest('.flex-col');
+    expect(listRoot).not.toBeNull();
+    const scrollContainer = listRoot!.querySelector('.overflow-y-auto');
+    expect(scrollContainer).not.toBeNull();
+    expect(scrollContainer!.className).not.toContain('pb-72');
+  });
+
+  it('wraps the list in a height-constrained container when no epic is selected', () => {
+    render([makeEpic()]);
+    const input = screen.getByRole('textbox', { name: /filter epics/i });
+    // The outer wrapper (added by the no-inspect return branch) must have h-full
+    const outerWrapper = input.closest('.min-h-0');
+    expect(outerWrapper).not.toBeNull();
+  });
+});

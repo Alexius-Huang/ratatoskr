@@ -128,7 +128,7 @@ export function EpicsTab() {
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto pb-72">
+      <div className="flex-1 overflow-y-auto">
         {!hasMatches && q !== '' ? (
           <div className="p-6 text-nord-4">No matching epics</div>
         ) : (
@@ -151,7 +151,7 @@ export function EpicsTab() {
   );
 
   if (!inspectParam || !name || inspectedNumber === null) {
-    return list;
+    return <div className="h-full flex flex-col min-h-0">{list}</div>;
   }
 
   const detail = (
@@ -164,10 +164,12 @@ export function EpicsTab() {
   );
 
   return (
-    <SplitPane
-      left={list}
-      right={detail}
-      storageKey="ratatoskr:epics-split"
-    />
+    <div className="h-full flex flex-col min-h-0">
+      <SplitPane
+        left={list}
+        right={detail}
+        storageKey="ratatoskr:epics-split"
+      />
+    </div>
   );
 }
