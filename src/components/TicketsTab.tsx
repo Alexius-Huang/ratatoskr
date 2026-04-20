@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketSummary } from '../../server/types';
 import { useTickets } from '../lib/api';
-import { defaultEpicColor, tagStyle } from '../lib/epicColor';
+import { EpicTag } from './EpicTag';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { extractTicketNumber } from '../lib/ticketId';
 import { useArchiveDoneTickets } from '../lib/ticketMutations';
@@ -174,18 +174,15 @@ export function TicketsTab() {
                   </span>
                 </td>
                 <td className="py-2">
-                  {epicLabel !== null && t.epic !== undefined && (() => {
-                    const s = tagStyle(t.epicColor ?? defaultEpicColor(t.epic));
-                    return (
-                      <span
-                        className={`${s.className} max-w-[14rem] align-middle`}
-                        style={s.style}
-                        title={epicLabel}
-                      >
-                        {epicLabel}
-                      </span>
-                    );
-                  })()}
+                  {epicLabel !== null && t.epic !== undefined && (
+                    <EpicTag
+                      projectName={name ?? ''}
+                      epic={t.epic}
+                      label={epicLabel}
+                      color={t.epicColor}
+                      className="max-w-[14rem] align-middle"
+                    />
+                  )}
                 </td>
               </tr>
             );

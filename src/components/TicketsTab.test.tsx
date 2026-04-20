@@ -6,6 +6,12 @@ import type { TicketSummary } from '../../server/types';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { TicketsTab } from './TicketsTab';
 
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
 vi.mock('../lib/api', () => ({
   useTickets: vi.fn(),
 }));
@@ -272,5 +278,29 @@ describe('TicketsTab', () => {
   it('should not show "No matching tickets" when no filters are active', () => {
     render();
     expect(screen.queryByText('No matching tickets')).not.toBeInTheDocument();
+  });
+
+  it('clicking the epic tag navigates to epics tab without triggering row inspect', async () => {
+    const user = userEvent.setup();
+    mockNavigate.mockReset();
+    const ticketWithEpic: TicketSummary = {
+      number: 4,
+      displayId: 'RAT-4',
+      type: 'Task',
+      title: 'Task with epic',
+      state: 'READY',
+      epic: 10,
+      epicTitle: 'Epic one',
+      epicColor: '#88C0D0',
+      created: '',
+      updated: '',
+    };
+    setupMocks([ticketWithEpic]);
+    render();
+    const epicTag = document.querySelector('[title="Epic one"]') as HTMLElement;
+    await user.click(epicTag);
+    expect(mockNavigate).toHaveBeenCalledWith('/projects/ratatoskr/epics?inspect=10');
+    // The row inspect URL param should NOT be set (no detail panel for a ticket)
+    expect(screen.queryByTestId('detail-panel')).not.toBeInTheDocument();
   });
 });
