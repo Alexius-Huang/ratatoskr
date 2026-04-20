@@ -102,7 +102,7 @@ export function TicketsTab() {
     );
   }
 
-  const doneCount = tickets?.filter((t) => t.state === 'DONE').length ?? 0;
+  const doneCount = tickets?.filter((t) => t.state === 'DONE' || t.state === 'WONT_DO').length ?? 0;
 
   const table = (
     <div className="h-full flex flex-col min-h-0">
@@ -232,7 +232,7 @@ export function TicketsTab() {
         }
       >
         <p className="text-nord-6 text-sm">
-          Are you sure to move all Done tickets to Archived?
+          Are you sure to move all Done and Won't Do tickets to Archived?
         </p>
         {archiveDone.error && (
           <p className="mt-3 text-nord-11 text-sm">

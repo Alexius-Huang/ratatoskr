@@ -254,7 +254,28 @@ describe('archiveDoneTickets', () => {
     await expect(stat(path.join(tasksPath, '3.md'))).rejects.toThrow();
   });
 
-  it('should skip non-DONE tickets', async () => {
+  it('should archive WONT_DO Task/Bug tickets alongside DONE', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Task', state: 'DONE' });
+    await makeTicketFile(tasksPath, 2, { type: 'Bug', state: 'WONT_DO' });
+    await makeTicketFile(tasksPath, 3, { type: 'Task', state: 'WONT_DO' });
+    const result = await archiveDoneTickets(PROJECT, PREFIX);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.archived).toBe(3);
+    await expect(stat(path.join(tasksPath, '1.md'))).rejects.toThrow();
+    await expect(stat(path.join(tasksPath, '2.md'))).rejects.toThrow();
+    await expect(stat(path.join(tasksPath, '3.md'))).rejects.toThrow();
+  });
+
+  it('should retain WONT_DO state in archive (not convert to DONE)', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Task', state: 'WONT_DO' });
+    const result = await archiveDoneTickets(PROJECT, PREFIX);
+    expect(result.ok).toBe(true);
+    const raw = await readFile(path.join(archivePath, '1.md'), 'utf8');
+    const { data } = matter(raw);
+    expect(data.state).toBe('WONT_DO');
+  });
+
+  it('should skip non-terminal tickets', async () => {
     await makeTicketFile(tasksPath, 1, { type: 'Task', state: 'DONE' });
     await makeTicketFile(tasksPath, 2, { type: 'Task', state: 'IN_PROGRESS' });
     await makeTicketFile(tasksPath, 3, { type: 'Task', state: 'NOT_READY' });

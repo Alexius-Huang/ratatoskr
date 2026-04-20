@@ -463,7 +463,7 @@ export async function archiveDoneTickets(
 ): Promise<WriteResult<{ archived: number }>> {
   const tickets = await listTickets(projectName, prefix);
   const done = tickets.filter(
-    (t) => t.state === 'DONE' && (t.type === 'Task' || t.type === 'Bug'),
+    (t) => (t.state === 'DONE' || t.state === 'WONT_DO') && (t.type === 'Task' || t.type === 'Bug'),
   );
   let archived = 0;
   for (const ticket of done) {

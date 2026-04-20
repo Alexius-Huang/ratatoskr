@@ -139,11 +139,11 @@ export function BoardTab() {
           <Button
             variant="tertiary"
             onClick={() => setShowArchiveConfirm(true)}
-            disabled={byState['DONE'].length === 0}
+            disabled={byState['DONE'].length === 0 && byState['WONT_DO'].length === 0}
             title={
-              byState['DONE'].length === 0
+              byState['DONE'].length === 0 && byState['WONT_DO'].length === 0
                 ? 'No done tickets to archive'
-                : `Archive ${byState['DONE'].length} done ticket${byState['DONE'].length === 1 ? '' : 's'}`
+                : `Archive ${byState['DONE'].length + byState['WONT_DO'].length} done ticket${byState['DONE'].length + byState['WONT_DO'].length === 1 ? '' : 's'}`
             }
           >
             Archive Done Tickets
@@ -203,7 +203,7 @@ export function BoardTab() {
             }
           >
             <p className="text-nord-6 text-sm">
-              Are you sure to move all Done tickets to Archived?
+              Are you sure to move all Done and Won't Do tickets to Archived?
             </p>
             {archiveDone.error && (
               <p className="mt-3 text-nord-11 text-sm">
