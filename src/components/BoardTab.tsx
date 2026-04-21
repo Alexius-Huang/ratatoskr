@@ -2,7 +2,7 @@ import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/ad
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { TicketState, TicketSummary } from '../../server/types';
-import { useTickets } from '../lib/api';
+import { useBoardConfig, useTickets } from '../lib/api';
 import { extractTicketNumber } from '../lib/ticketId';
 import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMutations';
 import { BoardColumn } from './BoardColumn';
@@ -12,16 +12,6 @@ import { Button } from './ui/Button';
 import { Modal } from './Modal';
 import { TicketDetailModal } from './TicketDetailModal';
 import { Toast } from './Toast';
-
-const BOARD_STATES: readonly TicketState[] = [
-  'READY',
-  'IN_PROGRESS',
-  'IN_REVIEW',
-  'DONE',
-  'WONT_DO',
-];
-
-const BOARD_STATE_SET = new Set<TicketState>(BOARD_STATES);
 
 export function BoardTab() {
   const { name } = useParams<{ name: string }>();
@@ -49,6 +39,7 @@ export function BoardTab() {
   const archiveDone = useArchiveDoneTickets(name ?? '');
   const transition = useTransitionTicketState(name ?? '');
 
+  const boardConfig = useBoardConfig(name ?? null);
   const tasks = useTickets(name ?? null, ['Task', 'Bug']);
   const epics = useTickets(name ?? null, 'Epic');
 
@@ -68,23 +59,19 @@ export function BoardTab() {
     setSearchParams(nextParams, { replace: true });
   };
 
+  const boardColumns = boardConfig.data?.columns ?? [];
+  const boardStateSet = useMemo(() => new Set<TicketState>(boardColumns), [boardColumns]);
+
   const byState = useMemo(() => {
-    const buckets: Record<TicketState, TicketSummary[]> = {
-      NOT_READY: [],
-      PLANNING: [],
-      READY: [],
-      IN_PROGRESS: [],
-      IN_REVIEW: [],
-      DONE: [],
-      WONT_DO: [],
-    };
+    const buckets: Partial<Record<TicketState, TicketSummary[]>> = {};
+    for (const state of boardColumns) buckets[state] = [];
     for (const t of tasks.data ?? []) {
-      if (!BOARD_STATE_SET.has(t.state)) continue;
+      if (!boardStateSet.has(t.state)) continue;
       if (activeEpicNumber !== null && t.epic !== activeEpicNumber) continue;
-      buckets[t.state].push(t);
+      buckets[t.state]!.push(t);
     }
     return buckets;
-  }, [tasks.data, activeEpicNumber]);
+  }, [tasks.data, activeEpicNumber, boardColumns, boardStateSet]);
 
   useEffect(() => {
     if (!name) return;
@@ -110,7 +97,7 @@ export function BoardTab() {
     });
   }, [name, transition]);
 
-  if (tasks.isLoading) {
+  if (tasks.isLoading || boardConfig.isLoading) {
     return <div className="p-6 text-nord-4">Loading tickets…</div>;
   }
 
@@ -139,11 +126,11 @@ export function BoardTab() {
           <Button
             variant="tertiary"
             onClick={() => setShowArchiveConfirm(true)}
-            disabled={byState['DONE'].length === 0 && byState['WONT_DO'].length === 0}
+            disabled={(byState['DONE']?.length ?? 0) === 0 && (byState['WONT_DO']?.length ?? 0) === 0}
             title={
-              byState['DONE'].length === 0 && byState['WONT_DO'].length === 0
+              (byState['DONE']?.length ?? 0) === 0 && (byState['WONT_DO']?.length ?? 0) === 0
                 ? 'No done tickets to archive'
-                : `Archive ${byState['DONE'].length + byState['WONT_DO'].length} done ticket${byState['DONE'].length + byState['WONT_DO'].length === 1 ? '' : 's'}`
+                : `Archive ${(byState['DONE']?.length ?? 0) + (byState['WONT_DO']?.length ?? 0)} done ticket${(byState['DONE']?.length ?? 0) + (byState['WONT_DO']?.length ?? 0) === 1 ? '' : 's'}`
             }
           >
             Archive Done Tickets
@@ -155,8 +142,8 @@ export function BoardTab() {
       </div>
 
       <div className="flex-1 min-h-0 flex gap-3">
-        {BOARD_STATES.map((state) => (
-          <BoardColumn key={state} state={state} tickets={byState[state]} onCardClick={openInspect} />
+        {boardColumns.map((state) => (
+          <BoardColumn key={state} state={state} tickets={byState[state] ?? []} onCardClick={openInspect} />
         ))}
       </div>
       {name && inspectParam && inspectedNumber !== null && (

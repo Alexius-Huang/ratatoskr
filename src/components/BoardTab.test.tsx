@@ -7,6 +7,7 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import { BoardTab } from './BoardTab';
 
 vi.mock('../lib/api', () => ({
+  useBoardConfig: vi.fn(),
   useTickets: vi.fn(),
 }));
 
@@ -91,9 +92,10 @@ vi.mock('./TicketDetailModal', () => ({
   ),
 }));
 
-import { useTickets } from '../lib/api';
+import { useBoardConfig, useTickets } from '../lib/api';
 import { useArchiveDoneTickets, useTransitionTicketState } from '../lib/ticketMutations';
 
+const mockUseBoardConfig = vi.mocked(useBoardConfig);
 const mockUseTickets = vi.mocked(useTickets);
 const mockUseArchiveDoneTickets = vi.mocked(useArchiveDoneTickets);
 const mockUseTransitionTicketState = vi.mocked(useTransitionTicketState);
@@ -111,6 +113,7 @@ const tasks: TicketSummary[] = [
 const tasksNoDone: TicketSummary[] = tasks.filter((t) => t.state !== 'DONE');
 
 function setupMocks(taskList = tasks) {
+  mockUseBoardConfig.mockReturnValue({ data: { columns: ['READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'] }, isLoading: false, error: null } as ReturnType<typeof useBoardConfig>);
   mockUseTickets.mockImplementation((_name, type) => {
     if (Array.isArray(type)) {
       return { data: taskList, isLoading: false, error: null } as ReturnType<typeof useTickets>;

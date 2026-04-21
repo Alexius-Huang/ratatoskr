@@ -5,6 +5,7 @@ import type {
   PlanResponse,
   ProjectSummary,
   TicketDetail,
+  TicketState,
   TicketSummary,
   TicketType,
 } from '../../server/types';
@@ -176,6 +177,15 @@ export function useUpdateAppConfig() {
       qc.invalidateQueries({ queryKey: ['app-config'] });
       qc.invalidateQueries({ queryKey: ['projects'] });
     },
+  });
+}
+
+export function useBoardConfig(projectName: string | null) {
+  return useQuery({
+    queryKey: ['board-config', projectName],
+    queryFn: () => apiFetch<{ columns: TicketState[] }>(`/api/projects/${encodeURIComponent(projectName as string)}/board-config`),
+    enabled: projectName !== null,
+    staleTime: 30_000,
   });
 }
 
