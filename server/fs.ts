@@ -120,7 +120,7 @@ export async function scanProjects(): Promise<ProjectSummary[]> {
 export const TICKET_FILENAME_RE = /^(\d+)\.md$/;
 
 const TICKET_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
-const TICKET_STATES: readonly TicketState[] = [
+export const TICKET_STATES: readonly TicketState[] = [
   'NOT_READY',
   'PLANNING',
   'READY',
