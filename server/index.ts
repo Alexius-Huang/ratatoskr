@@ -11,6 +11,7 @@ import {
   readTicketPlan,
   scanProjects,
 } from './fs';
+import { readBoardConfig, validateBoardColumns, writeBoardConfig } from './boardConfig';
 import { HttpError, parseJsonBody, requireProjectConfig, requireTicketNumber } from './routeHelpers';
 import type { CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
 import {
@@ -61,6 +62,23 @@ app.put('/api/config', async (c) => {
 app.get('/api/projects', async (c) => {
   const projects = await scanProjects();
   return c.json(projects);
+});
+
+app.get('/api/projects/:name/board-config', async (c) => {
+  const name = c.req.param('name');
+  await requireProjectConfig(name);
+  const columns = await readBoardConfig(name);
+  return c.json({ columns });
+});
+
+app.put('/api/projects/:name/board-config', async (c) => {
+  const name = c.req.param('name');
+  await requireProjectConfig(name);
+  const body = await parseJsonBody(c);
+  const v = validateBoardColumns((body as { columns?: unknown })?.columns);
+  if (!v.ok) return c.json({ error: v.error }, 400);
+  const columns = await writeBoardConfig(name, v.columns);
+  return c.json({ columns });
 });
 
 app.get('/api/projects/:name/tickets', async (c) => {

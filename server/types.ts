@@ -1,9 +1,14 @@
+export type BoardConfig = {
+  columns: TicketState[];
+};
+
 export type RatatoskrConfig = {
   prefix: string;
   name?: string;
   description?: string;
   thumbnail?: string | null;
   github_repo?: string;
+  board?: BoardConfig;
 };
 
 export type PullRequestInfo = {
