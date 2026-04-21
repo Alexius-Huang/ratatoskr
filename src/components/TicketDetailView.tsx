@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed } from 'lucide-react';
+import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed, Hand, Map, Zap } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
 import { EpicTag } from './EpicTag';
@@ -7,6 +7,23 @@ import { formatTimestamp } from '../lib/time';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { EditTicketModal } from './EditTicketModal';
 import { MarkdownBody } from './MarkdownBody';
+import { resolutionLabel } from '../lib/ticketResolution';
+
+function resolutionIcon(r: string): ElementType {
+  switch (r) {
+    case 'VIBED':   return Zap;
+    case 'PLANNED': return Map;
+    default:        return Hand;
+  }
+}
+
+function resolutionClass(r: string): string {
+  switch (r) {
+    case 'VIBED':   return 'border-nord-15/40 bg-nord-15/10 text-nord-15';
+    case 'PLANNED': return 'border-nord-13/40 bg-nord-13/10 text-nord-13';
+    default:        return 'border-nord-3 bg-nord-2 text-nord-4';
+  }
+}
 
 function prStateIcon(state: string): ElementType {
   switch (state) {
@@ -59,6 +76,15 @@ export function TicketDetailView({
             <EpicTag projectName={projectName} epic={data.epic} label={epicLabel} color={data.epicColor} />
           )}
           <span className="text-xs text-nord-4">{data.type}</span>
+          {(data.state === 'IN_REVIEW' || data.state === 'DONE') && data.resolution && (() => {
+            const Icon = resolutionIcon(data.resolution!);
+            return (
+              <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${resolutionClass(data.resolution!)}`}>
+                <Icon size={11} />
+                {resolutionLabel(data.resolution!)}
+              </span>
+            );
+          })()}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-4">
           <span title={data.created} className="flex items-center gap-1">

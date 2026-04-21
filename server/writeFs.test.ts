@@ -703,3 +703,55 @@ describe('updateTicket — pr', () => {
     if (!result.ok) expect(result.error.kind).toBe('invalid-input');
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('updateTicket — resolution', () => {
+  it('defaults to MANUAL when state transitions to IN_REVIEW with no explicit resolution', async () => {
+    await makeTicketFile(tasksPath, 1, { state: 'IN_PROGRESS' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'IN_REVIEW' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.resolution).toBe('MANUAL');
+    const fm = await readFrontmatter(1);
+    expect(fm.resolution).toBe('MANUAL');
+  });
+
+  it('sets VIBED when patch includes resolution alongside state', async () => {
+    await makeTicketFile(tasksPath, 1, { state: 'IN_PROGRESS' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'IN_REVIEW', resolution: 'VIBED' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.resolution).toBe('VIBED');
+    const fm = await readFrontmatter(1);
+    expect(fm.resolution).toBe('VIBED');
+  });
+
+  it('preserves existing resolution when transitioning IN_REVIEW to DONE', async () => {
+    await makeTicketFile(tasksPath, 1, { state: 'IN_REVIEW', resolution: 'PLANNED' });
+    const result = await updateTicket(PROJECT, PREFIX, 1, { state: 'DONE' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.resolution).toBe('PLANNED');
+    const fm = await readFrontmatter(1);
+    expect(fm.resolution).toBe('PLANNED');
+  });
+
+  it('rejects an unknown resolution string', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { resolution: 'YOLO' as never });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+  });
+
+  it('does not set a default resolution when state moves to READY', async () => {
+    await makeTicketFile(tasksPath, 1, { state: 'NOT_READY' });
+    await updateTicket(PROJECT, PREFIX, 1, { state: 'READY' });
+    const fm = await readFrontmatter(1);
+    expect(fm.resolution).toBeUndefined();
+  });
+
+  it('clears resolution when patch passes null', async () => {
+    await makeTicketFile(tasksPath, 1, { resolution: 'VIBED' });
+    await updateTicket(PROJECT, PREFIX, 1, { resolution: null });
+    const fm = await readFrontmatter(1);
+    expect(fm.resolution).toBeUndefined();
+  });
+});

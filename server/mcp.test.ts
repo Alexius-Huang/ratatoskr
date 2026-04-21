@@ -274,4 +274,17 @@ describe('mcp tools', () => {
     expect(ticket.branch).toBe('feature/x');
     expect(ticket.prs).toEqual(['owner/repo/pull/7']);
   });
+
+  it('patch_ticket forwards resolution field and persists it', async () => {
+    await makeTicket(1, { state: 'IN_PROGRESS' });
+    const result = await patchTicketHandler({
+      project: PROJECT,
+      number: 1,
+      state: 'IN_REVIEW',
+      resolution: 'VIBED',
+    });
+    expect(result.isError).toBeUndefined();
+    const patched = JSON.parse(result.content[0].text) as { resolution?: string };
+    expect(patched.resolution).toBe('VIBED');
+  });
 });
