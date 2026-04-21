@@ -22,6 +22,8 @@ export type ProjectSummary = {
 
 export type TicketType = 'Task' | 'Epic' | 'Bug';
 
+export type TicketResolution = 'VIBED' | 'PLANNED' | 'MANUAL';
+
 export type TicketState =
   | 'NOT_READY'
   | 'PLANNING'
@@ -50,6 +52,7 @@ export type TicketSummary = {
   branch?: string;
   prs?: string[];
   wontDoReason?: string;
+  resolution?: TicketResolution;
   created: string;
   updated: string;
   childCounts?: TicketChildCounts;
@@ -90,6 +93,7 @@ export type UpdateTicketRequest = {
   branch?: string | null;
   pr?: string;
   wont_do_reason?: string | null;
+  resolution?: TicketResolution | null;
 };
 
 export type ArchiveBlockedError = {

@@ -252,6 +252,13 @@ export async function parseTicketFileRaw(
     summary.wontDoReason = fm.wont_do_reason;
   }
 
+  if (
+    typeof fm.resolution === 'string' &&
+    (fm.resolution === 'VIBED' || fm.resolution === 'PLANNED' || fm.resolution === 'MANUAL')
+  ) {
+    summary.resolution = fm.resolution;
+  }
+
   return { summary, content: parsed.content };
 }
 

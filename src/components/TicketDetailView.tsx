@@ -7,6 +7,7 @@ import { formatTimestamp } from '../lib/time';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { EditTicketModal } from './EditTicketModal';
 import { MarkdownBody } from './MarkdownBody';
+import { resolutionLabel } from '../lib/ticketResolution';
 
 function prStateIcon(state: string): ElementType {
   switch (state) {
@@ -59,6 +60,11 @@ export function TicketDetailView({
             <EpicTag projectName={projectName} epic={data.epic} label={epicLabel} color={data.epicColor} />
           )}
           <span className="text-xs text-nord-4">{data.type}</span>
+          {(data.state === 'IN_REVIEW' || data.state === 'DONE') && data.resolution && (
+            <span className="px-2 py-0.5 rounded text-xs font-medium bg-nord-2 text-nord-4 border border-nord-3">
+              {resolutionLabel(data.resolution)}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-4">
           <span title={data.created} className="flex items-center gap-1">

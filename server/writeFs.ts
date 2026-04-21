@@ -285,6 +285,29 @@ export async function updateTicket(
     }
   }
 
+  const VALID_RESOLUTIONS = ['VIBED', 'PLANNED', 'MANUAL'] as const;
+
+  if ('resolution' in patch) {
+    if (patch.resolution === null || patch.resolution === undefined) {
+      delete fm.resolution;
+    } else if (!VALID_RESOLUTIONS.includes(patch.resolution as typeof VALID_RESOLUTIONS[number])) {
+      return { ok: false, error: { kind: 'invalid-input', message: `invalid resolution: ${patch.resolution}` } };
+    } else {
+      fm.resolution = patch.resolution;
+    }
+  }
+
+  {
+    const finalState = fm.state as TicketState;
+    if (
+      (finalState === 'IN_REVIEW' || finalState === 'DONE') &&
+      fm.resolution === undefined &&
+      !('resolution' in patch)
+    ) {
+      fm.resolution = 'MANUAL';
+    }
+  }
+
   if (patch.pr !== undefined) {
     if (typeof patch.pr !== 'string' || patch.pr.length === 0) {
       return { ok: false, error: { kind: 'invalid-input', message: 'pr must be a non-empty string' } };
