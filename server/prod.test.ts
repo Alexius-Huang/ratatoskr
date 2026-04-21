@@ -99,52 +99,21 @@ describe('PUT /api/projects/:name/board-config', () => {
     expect(body.columns).toEqual(columns);
   });
 
-  it('returns 400 on malformed JSON', async () => {
+  it.each([
+    ['malformed JSON', 'not-json', 'Invalid JSON body'],
+    ['empty array', JSON.stringify({ columns: [] }), 'columns must be a non-empty array'],
+    ['unknown state', JSON.stringify({ columns: ['READY', 'BOGUS'] }), 'Invalid state: BOGUS'],
+    ['duplicate state', JSON.stringify({ columns: ['READY', 'READY'] }), 'Duplicate state: READY'],
+  ])('returns 400 on %s', async (_desc, requestBody, expectedError) => {
     await setupProject('myproj', { prefix: 'MYP' });
     const res = await app.request('/api/projects/myproj/board-config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: 'not-json',
+      body: requestBody,
     });
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
-    expect(body.error).toBe('Invalid JSON body');
-  });
-
-  it('returns 400 on empty array', async () => {
-    await setupProject('myproj', { prefix: 'MYP' });
-    const res = await app.request('/api/projects/myproj/board-config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columns: [] }),
-    });
-    expect(res.status).toBe(400);
-    const body = await res.json() as { error: string };
-    expect(body.error).toBe('columns must be a non-empty array');
-  });
-
-  it('returns 400 on unknown state', async () => {
-    await setupProject('myproj', { prefix: 'MYP' });
-    const res = await app.request('/api/projects/myproj/board-config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columns: ['READY', 'BOGUS'] }),
-    });
-    expect(res.status).toBe(400);
-    const body = await res.json() as { error: string };
-    expect(body.error).toBe('Invalid state: BOGUS');
-  });
-
-  it('returns 400 on duplicate state', async () => {
-    await setupProject('myproj', { prefix: 'MYP' });
-    const res = await app.request('/api/projects/myproj/board-config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columns: ['READY', 'READY'] }),
-    });
-    expect(res.status).toBe(400);
-    const body = await res.json() as { error: string };
-    expect(body.error).toBe('Duplicate state: READY');
+    expect(body.error).toBe(expectedError);
   });
 
   it('round-trips: PUT then GET returns the PUT body', async () => {
