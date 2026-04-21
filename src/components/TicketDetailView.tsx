@@ -17,6 +17,14 @@ function resolutionIcon(r: string): ElementType {
   }
 }
 
+function resolutionClass(r: string): string {
+  switch (r) {
+    case 'VIBED':   return 'border-nord-15/40 bg-nord-15/10 text-nord-15';
+    case 'PLANNED': return 'border-nord-13/40 bg-nord-13/10 text-nord-13';
+    default:        return 'border-nord-3 bg-nord-2 text-nord-4';
+  }
+}
+
 function prStateIcon(state: string): ElementType {
   switch (state) {
     case 'MERGED': return GitMerge;
@@ -71,7 +79,7 @@ export function TicketDetailView({
           {(data.state === 'IN_REVIEW' || data.state === 'DONE') && data.resolution && (() => {
             const Icon = resolutionIcon(data.resolution!);
             return (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-nord-2 text-nord-4 border border-nord-3">
+              <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${resolutionClass(data.resolution!)}`}>
                 <Icon size={11} />
                 {resolutionLabel(data.resolution!)}
               </span>
