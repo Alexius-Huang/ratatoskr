@@ -25,54 +25,36 @@ async function writeProjectConfig(projectName: string, config: Record<string, un
 }
 
 describe('validateBoardColumns', () => {
-  it('accepts the default 4-column list', () => {
-    const result = validateBoardColumns(['READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE']);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.columns).toEqual(['READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE']);
-  });
-
-  it('accepts a 7-column list covering every state', () => {
-    const all = ['NOT_READY', 'PLANNING', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'WONT_DO'];
-    const result = validateBoardColumns(all);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.columns).toEqual(all);
-  });
-
-  it('rejects null', () => {
-    const result = validateBoardColumns(null);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe('columns must be a non-empty array');
-  });
-
-  it('rejects non-array', () => {
-    const result = validateBoardColumns('READY');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe('columns must be a non-empty array');
-  });
-
-  it('rejects empty array', () => {
-    const result = validateBoardColumns([]);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe('columns must be a non-empty array');
-  });
-
-  it('rejects an array containing an unknown state', () => {
-    const result = validateBoardColumns(['READY', 'FOO']);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe('Invalid state: FOO');
-  });
-
-  it('rejects duplicates', () => {
-    const result = validateBoardColumns(['READY', 'READY']);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe('Duplicate state: READY');
-  });
-
-  it('preserves order', () => {
-    const input = ['DONE', 'READY', 'IN_PROGRESS'];
+  it.each([
+    ['the default 4-column list', ['READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE']],
+    [
+      'a 7-column list covering every state',
+      ['NOT_READY', 'PLANNING', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'WONT_DO'],
+    ],
+    ['a custom order', ['DONE', 'READY', 'IN_PROGRESS']],
+  ])('accepts %s and preserves order', (_desc, input) => {
     const result = validateBoardColumns(input);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.columns).toEqual(input);
+  });
+
+  it.each([
+    ['null', null],
+    ['a non-array value', 'READY'],
+    ['an empty array', []],
+  ])('rejects %s with "columns must be a non-empty array"', (_desc, input) => {
+    const result = validateBoardColumns(input);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('columns must be a non-empty array');
+  });
+
+  it.each([
+    ['an unknown state', ['READY', 'FOO'], 'Invalid state: FOO'],
+    ['a duplicate state', ['READY', 'READY'], 'Duplicate state: READY'],
+  ])('rejects %s', (_desc, input, expectedError) => {
+    const result = validateBoardColumns(input);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe(expectedError);
   });
 });
 
