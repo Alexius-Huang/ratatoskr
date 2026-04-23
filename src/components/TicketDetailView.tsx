@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed, Hand, Map, Zap } from 'lucide-react';
+import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed, Hand, Map, Sparkles, Zap } from 'lucide-react';
 import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
 import { EpicTag } from './EpicTag';
@@ -62,7 +62,8 @@ export function TicketDetailView({
   const hasGitContext =
     !!data.branch ||
     (data.prs && data.prs.length > 0) ||
-    (data.pullRequests && data.pullRequests.length > 0);
+    (data.pullRequests && data.pullRequests.length > 0) ||
+    data.isReviewed === true;
 
   return (
     <>
@@ -148,6 +149,12 @@ export function TicketDetailView({
                   </div>
                 )
               : null}
+            {data.isReviewed && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-nord-15/40 bg-nord-15/10 text-nord-15 font-medium">
+                <Sparkles size={12} />
+                AI Reviewed
+              </div>
+            )}
           </div>
         )}
         <MarkdownBody source={data.body} />

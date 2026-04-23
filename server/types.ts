@@ -58,6 +58,7 @@ export type TicketSummary = {
   prs?: string[];
   wontDoReason?: string;
   resolution?: TicketResolution;
+  isReviewed?: boolean;
   created: string;
   updated: string;
   childCounts?: TicketChildCounts;
