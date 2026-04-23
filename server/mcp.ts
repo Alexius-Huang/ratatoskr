@@ -1,12 +1,17 @@
+import path from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { app } from './index';
+import { getWorkspaceRoot, readProjectConfig } from './fs';
+import { _runner } from './github';
+import { updateTicket } from './writeFs';
+import type { TicketResolution } from './types';
 
 type ToolResult = { content: { type: 'text'; text: string }[]; isError?: true };
 
-async function dispatch(path: string, init?: RequestInit): Promise<ToolResult> {
-  const res = await app.request(path, init);
+async function dispatch(url: string, init?: RequestInit): Promise<ToolResult> {
+  const res = await app.request(url, init);
   const text = await res.text();
   return res.ok
     ? { content: [{ type: 'text', text }] }
@@ -112,6 +117,107 @@ export async function archiveTicketHandler(args: {
   );
 }
 
+function errorResult(message: string, extra?: Record<string, string>): ToolResult {
+  return {
+    content: [{ type: 'text', text: JSON.stringify({ error: message, ...extra }) }],
+    isError: true,
+  };
+}
+
+export async function shipTicketPrHandler(args: {
+  project: string;
+  number: number;
+  title: string;
+  body: string;
+  merge_branch?: string;
+  resolution?: TicketResolution;
+}): Promise<ToolResult> {
+  const root = getWorkspaceRoot();
+  if (!root) return errorResult('Workspace root not configured');
+  const { config } = await readProjectConfig(args.project);
+  if (!config?.prefix) return errorResult(`Project '${args.project}' has no config.prefix`);
+  const projectDir = path.join(root, 'projects', args.project);
+
+  const created = await _runner.runGhPrCreate({
+    cwd: projectDir,
+    title: args.title,
+    body: args.body,
+    mergeBranch: args.merge_branch,
+  });
+
+  let prUrl: string;
+  if (created.kind === 'created') {
+    prUrl = created.url;
+  } else if (created.kind === 'already-exists') {
+    const branch = await _runner.getCurrentBranch(projectDir);
+    if (!branch) {
+      return errorResult(
+        'gh pr create reported "already exists" but current branch could not be determined',
+      );
+    }
+    const existing = await _runner.runGhPrList({ cwd: projectDir, branch });
+    if (!existing) {
+      return errorResult(
+        `gh pr create reported "already exists" but no PR found for branch ${branch}`,
+      );
+    }
+    prUrl = existing.url;
+  } else {
+    return errorResult(`gh pr create failed: ${created.stderr}`, {
+      stdout: created.stdout,
+      stderr: created.stderr,
+    });
+  }
+
+  const urlMatch = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/.exec(prUrl);
+  if (!urlMatch) return errorResult(`Could not parse PR URL: ${prUrl}`);
+  const [, owner, repo, numStr] = urlMatch;
+  const prPath = `${owner}/${repo}/pull/${numStr}`;
+  const prNumber = Number(numStr);
+
+  const patchPayload: Parameters<typeof updateTicket>[3] = {
+    pr: prPath,
+    state: 'IN_REVIEW',
+  };
+  if (args.resolution !== undefined) {
+    patchPayload.resolution = args.resolution;
+  }
+
+  const update = await updateTicket(args.project, config.prefix, args.number, patchPayload);
+
+  if (!update.ok) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: 'PR created but ticket PATCH failed',
+            pr_path: prPath,
+            pr_url: prUrl,
+            pr_number: prNumber,
+            ticket_error: update.error.message,
+          }),
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({
+          pr_path: prPath,
+          pr_url: prUrl,
+          pr_number: prNumber,
+          ticket: update.data,
+        }),
+      },
+    ],
+  };
+}
+
 export function buildServer(): McpServer {
   const server = new McpServer({ name: 'ratatoskr', version: '0.1.0' });
 
@@ -178,6 +284,19 @@ export function buildServer(): McpServer {
     'archive_ticket',
     { project: z.string(), number: z.number().int().positive() },
     async (args) => archiveTicketHandler(args),
+  );
+
+  server.tool(
+    'ship_ticket_pr',
+    {
+      project: z.string(),
+      number: z.number().int().positive(),
+      title: z.string().min(1),
+      body: z.string(),
+      merge_branch: z.string().optional(),
+      resolution: z.enum(['PLANNED', 'VIBED', 'MANUAL']).optional(),
+    },
+    async (args) => shipTicketPrHandler(args),
   );
 
   return server;
