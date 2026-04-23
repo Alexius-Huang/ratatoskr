@@ -259,6 +259,10 @@ export async function parseTicketFileRaw(
     summary.resolution = fm.resolution;
   }
 
+  if (typeof fm.is_reviewed === 'boolean') {
+    summary.isReviewed = fm.is_reviewed;
+  }
+
   return { summary, content: parsed.content };
 }
 

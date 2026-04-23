@@ -314,6 +314,23 @@ describe('parseTicketFileRaw — branch and prs fields', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('parseTicketFileRaw — is_reviewed field', () => {
+  it.each([
+    { input: true,      expected: true },
+    { input: false,     expected: false },
+    { input: undefined, expected: undefined },
+    { input: 'yes',     expected: undefined },
+  ] as const)('is_reviewed=$input → isReviewed=$expected', async ({ input, expected }) => {
+    const overrides: Record<string, unknown> = {};
+    if (input !== undefined) overrides.is_reviewed = input;
+    await makeTicketFile(tasksDirPath, 1, overrides);
+    const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
+    expect(result?.summary.isReviewed).toBe(expected);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('readTicketDetail — pullRequests enrichment', () => {
   const fakePR: PullRequestInfo = {
     url: 'https://github.com/owner/repo/pull/1',
