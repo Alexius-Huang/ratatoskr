@@ -100,6 +100,7 @@ export type UpdateTicketRequest = {
   pr?: string;
   wont_do_reason?: string | null;
   resolution?: TicketResolution | null;
+  is_reviewed?: boolean | null;
 };
 
 export type ArchiveBlockedError = {

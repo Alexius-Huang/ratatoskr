@@ -308,6 +308,16 @@ export async function updateTicket(
     }
   }
 
+  if ('is_reviewed' in patch) {
+    if (patch.is_reviewed === null || patch.is_reviewed === undefined) {
+      delete fm.is_reviewed;
+    } else if (typeof patch.is_reviewed !== 'boolean') {
+      return { ok: false, error: { kind: 'invalid-input', message: 'is_reviewed must be a boolean' } };
+    } else {
+      fm.is_reviewed = patch.is_reviewed;
+    }
+  }
+
   if (patch.pr !== undefined) {
     if (typeof patch.pr !== 'string' || patch.pr.length === 0) {
       return { ok: false, error: { kind: 'invalid-input', message: 'pr must be a non-empty string' } };

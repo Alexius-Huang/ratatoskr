@@ -755,3 +755,35 @@ describe('updateTicket — resolution', () => {
     expect(fm.resolution).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('updateTicket — is_reviewed', () => {
+  it.each([
+    { input: true as boolean | null, desc: 'sets is_reviewed: true in frontmatter' },
+    { input: false as boolean | null, desc: 'sets is_reviewed: false in frontmatter' },
+    { input: null as boolean | null, desc: 'deletes is_reviewed when patched with null (when previously set)' },
+  ])('$desc', async ({ input }) => {
+    const initialOverrides: Record<string, unknown> = {};
+    if (input === null) initialOverrides.is_reviewed = true;
+    await makeTicketFile(tasksPath, 1, initialOverrides);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { is_reviewed: input });
+    expect(result.ok).toBe(true);
+    const fm = await readFrontmatter(1);
+    if (input === null) {
+      expect(fm.is_reviewed).toBeUndefined();
+    } else {
+      expect(fm.is_reviewed).toBe(input);
+    }
+  });
+
+  it('rejects a non-boolean is_reviewed value', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { is_reviewed: 'yes' as unknown as boolean });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toMatch(/is_reviewed must be a boolean/i);
+    }
+  });
+});
