@@ -12,7 +12,10 @@ import {
   listProjectsHandler,
   listTicketsHandler,
   patchTicketHandler,
+  shipTicketPrHandler,
 } from './mcp';
+import { _runner } from './github';
+import type { GhPrCreateResult } from './github';
 
 const PROJECT = 'demo';
 const PREFIX = 'TST';
@@ -286,5 +289,174 @@ describe('mcp tools', () => {
     expect(result.isError).toBeUndefined();
     const patched = JSON.parse(result.content[0].text) as { resolution?: string };
     expect(patched.resolution).toBe('VIBED');
+  });
+});
+
+describe('ship_ticket_pr', () => {
+  const HAPPY_URL = 'https://github.com/owner/repo/pull/42';
+  const HAPPY_RESULT: GhPrCreateResult = { kind: 'created', url: HAPPY_URL };
+
+  let origCreate: typeof _runner.runGhPrCreate;
+  let origList: typeof _runner.runGhPrList;
+  let origBranch: typeof _runner.getCurrentBranch;
+
+  beforeEach(() => {
+    origCreate = _runner.runGhPrCreate;
+    origList = _runner.runGhPrList;
+    origBranch = _runner.getCurrentBranch;
+    // Default stubs — happy path
+    _runner.runGhPrCreate = async () => HAPPY_RESULT;
+    _runner.runGhPrList = async () => null;
+    _runner.getCurrentBranch = async () => 'feature/default';
+    // Outer beforeEach already sets up tmpRoot, configDir, tasksDir, config.json, and
+    // RATATOSKR_WORKSPACE_ROOT — no duplication needed here.
+  });
+
+  afterEach(() => {
+    _runner.runGhPrCreate = origCreate;
+    _runner.runGhPrList = origList;
+    _runner.getCurrentBranch = origBranch;
+    // Outer afterEach handles tmpRoot cleanup and env var removal.
+  });
+
+  it('should open PR and transition ticket atomically on happy path', async () => {
+    await makeTicket(1, { state: 'IN_PROGRESS' });
+    const result = await shipTicketPrHandler({
+      project: PROJECT,
+      number: 1,
+      title: 'feat: my feature',
+      body: 'Closes RAT-1.',
+      resolution: 'PLANNED',
+    });
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[0].text) as {
+      pr_path: string;
+      pr_url: string;
+      pr_number: number;
+      ticket: { state: string; prs: string[]; resolution: string };
+    };
+    expect(data.pr_path).toBe('owner/repo/pull/42');
+    expect(data.pr_url).toBe(HAPPY_URL);
+    expect(data.pr_number).toBe(42);
+    expect(data.ticket.state).toBe('IN_REVIEW');
+    expect(data.ticket.prs).toContain('owner/repo/pull/42');
+    expect(data.ticket.resolution).toBe('PLANNED');
+  });
+
+  it('should default resolution to MANUAL when resolution is omitted', async () => {
+    await makeTicket(1, { state: 'IN_PROGRESS' });
+    const result = await shipTicketPrHandler({
+      project: PROJECT,
+      number: 1,
+      title: 'feat: my feature',
+      body: 'Closes RAT-1.',
+    });
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[0].text) as { ticket: { resolution: string } };
+    expect(data.ticket.resolution).toBe('MANUAL');
+  });
+
+  it('should forward merge_branch to gh pr create', async () => {
+    await makeTicket(1, { state: 'IN_PROGRESS' });
+    let capturedArgs: Parameters<typeof _runner.runGhPrCreate>[0] | undefined;
+    _runner.runGhPrCreate = async (args) => {
+      capturedArgs = args;
+      return HAPPY_RESULT;
+    };
+    await shipTicketPrHandler({
+      project: PROJECT,
+      number: 1,
+      title: 'feat: my feature',
+      body: '',
+      merge_branch: 'release/v2',
+    });
+    expect(capturedArgs?.mergeBranch).toBe('release/v2');
+  });
+
+  it('should fall back to existing PR on "already exists"', async () => {
+    await makeTicket(1, { state: 'IN_PROGRESS' });
+    _runner.runGhPrCreate = async () => ({ kind: 'already-exists' });
+    _runner.getCurrentBranch = async () => 'feature/x';
+    _runner.runGhPrList = async () => ({ url: 'https://github.com/owner/repo/pull/9' });
+    const result = await shipTicketPrHandler({
+      project: PROJECT,
+      number: 1,
+      title: 'feat: my feature',
+      body: '',
+    });
+    expect(result.isError).toBeUndefined();
+    const data = JSON.parse(result.content[0].text) as {
+      pr_number: number;
+      ticket: { state: string };
+    };
+    expect(data.pr_number).toBe(9);
+    expect(data.ticket.state).toBe('IN_REVIEW');
+  });
+
+  it('should return isError when gh pr create fails and leave ticket unchanged', async () => {
+    await makeTicket(1, { state: 'IN_PROGRESS' });
+    _runner.runGhPrCreate = async () => ({
+      kind: 'error',
+      stdout: '',
+      stderr: 'auth failed',
+    });
+    const result = await shipTicketPrHandler({
+      project: PROJECT,
+      number: 1,
+      title: 'feat: my feature',
+      body: '',
+    });
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text) as { error: string };
+    expect(body.error).toMatch(/auth failed/);
+    // Ticket must be unchanged — still IN_PROGRESS, no prs
+    const ticket = await getTicketHandler({ project: PROJECT, number: 1 });
+    const td = JSON.parse(ticket.content[0].text) as { state: string; prs?: string[] };
+    expect(td.state).toBe('IN_PROGRESS');
+    expect(td.prs).toBeUndefined();
+  });
+
+  it('should return partial-failure shape when PR opens but ticket PATCH fails', async () => {
+    // Ticket number 999 does not exist — PATCH will fail
+    const result = await shipTicketPrHandler({
+      project: PROJECT,
+      number: 999,
+      title: 'feat: my feature',
+      body: '',
+      resolution: 'PLANNED',
+    });
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text) as {
+      error: string;
+      pr_path: string;
+      pr_url: string;
+      pr_number: number;
+      ticket_error: string;
+    };
+    expect(body.error).toBe('PR created but ticket PATCH failed');
+    expect(body.pr_path).toBe('owner/repo/pull/42');
+    expect(body.pr_url).toBe(HAPPY_URL);
+    expect(body.pr_number).toBe(42);
+    expect(body.ticket_error).toMatch(/not found/i);
+  });
+
+  it('should reject and skip gh pr create when project has no prefix config', async () => {
+    // Remove config.json to simulate missing prefix
+    await rm(path.join(configDir, 'config.json'));
+    let createCalled = false;
+    _runner.runGhPrCreate = async () => {
+      createCalled = true;
+      return HAPPY_RESULT;
+    };
+    const result = await shipTicketPrHandler({
+      project: PROJECT,
+      number: 1,
+      title: 'feat: my feature',
+      body: '',
+    });
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text) as { error: string };
+    expect(body.error).toMatch(/config\.prefix/);
+    expect(createCalled).toBe(false);
   });
 });
