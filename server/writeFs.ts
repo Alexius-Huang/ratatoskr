@@ -3,6 +3,7 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import {
   archiveDir,
+  listArchivedTickets,
   listTickets,
   readProjectConfig,
   readTicketDetail,
@@ -375,10 +376,16 @@ export async function markEpicDone(
     return { ok: false, error: { kind: 'invalid-input', message: `Epic must be IN_PROGRESS (currently ${fm.state})` } };
   }
 
-  const tickets = await listTickets(projectName, prefix);
-  const children = tickets.filter(
-    (t) => (t.type === 'Task' || t.type === 'Bug') && t.epic === num,
-  );
+  const isChild = (t: { type: string; epic?: number }) =>
+    (t.type === 'Task' || t.type === 'Bug') && t.epic === num;
+  const [tickets, archivedTickets] = await Promise.all([
+    listTickets(projectName, prefix),
+    listArchivedTickets(projectName, prefix),
+  ]);
+  const children = [
+    ...tickets.filter(isChild),
+    ...archivedTickets.filter(isChild),
+  ];
   if (children.length === 0) {
     return { ok: false, error: { kind: 'invalid-input', message: 'Epic has no children — nothing to summarize' } };
   }
