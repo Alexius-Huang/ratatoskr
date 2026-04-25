@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  addCommentHandler,
   archiveTicketHandler,
   createTicketHandler,
   getTicketByIdHandler,
@@ -317,6 +318,91 @@ describe('mcp tools', () => {
     expect(result.isError).toBeUndefined();
     const ticket = JSON.parse(result.content[0].text) as { isReviewed?: boolean };
     expect(ticket.isReviewed).toBe(true);
+  });
+
+  describe('add_comment', () => {
+    it('creates a comment with explicit author', async () => {
+      await makeTicket(1);
+      const result = await addCommentHandler({
+        project: PROJECT,
+        number: 1,
+        body: 'Great work!',
+        author: { username: 'claude', display_name: 'Claude' },
+      });
+      expect(result.isError).toBeUndefined();
+      const comment = JSON.parse(result.content[0].text) as {
+        n: number;
+        author: string;
+        displayName: string;
+        timestamp: string;
+        body: string;
+      };
+      expect(comment.n).toBe(1);
+      expect(comment.author).toBe('claude');
+      expect(comment.displayName).toBe('Claude');
+      expect(comment.body).toBe('Great work!');
+      expect(typeof comment.timestamp).toBe('string');
+    });
+
+    it('errors on non-existent ticket', async () => {
+      const result = await addCommentHandler({
+        project: PROJECT,
+        number: 999,
+        body: 'Hello',
+        author: { username: 'claude', display_name: 'Claude' },
+      });
+      expect(result.isError).toBe(true);
+    });
+
+    describe('author resolution', () => {
+      let origXDG: string | undefined;
+      let xdgDir: string;
+
+      beforeEach(() => {
+        origXDG = process.env.XDG_CONFIG_HOME;
+        xdgDir = path.join(tmpRoot, 'xdg');
+      });
+
+      afterEach(() => {
+        if (origXDG === undefined) {
+          delete process.env.XDG_CONFIG_HOME;
+        } else {
+          process.env.XDG_CONFIG_HOME = origXDG;
+        }
+      });
+
+      it('falls back to root config user when author is omitted', async () => {
+        await makeTicket(1);
+        await mkdir(path.join(xdgDir, 'ratatoskr'), { recursive: true });
+        await writeFile(
+          path.join(xdgDir, 'ratatoskr', 'config.json'),
+          JSON.stringify({
+            workspaceRoot: tmpRoot,
+            user: { username: 'root_user', display_name: 'Root User' },
+          }),
+          'utf8',
+        );
+        process.env.XDG_CONFIG_HOME = xdgDir;
+        const result = await addCommentHandler({ project: PROJECT, number: 1, body: 'From root' });
+        expect(result.isError).toBeUndefined();
+        const comment = JSON.parse(result.content[0].text) as {
+          author: string;
+          displayName: string;
+        };
+        expect(comment.author).toBe('root_user');
+        expect(comment.displayName).toBe('Root User');
+      });
+
+      it('errors when author is omitted and no root config user', async () => {
+        await makeTicket(1);
+        await mkdir(xdgDir, { recursive: true });
+        process.env.XDG_CONFIG_HOME = xdgDir;
+        const result = await addCommentHandler({ project: PROJECT, number: 1, body: 'Hello' });
+        expect(result.isError).toBe(true);
+        const body = JSON.parse(result.content[0].text) as { error: string };
+        expect(body.error).toMatch(/No author provided/);
+      });
+    });
   });
 });
 
