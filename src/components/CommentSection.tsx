@@ -1,3 +1,4 @@
+import { MessageSquare } from 'lucide-react';
 import { useComments } from '../lib/api';
 import { formatTimestamp } from '../lib/time';
 import { MarkdownBody } from './MarkdownBody';
@@ -22,7 +23,10 @@ export function CommentSection({ projectName, ticketNumber }: Props) {
 
   return (
     <div className="mb-6">
-      <h2 className="text-xs font-medium text-nord-4 uppercase tracking-wide mb-3">Comments</h2>
+      <h2 className="flex items-center gap-1.5 text-xs font-medium text-nord-4 uppercase tracking-wide mb-3">
+        <MessageSquare size={13} />
+        Comments
+      </h2>
       {!comments || comments.length === 0 ? (
         <p className="text-sm text-nord-4">No comments yet.</p>
       ) : (
