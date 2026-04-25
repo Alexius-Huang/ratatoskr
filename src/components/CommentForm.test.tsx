@@ -6,6 +6,16 @@ import type { Comment } from '../../server/types';
 import { CommentForm } from './CommentForm';
 import { renderWithProviders } from '../test/renderWithProviders';
 
+vi.mock('../lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/api')>();
+  return {
+    ...actual,
+    useAppConfig: () => ({
+      data: { user: { username: 'j.huang', display_name: 'J Huang' }, configured: true, workspaceRoot: '/tmp', source: null },
+    }),
+  };
+});
+
 function stubFetch(data: unknown, status = 201) {
   vi.stubGlobal(
     'fetch',
@@ -89,8 +99,8 @@ describe('CommentForm', () => {
       expect(url).toBe('/api/projects/ratatoskr/tickets/5/comments');
       expect((init as RequestInit).method).toBe('POST');
       const parsed = JSON.parse((init as RequestInit).body as string);
-      expect(parsed).toEqual({ body: 'hello' });
-      expect(parsed).not.toHaveProperty('author');
+      expect(parsed.body).toBe('hello');
+      expect(parsed.author).toEqual({ username: 'j.huang', display_name: 'J Huang' });
     });
   });
 

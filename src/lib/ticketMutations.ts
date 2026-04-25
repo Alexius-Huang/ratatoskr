@@ -137,20 +137,20 @@ export function useCreateComment(projectName: string, ticketNumber: number) {
   const queryClient = useQueryClient();
   const commentsKey = ['comments', projectName, ticketNumber];
   return useMutation({
-    mutationFn: ({ body }: { body: string }) =>
+    mutationFn: ({ body, author }: { body: string; author?: { username: string; display_name: string } }) =>
       apiFetch<Comment>(
         `/api/projects/${encodeURIComponent(projectName)}/tickets/${ticketNumber}/comments`,
-        { method: 'POST', body: JSON.stringify({ body }) },
+        { method: 'POST', body: JSON.stringify(author ? { body, author } : { body }) },
       ),
-    onMutate: async ({ body }) => {
+    onMutate: async ({ body, author }) => {
       await queryClient.cancelQueries({ queryKey: commentsKey });
       const previous = queryClient.getQueryData<Comment[]>(commentsKey);
       const prev = previous ?? [];
       const nextN = Math.max(0, ...prev.map((c) => c.n)) + 1;
       const optimistic: Comment = {
         n: nextN,
-        author: 'me',
-        displayName: 'You',
+        author: author?.username ?? 'me',
+        displayName: author?.display_name ?? 'You',
         timestamp: new Date().toISOString(),
         body,
       };
