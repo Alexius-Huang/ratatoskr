@@ -33,7 +33,7 @@ afterEach(() => {
 
 describe('SettingsModal', () => {
   it('should pre-fill input with workspaceRoot when source is file', async () => {
-    mockConfig({ configured: true, workspaceRoot: '/my/workspace', source: 'file' });
+    mockConfig({ configured: true, workspaceRoot: '/my/workspace', source: 'file', user: null });
     renderModal();
     await waitFor(() => {
       const input = screen.getByPlaceholderText(/\/users\/you\/workspace/i) as HTMLInputElement;
@@ -42,7 +42,7 @@ describe('SettingsModal', () => {
   });
 
   it('should show disabled input and env-var notice when source is env', async () => {
-    mockConfig({ configured: true, workspaceRoot: '/env/workspace', source: 'env' });
+    mockConfig({ configured: true, workspaceRoot: '/env/workspace', source: 'env', user: null });
     renderModal();
     await waitFor(() => {
       const input = screen.getByPlaceholderText(/\/users\/you\/workspace/i) as HTMLInputElement;
@@ -57,8 +57,8 @@ describe('SettingsModal', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       callCount++;
       const body = callCount === 1
-        ? { configured: true, workspaceRoot: '/old', source: 'file' }
-        : { configured: true, workspaceRoot: '/new/path', source: 'file' };
+        ? { configured: true, workspaceRoot: '/old', source: 'file', user: null }
+        : { configured: true, workspaceRoot: '/new/path', source: 'file', user: null };
       return new Response(JSON.stringify(body), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -82,7 +82,7 @@ describe('SettingsModal', () => {
   });
 
   it('should close without API call when Cancel is clicked', async () => {
-    mockConfig({ configured: true, workspaceRoot: '/ws', source: 'file' });
+    mockConfig({ configured: true, workspaceRoot: '/ws', source: 'file', user: null });
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const { onClose } = renderModal();
     await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
