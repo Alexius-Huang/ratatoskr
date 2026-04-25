@@ -273,6 +273,8 @@ describe('POST /api/projects/:name/tickets/:number/comments', () => {
     ['empty body string', { body: '', author: { username: 'a', display_name: 'A' } }, 'body must be a non-empty string'],
     ['missing body field', { author: { username: 'a', display_name: 'A' } }, 'body must be a non-empty string'],
     ['body is not a string', { body: 42, author: { username: 'a', display_name: 'A' } }, 'body must be a non-empty string'],
+    ['author is a string', { body: 'hi', author: 'claude' }, 'author must be an object with username and display_name'],
+    ['author is an array', { body: 'hi', author: ['claude'] }, 'author must be an object with username and display_name'],
     ['empty author.username', { body: 'hi', author: { username: '', display_name: 'A' } }, 'author.username must be a non-empty string'],
     ['empty author.display_name', { body: 'hi', author: { username: 'a', display_name: '' } }, 'author.display_name must be a non-empty string'],
     ['no author and no config user', { body: 'hi' }, 'No author provided and no default user configured'],

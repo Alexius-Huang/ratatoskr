@@ -272,7 +272,15 @@ app.post('/api/projects/:name/tickets/:number/comments', async (c) => {
   }
 
   let resolvedAuthor: { username: string; display_name: string };
-  if (body.author !== null && typeof body.author === 'object') {
+  if (body.author === undefined || body.author === null) {
+    const fallback = readUserProfileSync();
+    if (!fallback) {
+      return c.json({ error: 'No author provided and no default user configured' }, 400);
+    }
+    resolvedAuthor = { username: fallback.username, display_name: fallback.display_name };
+  } else if (typeof body.author !== 'object' || Array.isArray(body.author)) {
+    return c.json({ error: 'author must be an object with username and display_name' }, 400);
+  } else {
     if (typeof body.author.username !== 'string' || body.author.username.length === 0) {
       return c.json({ error: 'author.username must be a non-empty string' }, 400);
     }
@@ -280,12 +288,6 @@ app.post('/api/projects/:name/tickets/:number/comments', async (c) => {
       return c.json({ error: 'author.display_name must be a non-empty string' }, 400);
     }
     resolvedAuthor = { username: body.author.username, display_name: body.author.display_name };
-  } else {
-    const fallback = readUserProfileSync();
-    if (!fallback) {
-      return c.json({ error: 'No author provided and no default user configured' }, 400);
-    }
-    resolvedAuthor = { username: fallback.username, display_name: fallback.display_name };
   }
 
   try {
