@@ -93,7 +93,7 @@ describe('readUserProfileSync', () => {
   });
 
   it.each([
-    ['username', { display_name: 'James Huang' }],
+    ['username', { display_name: 'Jun-Xin Huang' }],
     ['display_name', { username: 'j.huang' }],
   ])('should return null when user block is missing required field: %s', (_field, partial) => {
     writeConfigFile({ workspaceRoot: '/some/path', user: partial });
@@ -101,7 +101,7 @@ describe('readUserProfileSync', () => {
   });
 
   it.each([
-    ['username', { username: '', display_name: 'James Huang' }],
+    ['username', { username: '', display_name: 'Jun-Xin Huang' }],
     ['display_name', { username: 'j.huang', display_name: '' }],
   ])('should return null when %s is an empty string', (_field, user) => {
     writeConfigFile({ workspaceRoot: '/some/path', user });
@@ -111,24 +111,24 @@ describe('readUserProfileSync', () => {
   it('should return a UserProfile when username and display_name are present', () => {
     writeConfigFile({
       workspaceRoot: '/some/path',
-      user: { username: 'j.huang', display_name: 'James Huang' },
+      user: { username: 'j.huang', display_name: 'Jun-Xin Huang' },
     });
     const result = readUserProfileSync();
-    expect(result).toEqual({ username: 'j.huang', display_name: 'James Huang' });
+    expect(result).toEqual({ username: 'j.huang', display_name: 'Jun-Xin Huang' });
   });
 
   it('should include email when present and string-typed', () => {
     writeConfigFile({
       workspaceRoot: '/some/path',
-      user: { username: 'j.huang', display_name: 'James Huang', email: 'j@example.com' },
+      user: { username: 'j.huang', display_name: 'Jun-Xin Huang', email: 'j@example.com' },
     });
     const result = readUserProfileSync();
     expect(result?.email).toBe('j@example.com');
   });
 
   it.each([
-    ['missing', { username: 'j.huang', display_name: 'James Huang' }],
-    ['non-string', { username: 'j.huang', display_name: 'James Huang', email: 42 }],
+    ['missing', { username: 'j.huang', display_name: 'Jun-Xin Huang' }],
+    ['non-string', { username: 'j.huang', display_name: 'Jun-Xin Huang', email: 42 }],
   ])('should omit email when %s', (_desc, user) => {
     writeConfigFile({ workspaceRoot: '/some/path', user });
     const result = readUserProfileSync();

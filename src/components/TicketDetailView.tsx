@@ -158,8 +158,8 @@ export function TicketDetailView({
             )}
           </div>
         )}
-        <CommentSection projectName={projectName} ticketNumber={data.number} />
         <MarkdownBody source={data.body} />
+        <CommentSection projectName={projectName} ticketNumber={data.number} />
         {archiveError && (
           <div className="mt-4 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
             Archive failed: {archiveError.message}

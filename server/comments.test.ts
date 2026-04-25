@@ -37,7 +37,7 @@ async function makeCommentFile(
   await mkdir(dir, { recursive: true });
   const fm = {
     author: 'j.huang',
-    display_name: 'James Huang',
+    display_name: 'Jun-Xin Huang',
     timestamp: '2026-04-19T12:00:00.000Z',
     ...overrides,
   };
@@ -74,7 +74,7 @@ describe('listComments', () => {
     const dir = path.join(commentsBasePath, String(TICKET));
     await makeCommentFile(dir, 1, {
       author: 'j.huang',
-      display_name: 'James Huang',
+      display_name: 'Jun-Xin Huang',
       timestamp: '2026-04-19T12:00:00.000Z',
     });
 
@@ -83,7 +83,7 @@ describe('listComments', () => {
     expect(result[0]).toEqual({
       n: 1,
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       timestamp: '2026-04-19T12:00:00.000Z',
       body: 'Comment body here.',
     });
@@ -160,7 +160,7 @@ describe('writeComment', () => {
   it('should create the comments/<n>/ folder on first write', async () => {
     const result = await writeComment(PROJECT, TICKET, {
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       body: 'Hello world.',
     });
     expect(result.n).toBe(1);
@@ -200,7 +200,7 @@ describe('writeComment', () => {
 
     const result = await writeComment(PROJECT, TICKET, {
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       body: 'A comment.',
     });
     expect(result.n).toBe(expectedN);
@@ -209,7 +209,7 @@ describe('writeComment', () => {
   it('should write YAML frontmatter containing author, display_name, timestamp and body', async () => {
     await writeComment(PROJECT, TICKET, {
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       body: 'Written comment.',
     });
 
@@ -219,7 +219,7 @@ describe('writeComment', () => {
     );
     const parsed = matter(raw);
     expect(parsed.data.author).toBe('j.huang');
-    expect(parsed.data.display_name).toBe('James Huang');
+    expect(parsed.data.display_name).toBe('Jun-Xin Huang');
     expect(typeof parsed.data.timestamp).toBe('string');
     expect(parsed.content.trim()).toBe('Written comment.');
   });
@@ -228,7 +228,7 @@ describe('writeComment', () => {
     const before = Date.now();
     await writeComment(PROJECT, TICKET, {
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       body: 'Timestamp test.',
     });
     const after = Date.now();
@@ -243,13 +243,13 @@ describe('writeComment', () => {
   it('should return the Comment object with its assigned n', async () => {
     const result = await writeComment(PROJECT, TICKET, {
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       body: 'Return value check.',
     });
     expect(result).toMatchObject({
       n: 1,
       author: 'j.huang',
-      displayName: 'James Huang',
+      displayName: 'Jun-Xin Huang',
       body: 'Return value check.',
     });
     expect(typeof result.timestamp).toBe('string');
