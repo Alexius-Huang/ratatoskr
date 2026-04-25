@@ -69,37 +69,40 @@ export function TicketDetailView({
   return (
     <>
       <div>
-        <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className={`px-2 py-0.5 rounded text-xs font-medium ${stateColorClass(data.state)}`}>
-            {stateLabel(data.state)}
-          </span>
-          {epicLabel !== null && data.epic !== undefined && (
-            <EpicTag projectName={projectName} epic={data.epic} label={epicLabel} color={data.epicColor} />
-          )}
-          <span className="text-xs text-nord-4">{data.type}</span>
-          {(data.state === 'IN_REVIEW' || data.state === 'DONE') && data.resolution && (() => {
-            const Icon = resolutionIcon(data.resolution!);
-            return (
-              <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${resolutionClass(data.resolution!)}`}>
-                <Icon size={11} />
-                {resolutionLabel(data.resolution!)}
-              </span>
-            );
-          })()}
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5 mb-4 text-xs text-nord-4">
-          <span title={data.created} className="flex items-center gap-1">
-            <CalendarDays size={16} className="text-nord-9 shrink-0" />
-            Created {formatTimestamp(data.created)}
-          </span>
-          {data.updated !== data.created && (
-            <span title={data.updated} className="flex items-center gap-1">
-              <Clock size={16} className="text-nord-9 shrink-0" />
-              Updated {formatTimestamp(data.updated)}
+        <div className="sticky top-0 -mt-4 -mx-6 px-6 pt-4 pb-4 bg-nord-0 z-10 border-b border-nord-3">
+          <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className={`px-2 py-0.5 rounded text-xs font-medium ${stateColorClass(data.state)}`}>
+              {stateLabel(data.state)}
             </span>
-          )}
+            {epicLabel !== null && data.epic !== undefined && (
+              <EpicTag projectName={projectName} epic={data.epic} label={epicLabel} color={data.epicColor} />
+            )}
+            <span className="text-xs text-nord-4">{data.type}</span>
+            {(data.state === 'IN_REVIEW' || data.state === 'DONE') && data.resolution && (() => {
+              const Icon = resolutionIcon(data.resolution!);
+              return (
+                <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${resolutionClass(data.resolution!)}`}>
+                  <Icon size={11} />
+                  {resolutionLabel(data.resolution!)}
+                </span>
+              );
+            })()}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-nord-4">
+            <span title={data.created} className="flex items-center gap-1">
+              <CalendarDays size={16} className="text-nord-9 shrink-0" />
+              Created {formatTimestamp(data.created)}
+            </span>
+            {data.updated !== data.created && (
+              <span title={data.updated} className="flex items-center gap-1">
+                <Clock size={16} className="text-nord-9 shrink-0" />
+                Updated {formatTimestamp(data.updated)}
+              </span>
+            )}
+          </div>
         </div>
+        <div className="pt-4">
         {data.state === 'WONT_DO' && (
           <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
             <div className="text-nord-11 font-medium mb-1">Won't do</div>
@@ -165,6 +168,7 @@ export function TicketDetailView({
             Archive failed: {archiveError.message}
           </div>
         )}
+        </div>
       </div>
       <EditTicketModal
         key={showEdit ? data.updated : 'closed'}
