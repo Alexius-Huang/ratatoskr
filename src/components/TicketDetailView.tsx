@@ -69,7 +69,7 @@ export function TicketDetailView({
   return (
     <>
       <div>
-        <div className="sticky top-0 -mt-4 -mx-6 px-6 pt-4 pb-4 bg-nord-0 z-10 border-b border-nord-3">
+        <div className="sticky top-0 -mt-4 -mx-6 px-6 pt-2 pb-3 bg-nord-0 z-10 border-b border-nord-3">
           <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${stateColorClass(data.state)}`}>
@@ -101,16 +101,8 @@ export function TicketDetailView({
               </span>
             )}
           </div>
-        </div>
-        <div className="pt-4">
-        {data.state === 'WONT_DO' && (
-          <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
-            <div className="text-nord-11 font-medium mb-1">Won't do</div>
-            <div className="text-nord-4 whitespace-pre-wrap">{data.wontDoReason ?? 'No reason provided.'}</div>
-          </div>
-        )}
-        {hasGitContext && (
-          <div className="flex flex-wrap gap-2 mb-6">
+          {hasGitContext && (
+          <div className="flex flex-wrap gap-2 mt-3">
             {data.pullRequests && data.pullRequests.length > 0
               ? data.pullRequests.map((pr) => {
                   const Icon = prStateIcon(pr.state);
@@ -159,6 +151,14 @@ export function TicketDetailView({
                 AI Reviewed
               </div>
             )}
+          </div>
+          )}
+        </div>
+        <div className="pt-4">
+        {data.state === 'WONT_DO' && (
+          <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
+            <div className="text-nord-11 font-medium mb-1">Won't do</div>
+            <div className="text-nord-4 whitespace-pre-wrap">{data.wontDoReason ?? 'No reason provided.'}</div>
           </div>
         )}
         <MarkdownBody source={data.body} />
