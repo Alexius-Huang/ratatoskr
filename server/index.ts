@@ -39,7 +39,8 @@ app.onError((err, c) => {
 app.get('/api/config', (c) => {
   const workspaceRoot = getWorkspaceRoot();
   const source = getWorkspaceRootSource();
-  return c.json({ configured: workspaceRoot !== null, workspaceRoot, source });
+  const user = readUserProfileSync();
+  return c.json({ configured: workspaceRoot !== null, workspaceRoot, source, user });
 });
 
 app.put('/api/config', async (c) => {

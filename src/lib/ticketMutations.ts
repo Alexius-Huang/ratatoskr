@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { CreateTicketRequest, TicketDetail, TicketState, TicketSummary, UpdateTicketRequest } from '../../server/types';
+import type { Comment, CreateTicketRequest, TicketDetail, TicketState, TicketSummary, UpdateTicketRequest } from '../../server/types';
 import { apiFetch } from './api';
 import { ticketsInvalidationPredicate } from './queryKeys';
 
@@ -129,6 +129,41 @@ export function useUnarchiveTicket(projectName: string) {
         predicate: ticketsInvalidationPredicate(projectName),
       });
       queryClient.invalidateQueries({ queryKey: ['archive', projectName] });
+    },
+  });
+}
+
+export function useCreateComment(projectName: string, ticketNumber: number) {
+  const queryClient = useQueryClient();
+  const commentsKey = ['comments', projectName, ticketNumber];
+  return useMutation({
+    mutationFn: ({ body, author }: { body: string; author?: { username: string; display_name: string } }) =>
+      apiFetch<Comment>(
+        `/api/projects/${encodeURIComponent(projectName)}/tickets/${ticketNumber}/comments`,
+        { method: 'POST', body: JSON.stringify(author ? { body, author } : { body }) },
+      ),
+    onMutate: async ({ body, author }) => {
+      await queryClient.cancelQueries({ queryKey: commentsKey });
+      const previous = queryClient.getQueryData<Comment[]>(commentsKey);
+      const prev = previous ?? [];
+      const nextN = Math.max(0, ...prev.map((c) => c.n)) + 1;
+      const optimistic: Comment = {
+        n: nextN,
+        author: author?.username ?? 'me',
+        displayName: author?.display_name ?? 'You',
+        timestamp: new Date().toISOString(),
+        body,
+      };
+      queryClient.setQueryData<Comment[]>(commentsKey, [...prev, optimistic]);
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous !== undefined) {
+        queryClient.setQueryData(commentsKey, ctx.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: commentsKey });
     },
   });
 }

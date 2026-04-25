@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { vi } from 'vitest';
-import type { TicketSummary } from '../../server/types';
+import type { Comment, TicketSummary } from '../../server/types';
 import { ticketsKey } from './queryKeys';
-import { useTransitionTicketState } from './ticketMutations';
+import { useCreateComment, useTransitionTicketState } from './ticketMutations';
 
 function makeWrapper(qc: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -22,6 +22,100 @@ const baseTicket: TicketSummary = {
   created: '2026-01-01T00:00:00.000Z',
   updated: '2026-01-01T00:00:00.000Z',
 };
+
+const commentsKey = (project: string, n: number) => ['comments', project, n];
+
+function makeComment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    n: 1,
+    author: 'alice',
+    displayName: 'Alice',
+    timestamp: '2026-01-01T00:00:00.000Z',
+    body: 'Existing',
+    ...overrides,
+  };
+}
+
+describe('useCreateComment', () => {
+  it('should optimistically append the new comment to the comments cache', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const existing = makeComment();
+    qc.setQueryData(commentsKey('ratatoskr', 5), [existing]);
+
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+
+    const { result } = renderHook(() => useCreateComment('ratatoskr', 5), {
+      wrapper: makeWrapper(qc),
+    });
+
+    result.current.mutate({ body: 'new comment' });
+
+    await waitFor(() => {
+      const data = qc.getQueryData<Comment[]>(commentsKey('ratatoskr', 5));
+      expect(data).toHaveLength(2);
+      expect(data?.[1].body).toBe('new comment');
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('should roll back the cache when the mutation fails', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    const existing = makeComment();
+    qc.setQueryData(commentsKey('ratatoskr', 5), [existing]);
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Network error'))));
+
+    const { result } = renderHook(() => useCreateComment('ratatoskr', 5), {
+      wrapper: makeWrapper(qc),
+    });
+
+    result.current.mutate({ body: 'new comment' });
+
+    await waitFor(() => {
+      const data = qc.getQueryData<Comment[]>(commentsKey('ratatoskr', 5));
+      expect(data).toHaveLength(1);
+      expect(data?.[0].body).toBe('Existing');
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('should invalidate the comments query on settle', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    qc.setQueryData(commentsKey('ratatoskr', 5), []);
+
+    const newComment = makeComment({ n: 1, body: 'hi' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(newComment), { status: 201, headers: { 'content-type': 'application/json' } })),
+      ),
+    );
+
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+
+    const { result } = renderHook(() => useCreateComment('ratatoskr', 5), {
+      wrapper: makeWrapper(qc),
+    });
+
+    result.current.mutate({ body: 'hi' });
+
+    await waitFor(() => {
+      const calls = invalidateSpy.mock.calls;
+      const commentsInvalidated = calls.some(([opts]) => {
+        if (opts && 'queryKey' in opts) {
+          const key = opts.queryKey as unknown[];
+          return key[0] === 'comments' && key[1] === 'ratatoskr' && key[2] === 5;
+        }
+        return false;
+      });
+      expect(commentsInvalidated).toBe(true);
+    });
+
+    vi.unstubAllGlobals();
+  });
+});
 
 describe('useTransitionTicketState', () => {
   it('should optimistically update the tickets cache before the PATCH resolves', async () => {

@@ -1,6 +1,7 @@
 import { ApiError } from '../lib/api';
 import { useTicketDetailState } from '../lib/useTicketDetailState';
 import { PanelShell } from './ui/PanelShell';
+import { CommentForm } from './CommentForm';
 import { TicketDetailView } from './TicketDetailView';
 import { TicketPlanView } from './TicketPlanView';
 
@@ -79,7 +80,13 @@ export function TicketDetailPanel({
   }
 
   return (
-    <PanelShell onClose={onClose} title={data.displayId} actions={actions} variant={variant}>
+    <PanelShell
+      onClose={onClose}
+      title={data.displayId}
+      actions={actions}
+      variant={variant}
+      footer={<CommentForm projectName={projectName} ticketNumber={data.number} />}
+    >
       <TicketDetailView
         data={data}
         archiveError={archiveMutation.error}

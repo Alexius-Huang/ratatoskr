@@ -168,6 +168,7 @@ export type AppConfigResponse = {
   configured: boolean;
   workspaceRoot: string | null;
   source: 'env' | 'file' | null;
+  user: { username: string; display_name: string; email?: string } | null;
 };
 
 export function useAppConfig() {
