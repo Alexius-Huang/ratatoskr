@@ -24,7 +24,7 @@ export function CommentSection({ projectName, ticketNumber }: Props) {
   return (
     <div className="mb-6">
       <h2 className="flex items-center gap-1.5 text-xs font-medium text-nord-4 uppercase tracking-wide mb-3">
-        <MessageSquare size={13} />
+        <MessageSquare size={13} className="text-nord-9" />
         Comments
       </h2>
       {!comments || comments.length === 0 ? (
