@@ -103,6 +103,22 @@ export type UpdateTicketRequest = {
   is_reviewed?: boolean | null;
 };
 
+export type UserProfile = {
+  username: string;
+  display_name: string;
+  email?: string;
+};
+
+export type CommentRequestAuthor = {
+  username: string;
+  display_name: string;
+};
+
+export type CreateCommentRequest = {
+  body: string;
+  author?: CommentRequestAuthor;
+};
+
 export type ArchiveBlockedError = {
   error: string;
   blockers: Partial<Record<TicketState, number>>;
