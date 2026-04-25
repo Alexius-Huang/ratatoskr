@@ -52,7 +52,7 @@ export function Modal({ open, onClose, title, children, footer }: Props) {
             ×
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6">{children}</div>
         {footer && (
           <footer className="px-6 py-4 border-t border-nord-3 shrink-0 flex justify-end gap-2">
             {footer}
