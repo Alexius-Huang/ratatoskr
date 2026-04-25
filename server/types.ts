@@ -118,3 +118,18 @@ export type PlanResult =
         | 'out-of-scope'
         | 'file-not-found';
     };
+
+export type Comment = {
+  n: number;
+  author: string;
+  displayName: string;
+  timestamp: string; // ISO 8601
+  body: string; // markdown content after frontmatter
+};
+
+export type CommentInput = {
+  author: string;
+  displayName: string;
+  body: string;
+  // timestamp is intentionally omitted — server-generated
+};
