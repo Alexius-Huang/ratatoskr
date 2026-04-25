@@ -290,6 +290,34 @@ describe('mcp tools', () => {
     const patched = JSON.parse(result.content[0].text) as { resolution?: string };
     expect(patched.resolution).toBe('VIBED');
   });
+
+  it.each([
+    { input: true as boolean | null, expectedFm: true, desc: 'sets is_reviewed: true' },
+    { input: false as boolean | null, expectedFm: false, desc: 'sets is_reviewed: false' },
+    { input: null as boolean | null, expectedFm: undefined, desc: 'removes is_reviewed when null' },
+  ])('patch_ticket is_reviewed — $desc', async ({ input, expectedFm }) => {
+    const overrides: Record<string, unknown> = {};
+    if (input === null) overrides.is_reviewed = true;
+    await makeTicket(1, { ...overrides });
+
+    const result = await patchTicketHandler({ project: PROJECT, number: 1, is_reviewed: input });
+    expect(result.isError).toBeUndefined();
+    const patched = JSON.parse(result.content[0].text) as { isReviewed?: boolean };
+    expect(patched.isReviewed).toBe(expectedFm);
+
+    const raw = await readFile(path.join(tasksDir, '1.md'), 'utf8');
+    const fm = matter(raw).data as { is_reviewed?: boolean };
+    expect(fm.is_reviewed).toBe(expectedFm);
+  });
+
+  it('is_reviewed set via patch_ticket is returned by get_ticket_by_id', async () => {
+    await makeTicket(1);
+    await patchTicketHandler({ project: PROJECT, number: 1, is_reviewed: true });
+    const result = await getTicketByIdHandler({ displayId: `${PREFIX}-1` });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as { isReviewed?: boolean };
+    expect(ticket.isReviewed).toBe(true);
+  });
 });
 
 describe('ship_ticket_pr', () => {
