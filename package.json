@@ -15,7 +15,7 @@
     "mcp:dev": "~/.bun/bin/bun server/mcp.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "pnpm build && pnpm build:server && tauri build"
+    "tauri:build": "pnpm build && pnpm build:server && pnpm build:mcp && tauri build"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.8.0",
