@@ -1,7 +1,8 @@
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Hono } from 'hono';
-import { writeAppConfig } from './appConfig';
+import { readUserProfileSync, writeAppConfig } from './appConfig';
+import { listComments, writeComment } from './comments';
 import {
   getWorkspaceRoot,
   getWorkspaceRootSource,
@@ -10,10 +11,11 @@ import {
   readTicketDetail,
   readTicketPlan,
   scanProjects,
+  tasksDir,
 } from './fs';
 import { readBoardConfig, validateBoardColumns, writeBoardConfig } from './boardConfig';
 import { HttpError, parseJsonBody, requireProjectConfig, requireTicketNumber } from './routeHelpers';
-import type { CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
+import type { CreateCommentRequest, CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
 import {
   archiveDoneTickets,
   archiveTicket,
@@ -249,6 +251,58 @@ app.post('/api/projects/:name/archive/:number/unarchive', async (c) => {
     return c.json({ error: result.error.message }, 400);
   }
   return c.json({ ok: true });
+});
+
+app.get('/api/projects/:name/tickets/:number/comments', async (c) => {
+  const name = c.req.param('name');
+  const n = requireTicketNumber(c.req.param('number'));
+  await requireProjectConfig(name);
+  const comments = await listComments(name, n);
+  return c.json(comments);
+});
+
+app.post('/api/projects/:name/tickets/:number/comments', async (c) => {
+  const name = c.req.param('name');
+  const n = requireTicketNumber(c.req.param('number'));
+  const { prefix } = await requireProjectConfig(name);
+  const body = await parseJsonBody<CreateCommentRequest>(c);
+
+  if (typeof body.body !== 'string' || body.body.length === 0) {
+    return c.json({ error: 'body must be a non-empty string' }, 400);
+  }
+
+  let resolvedAuthor: { username: string; display_name: string };
+  if (body.author !== null && typeof body.author === 'object') {
+    if (typeof body.author.username !== 'string' || body.author.username.length === 0) {
+      return c.json({ error: 'author.username must be a non-empty string' }, 400);
+    }
+    if (typeof body.author.display_name !== 'string' || body.author.display_name.length === 0) {
+      return c.json({ error: 'author.display_name must be a non-empty string' }, 400);
+    }
+    resolvedAuthor = { username: body.author.username, display_name: body.author.display_name };
+  } else {
+    const fallback = readUserProfileSync();
+    if (!fallback) {
+      return c.json({ error: 'No author provided and no default user configured' }, 400);
+    }
+    resolvedAuthor = { username: fallback.username, display_name: fallback.display_name };
+  }
+
+  try {
+    await stat(path.join(tasksDir(name), `${n}.md`));
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return c.json({ error: `Ticket ${prefix}-${n} not found` }, 404);
+    }
+    throw err;
+  }
+
+  const result = await writeComment(name, n, {
+    author: resolvedAuthor.username,
+    displayName: resolvedAuthor.display_name,
+    body: body.body,
+  });
+  return c.json(result, 201);
 });
 
 export { app };

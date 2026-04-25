@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { getAppConfigPath, readAppConfigSync, writeAppConfig } from './appConfig';
+import { getAppConfigPath, readAppConfigSync, readUserProfileSync, writeAppConfig } from './appConfig';
 
 let tmpDir: string;
 
@@ -71,5 +71,68 @@ describe('writeAppConfig', () => {
     writeAppConfig({ workspaceRoot: '/first' });
     writeAppConfig({ workspaceRoot: '/second' });
     expect(readAppConfigSync()?.workspaceRoot).toBe('/second');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+function writeConfigFile(data: unknown) {
+  const dir = path.join(tmpDir, 'ratatoskr');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, 'config.json'), JSON.stringify(data), 'utf8');
+}
+
+describe('readUserProfileSync', () => {
+  it('should return null when the config file does not exist', () => {
+    expect(readUserProfileSync()).toBeNull();
+  });
+
+  it('should return null when the file exists but has no user block', () => {
+    writeConfigFile({ workspaceRoot: '/some/path' });
+    expect(readUserProfileSync()).toBeNull();
+  });
+
+  it.each([
+    ['username', { display_name: 'James Huang' }],
+    ['display_name', { username: 'j.huang' }],
+  ])('should return null when user block is missing required field: %s', (_field, partial) => {
+    writeConfigFile({ workspaceRoot: '/some/path', user: partial });
+    expect(readUserProfileSync()).toBeNull();
+  });
+
+  it.each([
+    ['username', { username: '', display_name: 'James Huang' }],
+    ['display_name', { username: 'j.huang', display_name: '' }],
+  ])('should return null when %s is an empty string', (_field, user) => {
+    writeConfigFile({ workspaceRoot: '/some/path', user });
+    expect(readUserProfileSync()).toBeNull();
+  });
+
+  it('should return a UserProfile when username and display_name are present', () => {
+    writeConfigFile({
+      workspaceRoot: '/some/path',
+      user: { username: 'j.huang', display_name: 'James Huang' },
+    });
+    const result = readUserProfileSync();
+    expect(result).toEqual({ username: 'j.huang', display_name: 'James Huang' });
+  });
+
+  it('should include email when present and string-typed', () => {
+    writeConfigFile({
+      workspaceRoot: '/some/path',
+      user: { username: 'j.huang', display_name: 'James Huang', email: 'j@example.com' },
+    });
+    const result = readUserProfileSync();
+    expect(result?.email).toBe('j@example.com');
+  });
+
+  it.each([
+    ['missing', { username: 'j.huang', display_name: 'James Huang' }],
+    ['non-string', { username: 'j.huang', display_name: 'James Huang', email: 42 }],
+  ])('should omit email when %s', (_desc, user) => {
+    writeConfigFile({ workspaceRoot: '/some/path', user });
+    const result = readUserProfileSync();
+    expect(result).not.toBeNull();
+    expect(result?.email).toBeUndefined();
   });
 });
