@@ -20,7 +20,7 @@ export function MarkdownBody({ source }: { source: string }) {
               {children}
             </h3>
           ),
-          p: ({ children }) => <p className="mb-3">{children}</p>,
+          p: ({ children }) => <p className="mt-3 mb-3">{children}</p>,
           ul: ({ children }) => (
             <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>
           ),

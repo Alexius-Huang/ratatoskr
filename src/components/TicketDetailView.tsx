@@ -69,7 +69,7 @@ export function TicketDetailView({
   return (
     <>
       <div>
-        <div className="sticky top-0 -mt-4 -mx-6 px-6 pt-2 pb-3 bg-nord-0 z-10 border-b border-nord-3">
+        <div className="sticky top-0 -mt-4 -mx-6 px-6 pt-4 pb-3 bg-nord-0 z-10 border-b border-nord-3">
           <h1 className="text-xl font-semibold text-nord-6 mb-3">{data.title}</h1>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${stateColorClass(data.state)}`}>
