@@ -7,6 +7,7 @@ import { formatTimestamp } from '../lib/time';
 import { stateColorClass, stateLabel } from '../lib/ticketState';
 import { EditTicketModal } from './EditTicketModal';
 import { MarkdownBody } from './MarkdownBody';
+import { CommentSection } from './CommentSection';
 import { resolutionLabel } from '../lib/ticketResolution';
 
 function resolutionIcon(r: string): ElementType {
@@ -158,6 +159,7 @@ export function TicketDetailView({
           </div>
         )}
         <MarkdownBody source={data.body} />
+        <CommentSection projectName={projectName} ticketNumber={data.number} />
         {archiveError && (
           <div className="mt-4 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
             Archive failed: {archiveError.message}

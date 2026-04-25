@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ticketsKey } from './queryKeys';
 import type {
   ArchivedTicketRecord,
+  Comment,
   PlanResponse,
   ProjectSummary,
   TicketDetail,
@@ -135,6 +136,18 @@ export function useArchive(projectName: string | null) {
     queryKey: ['archive', projectName],
     queryFn: () => fetchArchive(projectName as string),
     enabled: projectName !== null,
+  });
+}
+
+export function useComments(projectName: string | null, number: number | null) {
+  return useQuery({
+    queryKey: ['comments', projectName, number],
+    queryFn: () =>
+      apiFetch<Comment[]>(
+        `/api/projects/${encodeURIComponent(projectName as string)}/tickets/${number}/comments`,
+      ),
+    enabled: projectName !== null && number !== null,
+    refetchInterval: 15000,
   });
 }
 

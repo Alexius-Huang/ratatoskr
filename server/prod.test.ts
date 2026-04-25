@@ -146,7 +146,7 @@ describe('GET /api/projects/:name/tickets/:number/comments', () => {
     await mkdir(dir, { recursive: true });
     const fm = {
       author: 'j.huang',
-      display_name: 'James Huang',
+      display_name: 'Jun-Xin Huang',
       timestamp: '2026-04-19T12:00:00.000Z',
       ...overrides,
     };
@@ -252,12 +252,12 @@ describe('POST /api/projects/:name/tickets/:number/comments', () => {
   });
 
   it('should fall back to root config user when author is omitted', async () => {
-    await setupAppUser({ username: 'j.huang', display_name: 'James Huang' });
+    await setupAppUser({ username: 'j.huang', display_name: 'Jun-Xin Huang' });
     const res = await postComment({ body: 'Fallback comment.' });
     expect(res.status).toBe(201);
     const body = await res.json() as Comment;
     expect(body.author).toBe('j.huang');
-    expect(body.displayName).toBe('James Huang');
+    expect(body.displayName).toBe('Jun-Xin Huang');
   });
 
   it('should round-trip via GET (POST then GET returns the new comment)', async () => {
