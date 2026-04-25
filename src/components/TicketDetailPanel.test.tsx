@@ -23,6 +23,10 @@ vi.mock('./EditTicketModal', () => ({
   EditTicketModal: () => null,
 }));
 
+vi.mock('./CommentForm', () => ({
+  CommentForm: () => <div data-testid="comment-form" />,
+}));
+
 vi.mock('../lib/openExternal', () => ({
   openExternal: vi.fn(),
 }));
@@ -241,5 +245,37 @@ describe('TicketDetailPanel', () => {
   it('should not render the WONT_DO callout when state is not WONT_DO', () => {
     renderPanel({ ...taskFixture, state: 'IN_PROGRESS' });
     expect(screen.queryByText("Won't do")).toBeNull();
+  });
+
+  it('should render the comment form on the regular detail path', () => {
+    renderPanel();
+    expect(screen.getByTestId('comment-form')).toBeInTheDocument();
+  });
+
+  it('should not render the comment form on the loading state', () => {
+    mockUseTicketDetail.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      error: null,
+    } as ReturnType<typeof useTicketDetail>);
+    const onClose = vi.fn();
+    renderWithProviders(
+      <TicketDetailPanel
+        projectName="ratatoskr"
+        number={5}
+        displayId="RAT-5"
+        onClose={onClose}
+      />,
+      { initialEntries: ['/projects/ratatoskr/tickets?inspect=RAT-5'] },
+    );
+    expect(screen.queryByTestId('comment-form')).not.toBeInTheDocument();
+  });
+
+  it('should not render the comment form on the plan view', async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(screen.getByRole('button', { name: /view plan/i }));
+    await waitFor(() => screen.getByRole('button', { name: /back to ticket/i }));
+    expect(screen.queryByTestId('comment-form')).not.toBeInTheDocument();
   });
 });

@@ -11,12 +11,14 @@ export function PanelShell({
   title,
   actions,
   children,
+  footer,
   variant = 'pane',
 }: {
   onClose: () => void;
   title: string;
   actions: HeaderAction[];
   children: React.ReactNode;
+  footer?: React.ReactNode;
   variant?: 'pane' | 'modal';
 }) {
   return (
@@ -51,6 +53,9 @@ export function PanelShell({
         </div>
       </header>
       <div className="flex-1 overflow-y-auto px-6 py-4">{children}</div>
+      {footer && (
+        <div className="shrink-0 border-t border-nord-3 bg-nord-1 px-6 py-3">{footer}</div>
+      )}
     </div>
   );
 }
