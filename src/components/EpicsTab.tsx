@@ -9,6 +9,7 @@ import { useMarkEpicDone, useUpdateTicket } from '../lib/ticketMutations';
 import { EpicRow } from './EpicRow';
 import { SplitPane } from './SplitPane';
 import { TicketDetailPanel } from './TicketDetailPanel';
+import { Toast } from './Toast';
 
 function EpicRowWithMutation({
   epic,
@@ -16,12 +17,14 @@ function EpicRowWithMutation({
   onClick,
   onViewTickets,
   projectName,
+  onError,
 }: {
   epic: TicketSummary;
   isSelected: boolean;
   onClick: () => void;
   onViewTickets: () => void;
   projectName: string;
+  onError: (msg: string) => void;
 }) {
   const updateTicket = useUpdateTicket(projectName, epic.number);
   const markEpicDone = useMarkEpicDone(projectName);
@@ -35,6 +38,7 @@ function EpicRowWithMutation({
       onMarkDone={() =>
         markEpicDone.mutate(epic.number, {
           onSuccess: () => fireEpicDoneConfetti(),
+          onError: (err) => onError(err instanceof Error ? err.message : String(err)),
         })
       }
     />
@@ -45,6 +49,7 @@ export function EpicsTab() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [toast, setToast] = useState<string | null>(null);
   const { data: epics, isLoading, error } = useTickets(name ?? null, 'Epic');
   const [query, setQuery] = useState('');
 
@@ -140,6 +145,7 @@ export function EpicsTab() {
         onClick={() => toggleInspect(e)}
         onViewTickets={() => navigate(`/projects/${encodeURIComponent(name ?? '')}/tickets?epic=${e.number}`)}
         projectName={name ?? ''}
+        onError={(msg) => setToast(`Couldn't mark epic as done: ${msg}`)}
       />
     </div>
   );
@@ -182,7 +188,12 @@ export function EpicsTab() {
   );
 
   if (!inspectParam || !name || inspectedNumber === null) {
-    return <div className="h-full flex flex-col min-h-0">{list}</div>;
+    return (
+      <div className="h-full flex flex-col min-h-0">
+        {list}
+        {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      </div>
+    );
   }
 
   const detail = (
@@ -201,6 +212,7 @@ export function EpicsTab() {
         right={detail}
         storageKey="ratatoskr:epics-split"
       />
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }

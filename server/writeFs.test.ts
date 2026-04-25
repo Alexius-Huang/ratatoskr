@@ -483,6 +483,46 @@ describe('markEpicDone', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('not-found');
   });
+
+  it('should succeed when all children are archived', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS' });
+    await makeTicketFile(archivePath, 2, {
+      type: 'Task',
+      title: 'Archived Child',
+      state: 'DONE',
+      epic: 1,
+      updated: '2026-03-01T00:00:00.000Z',
+      archived: '2026-03-02T00:00:00.000Z',
+    });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.state).toBe('DONE');
+      expect(result.data.body).toContain('## Summary');
+      expect(result.data.body).toContain('RAT-2');
+      expect(result.data.body).toContain('Archived Child');
+    }
+  });
+
+  it('should succeed when children are a mix of active and archived', async () => {
+    await makeTicketFile(tasksPath, 1, { type: 'Epic', title: 'E', state: 'IN_PROGRESS' });
+    await makeTicketFile(tasksPath, 2, { type: 'Task', title: 'Active Done', state: 'DONE', epic: 1, updated: '2026-03-01T00:00:00.000Z' });
+    await makeTicketFile(archivePath, 3, {
+      type: 'Task',
+      title: 'Archived Done',
+      state: 'DONE',
+      epic: 1,
+      updated: '2026-03-01T00:00:00.000Z',
+      archived: '2026-03-02T00:00:00.000Z',
+    });
+    const result = await markEpicDone(PROJECT, PREFIX, 1);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.state).toBe('DONE');
+      expect(result.data.body).toContain('RAT-2');
+      expect(result.data.body).toContain('RAT-3');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
