@@ -117,6 +117,23 @@ export async function archiveTicketHandler(args: {
   );
 }
 
+export async function addCommentHandler(args: {
+  project: string;
+  number: number;
+  body: string;
+  author?: { username: string; display_name: string };
+}): Promise<ToolResult> {
+  const { project, number, ...payload } = args;
+  return dispatch(
+    `/api/projects/${encodeURIComponent(project)}/tickets/${number}/comments`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 function errorResult(message: string, extra?: Record<string, string>): ToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify({ error: message, ...extra }) }],
@@ -284,6 +301,22 @@ export function buildServer(): McpServer {
     'archive_ticket',
     { project: z.string(), number: z.number().int().positive() },
     async (args) => archiveTicketHandler(args),
+  );
+
+  server.tool(
+    'add_comment',
+    {
+      project: z.string(),
+      number: z.number().int().positive(),
+      body: z.string().min(1),
+      author: z
+        .object({
+          username: z.string().min(1),
+          display_name: z.string().min(1),
+        })
+        .optional(),
+    },
+    async (args) => addCommentHandler(args),
   );
 
   server.tool(
