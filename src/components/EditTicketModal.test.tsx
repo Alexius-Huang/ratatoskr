@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { TicketDetail } from '../../server/types';
+import { makeEpicSummary, makeTicketDetail } from '../test/factories';
 
 vi.mock('../lib/ticketMutations', () => ({
   useUpdateTicket: vi.fn(),
@@ -18,19 +19,7 @@ import { useUpdateTicket } from '../lib/ticketMutations';
 import { useTickets } from '../lib/api';
 import { EditTicketModal } from './EditTicketModal';
 
-const baseTicket: TicketDetail = {
-  number: 5,
-  displayId: 'RAT-5',
-  type: 'Task',
-  title: 'Old title',
-  state: 'IN_PROGRESS',
-  epic: 1,
-  body: 'old body',
-  created: '2026-04-18T00:00:00Z',
-  updated: '2026-04-18T00:00:00Z',
-  blocks: [],
-  blockedBy: [],
-};
+const baseTicket = makeTicketDetail({ number: 5, title: 'Old title', state: 'IN_PROGRESS', epic: 1, body: 'old body' });
 
 function renderModal(props: {
   open?: boolean;
@@ -188,8 +177,8 @@ describe('EditTicketModal', () => {
     const user = userEvent.setup();
     vi.mocked(useTickets).mockReturnValue({
       data: [
-        { number: 1, displayId: 'RAT-1', type: 'Epic', title: 'Active', state: 'IN_PROGRESS', created: '', updated: '' },
-        { number: 2, displayId: 'RAT-2', type: 'Epic', title: 'Finished', state: 'DONE', created: '', updated: '' },
+        makeEpicSummary({ number: 1, title: 'Active', state: 'IN_PROGRESS' }),
+        makeEpicSummary({ number: 2, title: 'Finished', state: 'DONE' }),
       ],
       isLoading: false,
     } as never);

@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import type { TicketSummary } from '../../server/types';
+import { makeEpicSummary } from '../test/factories';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { EpicsTab } from './EpicsTab';
 
@@ -45,22 +46,6 @@ const allDoneChildCounts = {
   byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1, WONT_DO: 0 },
 };
 
-function makeEpic(overrides: Partial<TicketSummary> = {}): TicketSummary {
-  return {
-    number: 1,
-    displayId: 'RAT-1',
-    type: 'Epic',
-    title: 'Active Epic',
-    state: 'IN_PROGRESS',
-    created: '',
-    updated: '',
-    blocks: [],
-    blockedBy: [],
-    childCounts: allDoneChildCounts,
-    ...overrides,
-  };
-}
-
 const markDoneMutateFn = vi.fn();
 
 function setupMocks(epics: TicketSummary[]) {
@@ -84,16 +69,16 @@ describe('EpicsTab — filter bar', () => {
   });
 
   it('renders the filter input above the list', () => {
-    render([makeEpic()]);
+    render([makeEpicSummary({ number: 1 })]);
     expect(screen.getByRole('textbox', { name: /filter epics/i })).toBeInTheDocument();
   });
 
   it('filters by title substring (case-insensitive)', async () => {
     const user = userEvent.setup();
     render([
-      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Alpha Feature' }),
-      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Beta Feature' }),
-      makeEpic({ number: 3, displayId: 'RAT-3', title: 'Alpha Bugfix' }),
+      makeEpicSummary({ number: 1, title: 'Alpha Feature' }),
+      makeEpicSummary({ number: 2, title: 'Beta Feature' }),
+      makeEpicSummary({ number: 3, title: 'Alpha Bugfix' }),
     ]);
     await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'alpha');
     expect(screen.getByText('Alpha Feature')).toBeInTheDocument();
@@ -104,9 +89,9 @@ describe('EpicsTab — filter bar', () => {
   it('filters by displayId substring (case-insensitive, substring — RAT-1 matches RAT-1 and RAT-10)', async () => {
     const user = userEvent.setup();
     render([
-      makeEpic({ number: 1, displayId: 'RAT-1', title: 'First' }),
-      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Second' }),
-      makeEpic({ number: 10, displayId: 'RAT-10', title: 'Tenth' }),
+      makeEpicSummary({ number: 1, title: 'First' }),
+      makeEpicSummary({ number: 2, title: 'Second' }),
+      makeEpicSummary({ number: 10, title: 'Tenth' }),
     ]);
     await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'rat-1');
     expect(screen.getByText('First')).toBeInTheDocument();
@@ -117,8 +102,8 @@ describe('EpicsTab — filter bar', () => {
   it('filter applies to the Completed section too', async () => {
     const user = userEvent.setup();
     render([
-      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Active Epic', state: 'IN_PROGRESS' }),
-      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Done Epic', state: 'DONE' }),
+      makeEpicSummary({ number: 1, title: 'Active Epic', state: 'IN_PROGRESS' }),
+      makeEpicSummary({ number: 2, title: 'Done Epic', state: 'DONE' }),
     ]);
     await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'Done Epic');
     expect(screen.getByText('Done Epic')).toBeInTheDocument();
@@ -127,7 +112,7 @@ describe('EpicsTab — filter bar', () => {
 
   it('shows "No matching epics" when nothing matches', async () => {
     const user = userEvent.setup();
-    render([makeEpic({ title: 'Alpha Feature' })]);
+    render([makeEpicSummary({ title: 'Alpha Feature' })]);
     await user.type(screen.getByRole('textbox', { name: /filter epics/i }), 'zzz-no-match');
     expect(screen.getByText('No matching epics')).toBeInTheDocument();
     expect(screen.queryByText('Alpha Feature')).not.toBeInTheDocument();
@@ -136,8 +121,8 @@ describe('EpicsTab — filter bar', () => {
   it('clearing the input restores the full list', async () => {
     const user = userEvent.setup();
     render([
-      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Alpha Feature' }),
-      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Beta Feature' }),
+      makeEpicSummary({ number: 1, title: 'Alpha Feature' }),
+      makeEpicSummary({ number: 2, title: 'Beta Feature' }),
     ]);
     const input = screen.getByRole('textbox', { name: /filter epics/i });
     await user.type(input, 'alpha');
@@ -157,8 +142,8 @@ describe('EpicsTab — Completed section', () => {
 
   it('should render all active epics above a Completed section when DONE epics exist', () => {
     render([
-      makeEpic({ number: 1, displayId: 'RAT-1', title: 'Active Epic', state: 'IN_PROGRESS' }),
-      makeEpic({ number: 2, displayId: 'RAT-2', title: 'Done Epic', state: 'DONE' }),
+      makeEpicSummary({ number: 1, title: 'Active Epic', state: 'IN_PROGRESS' }),
+      makeEpicSummary({ number: 2, title: 'Done Epic', state: 'DONE' }),
     ]);
     expect(screen.getByText('Active Epic')).toBeInTheDocument();
     expect(screen.getByText('Done Epic')).toBeInTheDocument();
@@ -166,13 +151,13 @@ describe('EpicsTab — Completed section', () => {
   });
 
   it('should omit the Completed section when no epics are DONE', () => {
-    render([makeEpic({ state: 'IN_PROGRESS' })]);
+    render([makeEpicSummary({ state: 'IN_PROGRESS' })]);
     expect(screen.queryByText(/^Completed/)).not.toBeInTheDocument();
   });
 
   it('should call useMarkEpicDone.mutate with the epic number when Mark-Done button is clicked', async () => {
     const user = userEvent.setup();
-    render([makeEpic({ state: 'IN_PROGRESS', childCounts: allDoneChildCounts })]);
+    render([makeEpicSummary({ number: 1, state: 'IN_PROGRESS', childCounts: allDoneChildCounts })]);
     const btns = screen.getAllByRole('button', { name: /mark epic as done/i });
     const markDoneBtn = btns.find((el) => el.tagName === 'BUTTON')!;
     await user.click(markDoneBtn);
@@ -195,8 +180,8 @@ describe('EpicsTab — inspect by number', () => {
 
   it('?inspect=10 selects the epic with number 10 (calls scrollIntoView)', () => {
     setupMocks([
-      makeEpic({ number: 10, displayId: 'RAT-10', title: 'Target Epic' }),
-      makeEpic({ number: 11, displayId: 'RAT-11', title: 'Other Epic' }),
+      makeEpicSummary({ number: 10, title: 'Target Epic' }),
+      makeEpicSummary({ number: 11, title: 'Other Epic' }),
     ]);
     renderWithProviders(<EpicsTab />, {
       initialEntries: ['/projects/ratatoskr/epics?inspect=10'],
@@ -206,7 +191,7 @@ describe('EpicsTab — inspect by number', () => {
   });
 
   it('legacy ?inspect=RAT-10 still selects epic with number 10', () => {
-    setupMocks([makeEpic({ number: 10, displayId: 'RAT-10', title: 'Legacy Epic' })]);
+    setupMocks([makeEpicSummary({ number: 10, title: 'Legacy Epic' })]);
     renderWithProviders(<EpicsTab />, {
       initialEntries: ['/projects/ratatoskr/epics?inspect=RAT-10'],
       routePath: '/projects/:name/*',
@@ -222,7 +207,7 @@ describe('EpicsTab — scroll containers', () => {
   });
 
   it('renders the filter bar outside the rows scroll container', () => {
-    render([makeEpic()]);
+    render([makeEpicSummary({ number: 1 })]);
     const input = screen.getByRole('textbox', { name: /filter epics/i });
     // Walk up to find the nearest ancestor with overflow-y-auto (the rows container)
     // The filter input's immediate parent chain must NOT include overflow-y-auto before
@@ -244,7 +229,7 @@ describe('EpicsTab — scroll containers', () => {
   });
 
   it('does not apply pb-72 to the rows scroll container', () => {
-    render([makeEpic()]);
+    render([makeEpicSummary({ number: 1 })]);
     const input = screen.getByRole('textbox', { name: /filter epics/i });
     const listRoot = input.closest('.flex-col');
     expect(listRoot).not.toBeNull();
@@ -254,7 +239,7 @@ describe('EpicsTab — scroll containers', () => {
   });
 
   it('wraps the list in a height-constrained container when no epic is selected', () => {
-    render([makeEpic()]);
+    render([makeEpicSummary({ number: 1 })]);
     const input = screen.getByRole('textbox', { name: /filter epics/i });
     // The outer wrapper (added by the no-inspect return branch) must have h-full
     const outerWrapper = input.closest('.min-h-0');

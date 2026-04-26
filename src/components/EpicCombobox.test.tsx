@@ -2,26 +2,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
-import type { TicketSummary } from '../../server/types';
+import { makeEpicSummary } from '../test/factories';
 import { EpicCombobox } from './EpicCombobox';
 
-function makeEpic(number: number, title: string, state: TicketSummary['state'] = 'IN_PROGRESS'): TicketSummary {
-  return {
-    number,
-    displayId: `RAT-${number}`,
-    type: 'Epic',
-    title,
-    state,
-    created: '',
-    updated: '',
-    blocks: [],
-    blockedBy: [],
-  };
-}
-
-const epic1 = makeEpic(10, 'Project Foundation');
-const epic2 = makeEpic(11, 'UI Improvements');
-const epic3 = makeEpic(12, 'Completed work', 'DONE');
+const epic1 = makeEpicSummary({ number: 10, title: 'Project Foundation' });
+const epic2 = makeEpicSummary({ number: 11, title: 'UI Improvements' });
+const epic3 = makeEpicSummary({ number: 12, title: 'Completed work', state: 'DONE' });
 const epics = [epic1, epic2, epic3];
 
 describe('EpicCombobox', () => {

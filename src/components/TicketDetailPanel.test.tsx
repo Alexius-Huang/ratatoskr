@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import type { TicketDetail } from '../../server/types';
+import { makeTicketDetail } from '../test/factories';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { TicketDetailPanel } from './TicketDetailPanel';
 
@@ -46,31 +47,20 @@ const mockUseTicketPlan = vi.mocked(useTicketPlan);
 const mockUseArchiveTicket = vi.mocked(useArchiveTicket);
 const mockOpenExternal = vi.mocked(openExternal);
 
-const taskFixture: TicketDetail = {
+const taskFixture = makeTicketDetail({
   number: 5,
-  displayId: 'RAT-5',
-  type: 'Task',
   title: 'My task title',
   state: 'IN_PROGRESS',
   body: 'Task body text',
   planDoc: 'plans/5.md',
-  created: '',
-  updated: '',
-  blocks: [],
-  blockedBy: [],
-};
+});
 
-const epicFixture: TicketDetail = {
+const epicFixture = makeTicketDetail({
   number: 10,
-  displayId: 'RAT-10',
   type: 'Epic',
   title: 'My epic title',
   state: 'IN_PROGRESS',
   body: 'Epic body text',
-  created: '',
-  updated: '',
-  blocks: [],
-  blockedBy: [],
   childCounts: {
     total: 3,
     byState: {
@@ -83,7 +73,7 @@ const epicFixture: TicketDetail = {
       WONT_DO: 0,
     },
   },
-};
+});
 
 const archiveMutateFn = vi.fn();
 const archiveMutateAsyncFn = vi.fn();

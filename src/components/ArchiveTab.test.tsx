@@ -2,7 +2,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
-import type { ArchivedTicketRecord } from '../../server/types';
+import { makeArchivedRecord } from '../test/factories';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { ArchiveTab } from './ArchiveTab';
 
@@ -20,10 +20,10 @@ import { useUnarchiveTicket } from '../lib/ticketMutations';
 const mockUseArchive = vi.mocked(useArchive);
 const mockUseUnarchiveTicket = vi.mocked(useUnarchiveTicket);
 
-const records: ArchivedTicketRecord[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Alpha ticket', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-01T10:00:00Z', blocks: [], blockedBy: [] },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Beta ticket', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-02T10:00:00Z', blocks: [], blockedBy: [] },
-  { number: 3, displayId: 'RAT-3', type: 'Bug', title: 'Gamma bug', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-03T10:00:00Z', blocks: [], blockedBy: [] },
+const records = [
+  makeArchivedRecord({ number: 1, title: 'Alpha ticket', state: 'DONE', archived: '2026-04-01T10:00:00Z' }),
+  makeArchivedRecord({ number: 2, title: 'Beta ticket', state: 'DONE', archived: '2026-04-02T10:00:00Z' }),
+  makeArchivedRecord({ number: 3, type: 'Bug', title: 'Gamma bug', state: 'DONE', archived: '2026-04-03T10:00:00Z' }),
 ];
 
 const mutateFn = vi.fn();

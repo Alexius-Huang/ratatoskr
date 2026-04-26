@@ -1,20 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { TicketSummary } from './types';
+import { makeTicketSummary } from './test/factories';
 import { buildEpicSummaryBlock } from './epicSummary';
 
-function makeChild(overrides: Partial<TicketSummary> = {}): TicketSummary {
-  return {
-    number: 1,
-    displayId: 'RAT-1',
-    type: 'Task',
-    title: 'A task',
-    state: 'DONE',
-    created: '2026-01-01T00:00:00.000Z',
-    updated: '2026-01-15T10:30:00.000Z',
-    blocks: [],
-    blockedBy: [],
-    ...overrides,
-  };
+function makeChild(overrides: Parameters<typeof makeTicketSummary>[0] = {}) {
+  return makeTicketSummary({ state: 'DONE', updated: '2026-01-15T10:30:00.000Z', ...overrides });
 }
 
 describe('buildEpicSummaryBlock', () => {

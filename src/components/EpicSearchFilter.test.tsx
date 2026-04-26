@@ -2,25 +2,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
-import type { TicketSummary } from '../../server/types';
+import { makeEpicSummary } from '../test/factories';
 import { EpicSearchFilter } from './EpicSearchFilter';
 
-function makeEpic(number: number, title: string): TicketSummary {
-  return {
-    number,
-    displayId: `RAT-${number}`,
-    type: 'Epic',
-    title,
-    state: 'IN_PROGRESS',
-    created: '',
-    updated: '',
-    blocks: [],
-    blockedBy: [],
-  };
-}
-
-const epic1 = makeEpic(10, 'Epic one');
-const epic2 = makeEpic(11, 'Epic two');
+const epic1 = makeEpicSummary({ number: 10, title: 'Epic one' });
+const epic2 = makeEpicSummary({ number: 11, title: 'Epic two' });
 const epics = [epic1, epic2];
 
 describe('EpicSearchFilter', () => {
@@ -32,7 +18,7 @@ describe('EpicSearchFilter', () => {
 
   it('should show a dropdown with top-5 epics when the input is focused without typing', async () => {
     const user = userEvent.setup();
-    const manyEpics = Array.from({ length: 8 }, (_, i) => makeEpic(i + 1, `Epic ${i + 1}`));
+    const manyEpics = Array.from({ length: 8 }, (_, i) => makeEpicSummary({ number: i + 1, title: `Epic ${i + 1}` }));
     render(<EpicSearchFilter epics={manyEpics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
     await user.click(screen.getByRole('textbox'));
     const items = screen.getAllByRole('button');
@@ -88,7 +74,7 @@ describe('EpicSearchFilter', () => {
   it('should cap the dropdown results to 10 when many epics match', async () => {
     const user = userEvent.setup();
     const manyEpics = Array.from({ length: 15 }, (_, i) =>
-      makeEpic(i + 1, `Alpha epic ${i + 1}`),
+      makeEpicSummary({ number: i + 1, title: `Alpha epic ${i + 1}` }),
     );
     render(<EpicSearchFilter epics={manyEpics} activeEpicNumber={null} onEpicChange={vi.fn()} />);
     await user.type(screen.getByRole('textbox'), 'alpha');
@@ -97,7 +83,7 @@ describe('EpicSearchFilter', () => {
   });
 
   it('should apply inline color style to the active chip when the epic has a color', () => {
-    const coloredEpic = { ...epic1, color: '#A3BE8C' };
+    const coloredEpic = makeEpicSummary({ number: epic1.number, title: epic1.title, color: '#A3BE8C' });
     render(
       <EpicSearchFilter
         epics={[coloredEpic, epic2]}
