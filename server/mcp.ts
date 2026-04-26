@@ -136,6 +136,23 @@ export async function addCommentHandler(args: {
   );
 }
 
+export async function editCommentHandler(args: {
+  project: string;
+  number: number;
+  n: number;
+  body: string;
+}): Promise<ToolResult> {
+  const { project, number, n, body } = args;
+  return dispatch(
+    `/api/projects/${encodeURIComponent(project)}/tickets/${number}/comments/${n}`,
+    {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ body }),
+    },
+  );
+}
+
 function errorResult(message: string, extra?: Record<string, string>): ToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify({ error: message, ...extra }) }],
@@ -321,6 +338,17 @@ export function buildServer(): McpServer {
         .optional(),
     },
     async (args) => addCommentHandler(args),
+  );
+
+  server.tool(
+    'edit_comment',
+    {
+      project: z.string(),
+      number: z.number().int().positive(),
+      n: z.number().int().positive(),
+      body: z.string().min(1),
+    },
+    async (args) => editCommentHandler(args),
   );
 
   server.tool(
