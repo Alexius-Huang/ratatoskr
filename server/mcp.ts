@@ -89,6 +89,8 @@ export async function patchTicketHandler(args: {
   wont_do_reason?: string | null;
   resolution?: 'VIBED' | 'PLANNED' | 'MANUAL' | null;
   is_reviewed?: boolean | null;
+  blocks?: string[] | null;
+  blocked_by?: string[] | null;
 }): Promise<ToolResult> {
   const { project, number, ...payload } = args;
   return dispatch(
@@ -293,6 +295,8 @@ export function buildServer(): McpServer {
       wont_do_reason: z.string().nullable().optional(),
       resolution: z.enum(['VIBED', 'PLANNED', 'MANUAL']).nullable().optional(),
       is_reviewed: z.boolean().nullable().optional(),
+      blocks: z.array(z.string()).nullable().optional(),
+      blocked_by: z.array(z.string()).nullable().optional(),
     },
     async (args) => patchTicketHandler(args),
   );

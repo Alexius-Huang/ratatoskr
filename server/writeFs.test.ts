@@ -827,3 +827,204 @@ describe('updateTicket — is_reviewed', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('updateTicket — blocks / blocked_by', () => {
+  async function makeProjectConfig(projectName: string, prefix: string) {
+    const cfgDir = path.join(tmpRoot, 'projects', projectName, '.meta', 'ratatoskr');
+    await mkdir(cfgDir, { recursive: true });
+    await writeFile(path.join(cfgDir, 'config.json'), JSON.stringify({ prefix }), 'utf8');
+  }
+
+  beforeEach(async () => {
+    await makeProjectConfig('ratatoskr', 'RAT');
+  });
+
+  it('should write inverse blocks when setting blocked_by', async () => {
+    await makeTicketFile(tasksPath, 1);
+    await makeTicketFile(tasksPath, 2);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocked_by: ['RAT-2'] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blockedBy).toEqual(['RAT-2']);
+
+    const raw2 = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fm2 } = matter(raw2);
+    expect(fm2.blocks).toEqual(['RAT-1']);
+    expect(fm2.updated).not.toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('should write inverse blocked_by when setting blocks', async () => {
+    await makeTicketFile(tasksPath, 1);
+    await makeTicketFile(tasksPath, 2);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: ['RAT-2'] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blocks).toEqual(['RAT-2']);
+
+    const raw2 = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fm2 } = matter(raw2);
+    expect(fm2.blocked_by).toEqual(['RAT-1']);
+    expect(fm2.updated).not.toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  it('should remove inverse when blocked_by is cleared', async () => {
+    await makeTicketFile(tasksPath, 1, { blocked_by: ['RAT-2'] });
+    await makeTicketFile(tasksPath, 2, { blocks: ['RAT-1'] });
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocked_by: [] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blockedBy).toEqual([]);
+
+    const raw2 = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fm2 } = matter(raw2);
+    expect(fm2.blocks).toEqual([]);
+  });
+
+  it('should clear both sides when blocked_by is set to null', async () => {
+    await makeTicketFile(tasksPath, 1, { blocked_by: ['RAT-2'] });
+    await makeTicketFile(tasksPath, 2, { blocks: ['RAT-1'] });
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocked_by: null });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blockedBy).toEqual([]);
+
+    const raw2 = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fm2 } = matter(raw2);
+    expect(fm2.blocks).toEqual([]);
+  });
+
+  it('should not touch inverse files when blocked_by is re-set to the same value', async () => {
+    await makeTicketFile(tasksPath, 1, { blocked_by: ['RAT-2'] });
+    await makeTicketFile(tasksPath, 2, { blocks: ['RAT-1'] });
+
+    const rawBefore = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fmBefore } = matter(rawBefore);
+    const updatedBefore = fmBefore.updated;
+
+    await updateTicket(PROJECT, PREFIX, 1, { blocked_by: ['RAT-2'] });
+
+    const rawAfter = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fmAfter } = matter(rawAfter);
+    expect(fmAfter.updated).toBe(updatedBefore);
+  });
+
+  it('should sync cross-project inverse when setting blocked_by', async () => {
+    const muninTasksPath = path.join(tmpRoot, 'projects', 'muninn', '.meta', 'ratatoskr', 'tasks');
+    await makeProjectConfig('muninn', 'MUN');
+    await makeTicketFile(tasksPath, 1);
+    await makeTicketFile(muninTasksPath, 3);
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocked_by: ['MUN-3'] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blockedBy).toEqual(['MUN-3']);
+
+    const rawMun3 = await readFile(path.join(muninTasksPath, '3.md'), 'utf8');
+    const { data: fmMun3 } = matter(rawMun3);
+    expect(fmMun3.blocks).toEqual(['RAT-1']);
+  });
+
+  it('should return error and not write primary when referenced ticket is missing', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const rawBefore = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data: fmBefore } = matter(rawBefore);
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: ['RAT-9999'] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('RAT-9999');
+    }
+
+    const rawAfter = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data: fmAfter } = matter(rawAfter);
+    expect(fmAfter.updated).toBe(fmBefore.updated);
+    expect(fmAfter.blocks).toBeUndefined();
+  });
+
+  it('should return error when referenced project prefix is unknown', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const rawBefore = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data: fmBefore } = matter(rawBefore);
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: ['XXX-1'] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('XXX');
+    }
+
+    const rawAfter = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data: fmAfter } = matter(rawAfter);
+    expect(fmAfter.updated).toBe(fmBefore.updated);
+  });
+
+  it.each(['rat-1', 'RAT_1', 'RAT-', 'RAT-abc', '', '   '])(
+    'should reject malformed display ID "%s" in blocks',
+    async (badId) => {
+      await makeTicketFile(tasksPath, 1);
+      const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: [badId] });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+    },
+  );
+
+  it('should reject self-reference in blocks', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: ['RAT-1'] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('cannot reference itself');
+    }
+  });
+
+  it('should reject self-reference in blocked_by', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocked_by: ['RAT-1'] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('cannot reference itself');
+    }
+  });
+
+  it('should deduplicate IDs in blocked_by input', async () => {
+    await makeTicketFile(tasksPath, 1);
+    await makeTicketFile(tasksPath, 2);
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocked_by: ['RAT-2', 'RAT-2'] });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blockedBy).toEqual(['RAT-2']);
+
+    const raw2 = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fm2 } = matter(raw2);
+    expect(Array.isArray(fm2.blocks) ? fm2.blocks : []).toEqual(['RAT-1']);
+  });
+
+  it('should preserve existing blocks/blocked_by when patch omits those fields', async () => {
+    await makeTicketFile(tasksPath, 1, { blocked_by: ['RAT-2'] });
+    await makeTicketFile(tasksPath, 2, { blocks: ['RAT-1'] });
+    const rawBefore = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fmBefore } = matter(rawBefore);
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { title: 'renamed' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.blockedBy).toEqual(['RAT-2']);
+
+    const rawAfter = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fmAfter } = matter(rawAfter);
+    expect(fmAfter.updated).toBe(fmBefore.updated);
+  });
+
+  it('should not create duplicates when inverse already has the back-link', async () => {
+    await makeTicketFile(tasksPath, 1, { blocks: [] });
+    await makeTicketFile(tasksPath, 2, { blocked_by: ['RAT-1'] });
+
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: ['RAT-2'] });
+    expect(result.ok).toBe(true);
+
+    const raw2 = await readFile(path.join(tasksPath, '2.md'), 'utf8');
+    const { data: fm2 } = matter(raw2);
+    const bby: unknown[] = Array.isArray(fm2.blocked_by) ? fm2.blocked_by : [];
+    expect(bby.filter(v => v === 'RAT-1')).toHaveLength(1);
+  });
+});
