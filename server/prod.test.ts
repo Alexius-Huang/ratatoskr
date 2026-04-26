@@ -134,6 +134,49 @@ describe('PUT /api/projects/:name/board-config', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('GET /api/projects/:name/tickets/:number ticket detail', () => {
+  async function setupProject(projectName: string, config: Record<string, unknown> = { prefix: 'TST' }) {
+    const dir = path.join(tmpDir, 'projects', projectName, '.meta', 'ratatoskr');
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, 'config.json'), JSON.stringify(config) + '\n', 'utf8');
+  }
+
+  async function setupTicket(projectName: string, ticketNumber: number) {
+    const dir = path.join(tmpDir, 'projects', projectName, '.meta', 'ratatoskr', 'tasks');
+    await mkdir(dir, { recursive: true });
+    const content = `---\ntype: Task\ntitle: Detail ticket\nstate: NOT_READY\ncreated: 2026-01-01T00:00:00.000Z\nupdated: 2026-01-01T00:00:00.000Z\n---\n`;
+    await writeFile(path.join(dir, `${ticketNumber}.md`), content, 'utf8');
+  }
+
+  async function seedComment(projectName: string, ticketNumber: number, n: number) {
+    const dir = path.join(tmpDir, 'projects', projectName, '.meta', 'ratatoskr', 'comments', String(ticketNumber));
+    await mkdir(dir, { recursive: true });
+    const content = `---\nauthor: j.huang\ndisplay_name: Jun-Xin Huang\ntimestamp: 2026-04-19T12:00:00.000Z\n---\nComment ${n}.\n`;
+    await writeFile(path.join(dir, `${n}.md`), content, 'utf8');
+  }
+
+  beforeEach(() => {
+    process.env.RATATOSKR_WORKSPACE_ROOT = tmpDir;
+  });
+
+  it('includes inline comments sorted by n ascending', async () => {
+    await setupProject('myproj');
+    await setupTicket('myproj', 1);
+    await seedComment('myproj', 1, 2);
+    await seedComment('myproj', 1, 1);
+    const res = await app.request('/api/projects/myproj/tickets/1');
+    expect(res.status).toBe(200);
+    const body = await res.json() as { comments: { n: number; author: string; body: string }[] };
+    expect(body.comments).toHaveLength(2);
+    expect(body.comments[0].n).toBe(1);
+    expect(body.comments[0].author).toBe('j.huang');
+    expect(body.comments[0].body).toBe('Comment 1.');
+    expect(body.comments[1].n).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('GET /api/projects/:name/tickets/:number/comments', () => {
   async function setupProject(projectName: string, config: Record<string, unknown> = { prefix: 'TST' }) {
     const dir = path.join(tmpDir, 'projects', projectName, '.meta', 'ratatoskr');

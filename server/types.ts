@@ -68,6 +68,7 @@ export type TicketSummary = {
 
 export type TicketDetail = TicketSummary & {
   body: string;
+  comments: Comment[];
   pullRequests?: PullRequestInfo[];
 };
 
