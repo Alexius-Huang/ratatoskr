@@ -1,7 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { extractTicketNumber, parseDisplayId } from './ticketId';
+import { extractTicketNumber, extractPrefix, parseDisplayId } from './ticketId';
 
 describe('ticketId', () => {
+  describe('extractPrefix', () => {
+    it('should return the prefix segment for a valid displayId', () => {
+      expect(extractPrefix('RAT-12')).toBe('RAT');
+    });
+
+    it('should support multi-segment prefixes', () => {
+      expect(extractPrefix('FOO-BAR-3')).toBe('FOO-BAR');
+    });
+
+    it('should return null for malformed input', () => {
+      expect(extractPrefix('RAT')).toBeNull();
+      expect(extractPrefix('12')).toBeNull();
+      expect(extractPrefix('RAT-')).toBeNull();
+    });
+  });
+
   describe('extractTicketNumber', () => {
     it('should return the numeric suffix for a valid displayId', () => {
       expect(extractTicketNumber('RAT-12')).toBe(12);
