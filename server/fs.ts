@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { readAppConfigSync } from './appConfig';
+import { listComments } from './comments';
 import { fetchPullRequest, parsePrPath } from './github';
 import type { PrPathParts } from './github';
 import type {
@@ -321,9 +322,12 @@ export async function readTicketDetail(
     if (enriched.length > 0) pullRequests = enriched;
   }
 
+  const comments = await listComments(projectName, num);
+
   return {
     ...raw.summary,
     body: stripLeadingH1(raw.content),
+    comments,
     ...(pullRequests ? { pullRequests } : {}),
   };
 }

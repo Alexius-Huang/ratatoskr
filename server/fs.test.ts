@@ -480,3 +480,38 @@ describe('readTicketDetail — pullRequests enrichment', () => {
     expect(detail?.pullRequests?.[0].number).toBe(42);
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('readTicketDetail — comments', () => {
+  it('should inline comments sorted by n when comments dir exists', async () => {
+    await makeTicketFile(tasksDirPath, 1, {});
+    const commentsPath = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr', 'comments', '1');
+    await mkdir(commentsPath, { recursive: true });
+    await writeFile(
+      path.join(commentsPath, '2.md'),
+      matter.stringify('Second comment.', { author: 'alice', display_name: 'Alice', timestamp: '2026-04-20T10:00:00.000Z' }),
+      'utf8',
+    );
+    await writeFile(
+      path.join(commentsPath, '1.md'),
+      matter.stringify('First comment.', { author: 'bob', display_name: 'Bob', timestamp: '2026-04-19T09:00:00.000Z' }),
+      'utf8',
+    );
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.comments).toHaveLength(2);
+    expect(detail?.comments[0].n).toBe(1);
+    expect(detail?.comments[0].author).toBe('bob');
+    expect(detail?.comments[0].body).toBe('First comment.');
+    expect(detail?.comments[1].n).toBe(2);
+    expect(detail?.comments[1].author).toBe('alice');
+  });
+
+  it('should return comments: [] when no comments dir exists', async () => {
+    await makeTicketFile(tasksDirPath, 1, {});
+
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.comments).toEqual([]);
+  });
+});

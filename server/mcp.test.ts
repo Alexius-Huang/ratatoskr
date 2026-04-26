@@ -46,6 +46,22 @@ async function makeTicket(
   );
 }
 
+async function seedComment(
+  ticketNum: number,
+  n: number,
+  overrides: Record<string, unknown> = {},
+) {
+  const dir = path.join(configDir, 'comments', String(ticketNum));
+  await mkdir(dir, { recursive: true });
+  const fm = {
+    author: 'j.huang',
+    display_name: 'Jun-Xin Huang',
+    timestamp: '2026-04-19T12:00:00.000Z',
+    ...overrides,
+  };
+  await writeFile(path.join(dir, `${n}.md`), matter.stringify(`Comment ${n}.`, fm), 'utf8');
+}
+
 beforeEach(async () => {
   tmpRoot = await mkdtemp(path.join(os.tmpdir(), 'rat-mcp-test-'));
   configDir = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr');
@@ -278,6 +294,31 @@ describe('mcp tools', () => {
     };
     expect(ticket.branch).toBe('feature/x');
     expect(ticket.prs).toEqual(['owner/repo/pull/7']);
+  });
+
+  it('get_ticket includes inline comments sorted by n', async () => {
+    await makeTicket(1);
+    await seedComment(1, 2, { author: 'alice', display_name: 'Alice' });
+    await seedComment(1, 1, { author: 'bob', display_name: 'Bob' });
+    const result = await getTicketHandler({ project: PROJECT, number: 1 });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as { comments: { n: number; author: string }[] };
+    expect(ticket.comments).toHaveLength(2);
+    expect(ticket.comments[0].n).toBe(1);
+    expect(ticket.comments[0].author).toBe('bob');
+    expect(ticket.comments[1].n).toBe(2);
+    expect(ticket.comments[1].author).toBe('alice');
+  });
+
+  it('get_ticket_by_id includes inline comments sorted by n', async () => {
+    await makeTicket(1);
+    await seedComment(1, 1, { author: 'charlie', display_name: 'Charlie' });
+    const result = await getTicketByIdHandler({ displayId: `${PREFIX}-1` });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as { comments: { n: number; author: string }[] };
+    expect(ticket.comments).toHaveLength(1);
+    expect(ticket.comments[0].n).toBe(1);
+    expect(ticket.comments[0].author).toBe('charlie');
   });
 
   it('patch_ticket forwards resolution field and persists it', async () => {
