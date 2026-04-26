@@ -11,6 +11,8 @@ function makeChild(overrides: Partial<TicketSummary> = {}): TicketSummary {
     state: 'DONE',
     created: '2026-01-01T00:00:00.000Z',
     updated: '2026-01-15T10:30:00.000Z',
+    blocks: [],
+    blockedBy: [],
     ...overrides,
   };
 }

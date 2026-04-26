@@ -21,9 +21,9 @@ const mockUseArchive = vi.mocked(useArchive);
 const mockUseUnarchiveTicket = vi.mocked(useUnarchiveTicket);
 
 const records: ArchivedTicketRecord[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Alpha ticket', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-01T10:00:00Z' },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Beta ticket', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-02T10:00:00Z' },
-  { number: 3, displayId: 'RAT-3', type: 'Bug', title: 'Gamma bug', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-03T10:00:00Z' },
+  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Alpha ticket', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-01T10:00:00Z', blocks: [], blockedBy: [] },
+  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Beta ticket', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-02T10:00:00Z', blocks: [], blockedBy: [] },
+  { number: 3, displayId: 'RAT-3', type: 'Bug', title: 'Gamma bug', state: 'DONE', body: '', created: '', updated: '', archived: '2026-04-03T10:00:00Z', blocks: [], blockedBy: [] },
 ];
 
 const mutateFn = vi.fn();

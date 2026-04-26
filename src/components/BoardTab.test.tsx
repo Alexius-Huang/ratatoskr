@@ -104,10 +104,10 @@ const epic1 = { number: 10, displayId: 'RAT-10', type: 'Epic' as const, title: '
 const epic2 = { number: 11, displayId: 'RAT-11', type: 'Epic' as const, title: 'Epic two', state: 'IN_PROGRESS' as const, created: '', updated: '' };
 
 const tasks: TicketSummary[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Ready task', state: 'READY', epic: 10, created: '', updated: '' },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'In progress task', state: 'IN_PROGRESS', epic: 10, created: '', updated: '' },
-  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'In review task', state: 'IN_REVIEW', epic: 11, created: '', updated: '' },
-  { number: 4, displayId: 'RAT-4', type: 'Task', title: 'Done task', state: 'DONE', epic: 11, created: '', updated: '' },
+  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Ready task', state: 'READY', epic: 10, created: '', updated: '', blocks: [], blockedBy: [] },
+  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'In progress task', state: 'IN_PROGRESS', epic: 10, created: '', updated: '', blocks: [], blockedBy: [] },
+  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'In review task', state: 'IN_REVIEW', epic: 11, created: '', updated: '', blocks: [], blockedBy: [] },
+  { number: 4, displayId: 'RAT-4', type: 'Task', title: 'Done task', state: 'DONE', epic: 11, created: '', updated: '', blocks: [], blockedBy: [] },
 ];
 
 const tasksNoDone: TicketSummary[] = tasks.filter((t) => t.state !== 'DONE');

@@ -214,6 +214,9 @@ export async function parseTicketFileRaw(
     return null;
   }
 
+  const isDisplayId = (p: unknown): p is string =>
+    typeof p === 'string' && /^[A-Z]+-\d+$/.test(p);
+
   const summary: TicketSummary = {
     number: num,
     displayId: `${prefix}-${num}`,
@@ -222,6 +225,8 @@ export async function parseTicketFileRaw(
     state: fm.state,
     created,
     updated,
+    blocks: Array.isArray(fm.blocks) ? fm.blocks.filter(isDisplayId) : [],
+    blockedBy: Array.isArray(fm.blocked_by) ? fm.blocked_by.filter(isDisplayId) : [],
   };
 
   if (

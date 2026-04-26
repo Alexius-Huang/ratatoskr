@@ -56,6 +56,8 @@ const taskFixture: TicketDetail = {
   planDoc: 'plans/5.md',
   created: '',
   updated: '',
+  blocks: [],
+  blockedBy: [],
 };
 
 const epicFixture: TicketDetail = {
@@ -67,6 +69,8 @@ const epicFixture: TicketDetail = {
   body: 'Epic body text',
   created: '',
   updated: '',
+  blocks: [],
+  blockedBy: [],
   childCounts: {
     total: 3,
     byState: {

@@ -96,14 +96,14 @@ const epic1 = { number: 10, displayId: 'RAT-10', type: 'Epic' as const, title: '
 const epic2 = { number: 11, displayId: 'RAT-11', type: 'Epic' as const, title: 'Epic two', state: 'IN_PROGRESS' as const, created: '', updated: '' };
 
 const fixtures: TicketSummary[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', epic: 10, created: '', updated: '' },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', epic: 10, created: '', updated: '' },
-  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'Task three', state: 'DONE', epic: 11, created: '', updated: '' },
+  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', epic: 10, created: '', updated: '', blocks: [], blockedBy: [] },
+  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', epic: 10, created: '', updated: '', blocks: [], blockedBy: [] },
+  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'Task three', state: 'DONE', epic: 11, created: '', updated: '', blocks: [], blockedBy: [] },
 ];
 
 const fixturesNoDone: TicketSummary[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', created: '', updated: '' },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', created: '', updated: '' },
+  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', created: '', updated: '', blocks: [], blockedBy: [] },
+  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', created: '', updated: '', blocks: [], blockedBy: [] },
 ];
 
 function setupMocks(taskList = fixtures) {
@@ -214,6 +214,8 @@ describe('TicketsTab', () => {
       epicColor: '#88C0D0',
       created: '',
       updated: '',
+      blocks: [],
+      blockedBy: [],
     };
     setupMocks([ticketWithColor]);
     render();
@@ -294,6 +296,8 @@ describe('TicketsTab', () => {
       epicColor: '#88C0D0',
       created: '',
       updated: '',
+      blocks: [],
+      blockedBy: [],
     };
     setupMocks([ticketWithEpic]);
     render();

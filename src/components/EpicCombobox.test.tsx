@@ -14,6 +14,8 @@ function makeEpic(number: number, title: string, state: TicketSummary['state'] =
     state,
     created: '',
     updated: '',
+    blocks: [],
+    blockedBy: [],
   };
 }
 

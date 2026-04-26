@@ -56,6 +56,8 @@ export type TicketSummary = {
   planDoc?: string;
   branch?: string;
   prs?: string[];
+  blocks: string[];
+  blockedBy: string[];
   wontDoReason?: string;
   resolution?: TicketResolution;
   isReviewed?: boolean;

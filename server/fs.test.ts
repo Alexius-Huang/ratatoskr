@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   _gh,
   getWorkspaceRoot,
+  listArchivedTickets,
   listTickets,
   parseTicketFileRaw,
   readProjectConfig,
@@ -326,6 +327,92 @@ describe('parseTicketFileRaw — is_reviewed field', () => {
     await makeTicketFile(tasksDirPath, 1, overrides);
     const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
     expect(result?.summary.isReviewed).toBe(expected);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('parseTicketFileRaw — blocks and blockedBy fields', () => {
+  it.each([
+    {
+      label: 'both fields present',
+      overrides: { blocks: ['RAT-1'], blocked_by: ['MUN-2'] },
+      expectedBlocks: ['RAT-1'],
+      expectedBlockedBy: ['MUN-2'],
+    },
+    {
+      label: 'both fields absent',
+      overrides: {},
+      expectedBlocks: [],
+      expectedBlockedBy: [],
+    },
+    {
+      label: 'both fields explicit empty arrays',
+      overrides: { blocks: [], blocked_by: [] },
+      expectedBlocks: [],
+      expectedBlockedBy: [],
+    },
+    {
+      label: 'cross-project display IDs',
+      overrides: { blocks: ['MUN-6', 'RAT-3'], blocked_by: ['MUN-1'] },
+      expectedBlocks: ['MUN-6', 'RAT-3'],
+      expectedBlockedBy: ['MUN-1'],
+    },
+    {
+      label: 'non-string and malformed entries filtered',
+      overrides: { blocks: ['RAT-1', 42, null, '', 'not-valid', 'rat-2'] },
+      expectedBlocks: ['RAT-1'],
+      expectedBlockedBy: [],
+    },
+    {
+      label: 'only blocks set',
+      overrides: { blocks: ['RAT-2'] },
+      expectedBlocks: ['RAT-2'],
+      expectedBlockedBy: [],
+    },
+    {
+      label: 'only blocked_by set',
+      overrides: { blocked_by: ['RAT-2'] },
+      expectedBlocks: [],
+      expectedBlockedBy: ['RAT-2'],
+    },
+  ] as const)(
+    '$label → blocks=$expectedBlocks, blockedBy=$expectedBlockedBy',
+    async ({ overrides, expectedBlocks, expectedBlockedBy }) => {
+      await makeTicketFile(tasksDirPath, 1, overrides as Record<string, unknown>);
+      const result = await parseTicketFileRaw(path.join(tasksDirPath, '1.md'), 1, PREFIX);
+      expect(result?.summary.blocks).toEqual(expectedBlocks);
+      expect(result?.summary.blockedBy).toEqual(expectedBlockedBy);
+    },
+  );
+
+  it('readTicketDetail propagates blocks and blockedBy', async () => {
+    await makeTicketFile(tasksDirPath, 1, { blocks: ['RAT-2'], blocked_by: ['MUN-3'] });
+    const detail = await readTicketDetail(PROJECT, 1, PREFIX);
+    expect(detail?.blocks).toEqual(['RAT-2']);
+    expect(detail?.blockedBy).toEqual(['MUN-3']);
+  });
+
+  it('listTickets propagates blocks and blockedBy on each summary', async () => {
+    await makeTicketFile(tasksDirPath, 1, { blocks: ['RAT-5'], blocked_by: ['MUN-1'] });
+    const tickets = await listTickets(PROJECT, PREFIX);
+    const ticket = tickets.find((t) => t.number === 1);
+    expect(ticket?.blocks).toEqual(['RAT-5']);
+    expect(ticket?.blockedBy).toEqual(['MUN-1']);
+  });
+
+  it('listArchivedTickets propagates blocks and blockedBy on archived records', async () => {
+    const archiveDirPath = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr', 'archive');
+    await makeTicketFile(archiveDirPath, 1, {
+      blocks: ['RAT-9'],
+      blocked_by: ['MUN-2'],
+      state: 'DONE',
+      archived: '2026-01-02T00:00:00.000Z',
+    });
+    const records = await listArchivedTickets(PROJECT, PREFIX);
+    const record = records.find((r) => r.number === 1);
+    expect(record?.blocks).toEqual(['RAT-9']);
+    expect(record?.blockedBy).toEqual(['MUN-2']);
   });
 });
 
