@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, afterEach } from 'vitest';
+import { useState } from 'react';
 import type { Comment } from '../../server/types';
 import { CommentItem } from './CommentItem';
 import { renderWithProviders } from '../test/renderWithProviders';
@@ -44,6 +45,17 @@ function renderItem(comment: Comment) {
   return renderWithProviders(
     <CommentItem projectName="ratatoskr" ticketNumber={5} comment={comment} />,
   );
+}
+
+function renderItemWithState(initialComment: Comment) {
+  let setComment!: (c: Comment) => void;
+  function Wrapper() {
+    const [c, setC] = useState(initialComment);
+    setComment = setC;
+    return <CommentItem projectName="ratatoskr" ticketNumber={5} comment={c} />;
+  }
+  renderWithProviders(<Wrapper />);
+  return { setComment: (c: Comment) => act(() => setComment(c)) };
 }
 
 afterEach(() => {
@@ -168,5 +180,36 @@ describe('CommentItem', () => {
     renderItem(comment);
     expect(screen.getByTitle('2026-04-26T10:00:00.000Z')).toBeInTheDocument();
     expect(screen.getByText(/edited/)).toBeInTheDocument();
+  });
+
+  it('should pre-fill the textarea with the current body when comment body changes before editing', async () => {
+    const user = userEvent.setup();
+    stubConfig('alice');
+    const comment = makeComment({ author: 'alice', body: 'Original' });
+    const { setComment } = renderItemWithState(comment);
+
+    setComment({ ...comment, body: 'Externally updated' });
+
+    await user.click(screen.getByRole('button', { name: /edit/i }));
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('Externally updated');
+  });
+
+  it('should disable Cancel while a save is in flight', async () => {
+    const user = userEvent.setup();
+    stubConfig('alice');
+    const comment = makeComment({ author: 'alice', body: 'Original' });
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})));
+
+    renderItem(comment);
+    await user.click(screen.getByRole('button', { name: /edit/i }));
+    const textarea = screen.getByRole('textbox');
+    await user.clear(textarea);
+    await user.type(textarea, 'Changed');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+    });
   });
 });

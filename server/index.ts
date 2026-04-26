@@ -14,7 +14,7 @@ import {
   tasksDir,
 } from './fs';
 import { readBoardConfig, validateBoardColumns, writeBoardConfig } from './boardConfig';
-import { HttpError, parseJsonBody, requireProjectConfig, requireTicketNumber } from './routeHelpers';
+import { HttpError, parseJsonBody, requirePositiveIntParam, requireProjectConfig, requireTicketNumber } from './routeHelpers';
 import type { CreateCommentRequest, EditCommentRequest, CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
 import {
   archiveDoneTickets,
@@ -311,7 +311,7 @@ app.post('/api/projects/:name/tickets/:number/comments', async (c) => {
 app.patch('/api/projects/:name/tickets/:number/comments/:n', async (c) => {
   const name = c.req.param('name');
   const ticketN = requireTicketNumber(c.req.param('number'));
-  const commentN = requireTicketNumber(c.req.param('n'));
+  const commentN = requirePositiveIntParam(c.req.param('n'));
   const { prefix } = await requireProjectConfig(name);
   const body = await parseJsonBody<EditCommentRequest>(c);
 

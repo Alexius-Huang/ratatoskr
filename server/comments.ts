@@ -1,4 +1,8 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import matter from 'gray-matter';
+import { metaRoot } from './fs';
+import type { Comment, CommentInput } from './types';
 
 export class CommentNotFoundError extends Error {
   readonly code = 'COMMENT_NOT_FOUND';
@@ -7,10 +11,6 @@ export class CommentNotFoundError extends Error {
     this.name = 'CommentNotFoundError';
   }
 }
-import path from 'node:path';
-import matter from 'gray-matter';
-import { metaRoot } from './fs';
-import type { Comment, CommentInput } from './types';
 
 export const COMMENT_FILENAME_RE = /^(\d+)\.md$/;
 

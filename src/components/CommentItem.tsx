@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { useAppConfig } from '../lib/api';
 import { useEditComment } from '../lib/ticketMutations';
@@ -19,6 +19,10 @@ export function CommentItem({ projectName, ticketNumber, comment }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
   const mutation = useEditComment(projectName, ticketNumber);
+
+  useEffect(() => {
+    if (!isEditing) setDraft(comment.body);
+  }, [comment.body, isEditing]);
 
   const canEdit = user !== null && comment.author === user.username;
   const saveDisabled = draft.trim().length === 0 || draft.trim() === comment.body || mutation.isPending;
@@ -80,7 +84,8 @@ export function CommentItem({ projectName, ticketNumber, comment }: Props) {
             </button>
             <button
               onClick={handleCancel}
-              className="px-3 py-1 text-xs rounded bg-nord-3 text-nord-6 hover:bg-nord-2 transition-colors"
+              disabled={mutation.isPending}
+              className="px-3 py-1 text-xs rounded bg-nord-3 text-nord-6 hover:bg-nord-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Cancel
             </button>
