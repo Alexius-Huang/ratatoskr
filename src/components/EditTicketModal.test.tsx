@@ -28,6 +28,8 @@ const baseTicket: TicketDetail = {
   body: 'old body',
   created: '2026-04-18T00:00:00Z',
   updated: '2026-04-18T00:00:00Z',
+  blocks: [],
+  blockedBy: [],
 };
 
 function renderModal(props: {

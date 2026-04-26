@@ -222,6 +222,8 @@ export async function parseTicketFileRaw(
     state: fm.state,
     created,
     updated,
+    blocks: [],
+    blockedBy: [],
   };
 
   if (
@@ -262,6 +264,11 @@ export async function parseTicketFileRaw(
   if (typeof fm.is_reviewed === 'boolean') {
     summary.isReviewed = fm.is_reviewed;
   }
+
+  const isDisplayId = (p: unknown): p is string =>
+    typeof p === 'string' && /^[A-Z]+-\d+$/.test(p);
+  summary.blocks = Array.isArray(fm.blocks) ? fm.blocks.filter(isDisplayId) : [];
+  summary.blockedBy = Array.isArray(fm.blocked_by) ? fm.blocked_by.filter(isDisplayId) : [];
 
   return { summary, content: parsed.content };
 }

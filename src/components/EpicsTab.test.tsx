@@ -54,6 +54,8 @@ function makeEpic(overrides: Partial<TicketSummary> = {}): TicketSummary {
     state: 'IN_PROGRESS',
     created: '',
     updated: '',
+    blocks: [],
+    blockedBy: [],
     childCounts: allDoneChildCounts,
     ...overrides,
   };

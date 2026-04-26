@@ -14,6 +14,8 @@ function makeEpic(number: number, title: string): TicketSummary {
     state: 'IN_PROGRESS',
     created: '',
     updated: '',
+    blocks: [],
+    blockedBy: [],
   };
 }
 
