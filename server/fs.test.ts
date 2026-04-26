@@ -332,8 +332,6 @@ describe('parseTicketFileRaw — is_reviewed field', () => {
 
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-
 describe('parseTicketFileRaw — blocks and blockedBy fields', () => {
   it.each([
     {
