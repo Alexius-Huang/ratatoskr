@@ -167,3 +167,32 @@ export function useCreateComment(projectName: string, ticketNumber: number) {
     },
   });
 }
+
+export function useEditComment(projectName: string, ticketNumber: number) {
+  const queryClient = useQueryClient();
+  const commentsKey = ['comments', projectName, ticketNumber];
+  return useMutation({
+    mutationFn: ({ n, body }: { n: number; body: string }) =>
+      apiFetch<Comment>(
+        `/api/projects/${encodeURIComponent(projectName)}/tickets/${ticketNumber}/comments/${n}`,
+        { method: 'PATCH', body: JSON.stringify({ body }) },
+      ),
+    onMutate: async ({ n, body }) => {
+      await queryClient.cancelQueries({ queryKey: commentsKey });
+      const previous = queryClient.getQueryData<Comment[]>(commentsKey);
+      queryClient.setQueryData<Comment[]>(
+        commentsKey,
+        (old) => old?.map((c) => c.n === n ? { ...c, body, updated: new Date().toISOString() } : c),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous !== undefined) {
+        queryClient.setQueryData(commentsKey, ctx.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: commentsKey });
+    },
+  });
+}

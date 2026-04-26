@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { commentsDir, listComments, writeComment } from './comments';
+import { CommentNotFoundError, commentsDir, editComment, listComments, writeComment } from './comments';
 
 const PROJECT = 'ratatoskr';
 const TICKET = 12;
@@ -138,6 +138,24 @@ describe('listComments', () => {
     },
   );
 
+  it('should surface the updated timestamp when present in frontmatter', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    const updated = '2026-04-26T10:00:00.000Z';
+    await mkdir(dir, { recursive: true });
+    const fm = {
+      author: 'j.huang',
+      display_name: 'Jun-Xin Huang',
+      timestamp: '2026-04-19T12:00:00.000Z',
+      updated,
+    };
+    await writeFile(path.join(dir, '1.md'), matter.stringify('Edited body.', fm), 'utf8');
+
+    const result = await listComments(PROJECT, TICKET);
+    expect(result).toHaveLength(1);
+    expect(result[0].updated).toBe(updated);
+    expect(result[0].body).toBe('Edited body.');
+  });
+
   it('should skip and warn on non-<n>.md filenames', async () => {
     const dir = path.join(commentsBasePath, String(TICKET));
     await mkdir(dir, { recursive: true });
@@ -253,5 +271,74 @@ describe('writeComment', () => {
       body: 'Return value check.',
     });
     expect(typeof result.timestamp).toBe('string');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('editComment', () => {
+  it('should update the body and write a fresh updated timestamp', async () => {
+    await writeComment(PROJECT, TICKET, {
+      author: 'j.huang',
+      displayName: 'Jun-Xin Huang',
+      body: 'Original body.',
+    });
+    const before = Date.now();
+    const result = await editComment(PROJECT, TICKET, 1, 'Edited body.');
+    const after = Date.now();
+
+    expect(result.body).toBe('Edited body.');
+    expect(typeof result.updated).toBe('string');
+    const updatedMs = new Date(result.updated!).getTime();
+    expect(updatedMs).toBeGreaterThanOrEqual(before - 5000);
+    expect(updatedMs).toBeLessThanOrEqual(after + 5000);
+
+    const comments = await listComments(PROJECT, TICKET);
+    expect(comments[0].body).toBe('Edited body.');
+    expect(comments[0].updated).toBe(result.updated);
+  });
+
+  it('should preserve author, display_name, and original timestamp', async () => {
+    const original = await writeComment(PROJECT, TICKET, {
+      author: 'j.huang',
+      displayName: 'Jun-Xin Huang',
+      body: 'Original.',
+    });
+    await editComment(PROJECT, TICKET, 1, 'Updated.');
+
+    const dir = path.join(commentsBasePath, String(TICKET));
+    const raw = await import('node:fs/promises').then((m) => m.readFile(path.join(dir, '1.md'), 'utf8'));
+    const parsed = matter(raw);
+    expect(parsed.data.author).toBe('j.huang');
+    expect(parsed.data.display_name).toBe('Jun-Xin Huang');
+    expect(parsed.data.timestamp).toBe(original.timestamp);
+  });
+
+  it('should throw CommentNotFoundError when the comment file is missing', async () => {
+    await expect(editComment(PROJECT, TICKET, 999, 'body')).rejects.toBeInstanceOf(CommentNotFoundError);
+  });
+
+  it('should reject an empty body', async () => {
+    await writeComment(PROJECT, TICKET, {
+      author: 'j.huang',
+      displayName: 'Jun-Xin Huang',
+      body: 'Original.',
+    });
+    await expect(editComment(PROJECT, TICKET, 1, '')).rejects.toThrow(/body/);
+  });
+
+  it('should overwrite a previous updated timestamp on a second edit', async () => {
+    await writeComment(PROJECT, TICKET, {
+      author: 'j.huang',
+      displayName: 'Jun-Xin Huang',
+      body: 'First.',
+    });
+    const first = await editComment(PROJECT, TICKET, 1, 'Second.');
+    await new Promise((r) => setTimeout(r, 5));
+    const second = await editComment(PROJECT, TICKET, 1, 'Third.');
+
+    expect(new Date(second.updated!).getTime()).toBeGreaterThanOrEqual(
+      new Date(first.updated!).getTime(),
+    );
   });
 });

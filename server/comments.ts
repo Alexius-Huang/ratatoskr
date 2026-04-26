@@ -4,6 +4,14 @@ import matter from 'gray-matter';
 import { metaRoot } from './fs';
 import type { Comment, CommentInput } from './types';
 
+export class CommentNotFoundError extends Error {
+  readonly code = 'COMMENT_NOT_FOUND';
+  constructor(n: number) {
+    super(`Comment ${n} not found`);
+    this.name = 'CommentNotFoundError';
+  }
+}
+
 export const COMMENT_FILENAME_RE = /^(\d+)\.md$/;
 
 export function commentsDir(projectName: string, ticketNumber: number): string {
@@ -78,11 +86,14 @@ export async function listComments(
       continue;
     }
 
+    const updated = coerceIsoString(fm.updated) ?? undefined;
+
     comments.push({
       n,
       author: fm.author,
       displayName: fm.display_name,
       timestamp,
+      ...(updated !== undefined ? { updated } : {}),
       body: parsed.content.trimEnd(),
     });
   }
@@ -142,5 +153,46 @@ export async function writeComment(
     displayName: input.displayName,
     timestamp,
     body: input.body,
+  };
+}
+
+export async function editComment(
+  projectName: string,
+  ticketNumber: number,
+  n: number,
+  newBody: string,
+): Promise<Comment> {
+  const trimmed = newBody.trim();
+  if (trimmed.length === 0) {
+    throw new Error('editComment: body must be a non-empty string');
+  }
+
+  const filePath = path.join(commentsDir(projectName, ticketNumber), `${n}.md`);
+
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf8');
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new CommentNotFoundError(n);
+    }
+    throw err;
+  }
+
+  const parsed = matter(raw);
+  const data = { ...parsed.data as Record<string, unknown> };
+  const updated = new Date().toISOString();
+  data.updated = updated;
+
+  const content = matter.stringify(trimmed, data);
+  await writeFile(filePath, content, 'utf8');
+
+  return {
+    n,
+    author: data.author as string,
+    displayName: data.display_name as string,
+    timestamp: coerceIsoString(data.timestamp) as string,
+    updated,
+    body: trimmed,
   };
 }

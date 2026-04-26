@@ -143,8 +143,13 @@ export type Comment = {
   n: number;
   author: string;
   displayName: string;
-  timestamp: string; // ISO 8601
+  timestamp: string; // ISO 8601 — original creation
+  updated?: string; // ISO 8601 — last edit (absent if never edited)
   body: string; // markdown content after frontmatter
+};
+
+export type EditCommentRequest = {
+  body: string;
 };
 
 export type CommentInput = {

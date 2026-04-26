@@ -8,6 +8,7 @@ import {
   addCommentHandler,
   archiveTicketHandler,
   createTicketHandler,
+  editCommentHandler,
   getTicketByIdHandler,
   getTicketHandler,
   listProjectsHandler,
@@ -474,6 +475,37 @@ describe('mcp tools', () => {
         const body = JSON.parse(result.content[0].text) as { error: string };
         expect(body.error).toMatch(/No author provided/);
       });
+    });
+  });
+
+  describe('edit_comment', () => {
+    it('should dispatch a PATCH to the comments endpoint and return the updated comment', async () => {
+      await makeTicket(1);
+      await addCommentHandler({
+        project: PROJECT,
+        number: 1,
+        body: 'Original body',
+        author: { username: 'claude', display_name: 'Claude' },
+      });
+
+      const result = await editCommentHandler({ project: PROJECT, number: 1, n: 1, body: 'Updated body' });
+      expect(result.isError).toBeUndefined();
+      const comment = JSON.parse(result.content[0].text) as {
+        n: number;
+        author: string;
+        body: string;
+        updated: string;
+      };
+      expect(comment.n).toBe(1);
+      expect(comment.author).toBe('claude');
+      expect(comment.body).toBe('Updated body');
+      expect(typeof comment.updated).toBe('string');
+    });
+
+    it('should surface a 404 as isError: true for a non-existent comment', async () => {
+      await makeTicket(1);
+      const result = await editCommentHandler({ project: PROJECT, number: 1, n: 999, body: 'body' });
+      expect(result.isError).toBe(true);
     });
   });
 });

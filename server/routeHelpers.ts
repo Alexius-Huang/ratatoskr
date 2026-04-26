@@ -29,6 +29,14 @@ export function requireTicketNumber(raw: string): number {
   return n;
 }
 
+export function requirePositiveIntParam(raw: string): number {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new HttpError(400, { error: 'Invalid parameter: expected a positive integer' });
+  }
+  return n;
+}
+
 export async function parseJsonBody<T = unknown>(c: Context): Promise<T> {
   try {
     return (await c.req.json()) as T;

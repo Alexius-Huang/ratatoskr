@@ -5,6 +5,12 @@ import type { Comment } from '../../server/types';
 import { CommentSection } from './CommentSection';
 import { renderWithProviders } from '../test/renderWithProviders';
 
+vi.mock('./CommentItem', () => ({
+  CommentItem: ({ comment }: { comment: Comment }) => (
+    <div data-testid={`comment-item-${comment.n}`}>{comment.displayName}</div>
+  ),
+}));
+
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
     n: 1,
@@ -54,26 +60,23 @@ describe('CommentSection', () => {
     await waitFor(() => expect(screen.getByText('No comments yet.')).toBeInTheDocument());
   });
 
-  it('should render display name, @username, relative timestamp, and markdown body for each comment', async () => {
-    stubFetch([makeComment({ author: 'claude', displayName: 'Claude', body: '**bold**' })]);
+  it('should render a CommentItem for each comment returned by the API', async () => {
+    stubFetch([makeComment({ n: 1, displayName: 'Alice' })]);
     renderCommentSection();
-    await waitFor(() => expect(screen.getByText('Claude')).toBeInTheDocument());
-    expect(screen.getByText('@claude')).toBeInTheDocument();
-    const strong = document.querySelector('strong');
-    expect(strong).not.toBeNull();
-    expect(strong?.textContent).toBe('bold');
+    await waitFor(() => expect(screen.getByTestId('comment-item-1')).toBeInTheDocument());
   });
 
   it('should render multiple comments in the order returned by the API', async () => {
     stubFetch([
-      makeComment({ n: 1, displayName: 'Alice', author: 'alice', body: 'First' }),
-      makeComment({ n: 2, displayName: 'Bob', author: 'bob', body: 'Second' }),
+      makeComment({ n: 1, displayName: 'Alice' }),
+      makeComment({ n: 2, displayName: 'Bob' }),
     ]);
     renderCommentSection();
-    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument());
-    const names = screen.getAllByText(/^(Alice|Bob)$/);
-    expect(names[0].textContent).toBe('Alice');
-    expect(names[1].textContent).toBe('Bob');
+    await waitFor(() => expect(screen.getByTestId('comment-item-1')).toBeInTheDocument());
+    expect(screen.getByTestId('comment-item-2')).toBeInTheDocument();
+    const items = screen.getAllByTestId(/^comment-item-/);
+    expect(items[0]).toHaveTextContent('Alice');
+    expect(items[1]).toHaveTextContent('Bob');
   });
 
   it('should render an inline error when the fetch fails', async () => {

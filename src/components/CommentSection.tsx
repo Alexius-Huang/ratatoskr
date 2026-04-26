@@ -1,7 +1,6 @@
 import { MessageSquare } from 'lucide-react';
 import { useComments } from '../lib/api';
-import { formatTimestamp } from '../lib/time';
-import { MarkdownBody } from './MarkdownBody';
+import { CommentItem } from './CommentItem';
 
 type Props = {
   projectName: string;
@@ -32,16 +31,12 @@ export function CommentSection({ projectName, ticketNumber }: Props) {
       ) : (
         <div className="border border-nord-3 rounded">
           {comments.map((c) => (
-            <div key={c.n} className="py-3 px-3 border-b border-nord-3 last:border-b-0">
-              <div className="flex items-baseline gap-2 mb-1.5">
-                <span className="text-sm font-medium text-nord-6">{c.displayName}</span>
-                <span className="text-xs text-nord-4">@{c.author}</span>
-                <span className="text-xs text-nord-4" title={c.timestamp}>
-                  {formatTimestamp(c.timestamp)}
-                </span>
-              </div>
-              <MarkdownBody source={c.body} />
-            </div>
+            <CommentItem
+              key={c.n}
+              projectName={projectName}
+              ticketNumber={ticketNumber}
+              comment={c}
+            />
           ))}
         </div>
       )}

@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Hono } from 'hono';
 import { readUserProfileSync, writeAppConfig } from './appConfig';
-import { listComments, writeComment } from './comments';
+import { CommentNotFoundError, editComment, listComments, writeComment } from './comments';
 import {
   getWorkspaceRoot,
   getWorkspaceRootSource,
@@ -14,8 +14,8 @@ import {
   tasksDir,
 } from './fs';
 import { readBoardConfig, validateBoardColumns, writeBoardConfig } from './boardConfig';
-import { HttpError, parseJsonBody, requireProjectConfig, requireTicketNumber } from './routeHelpers';
-import type { CreateCommentRequest, CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
+import { HttpError, parseJsonBody, requirePositiveIntParam, requireProjectConfig, requireTicketNumber } from './routeHelpers';
+import type { CreateCommentRequest, EditCommentRequest, CreateTicketRequest, TicketType, UpdateTicketRequest } from './types';
 import {
   archiveDoneTickets,
   archiveTicket,
@@ -306,6 +306,28 @@ app.post('/api/projects/:name/tickets/:number/comments', async (c) => {
     body: body.body,
   });
   return c.json(result, 201);
+});
+
+app.patch('/api/projects/:name/tickets/:number/comments/:n', async (c) => {
+  const name = c.req.param('name');
+  const ticketN = requireTicketNumber(c.req.param('number'));
+  const commentN = requirePositiveIntParam(c.req.param('n'));
+  const { prefix } = await requireProjectConfig(name);
+  const body = await parseJsonBody<EditCommentRequest>(c);
+
+  if (typeof body.body !== 'string' || body.body.trim().length === 0) {
+    return c.json({ error: 'body must be a non-empty string' }, 400);
+  }
+
+  try {
+    const result = await editComment(name, ticketN, commentN, body.body);
+    return c.json(result);
+  } catch (err) {
+    if (err instanceof CommentNotFoundError) {
+      return c.json({ error: `Comment ${commentN} not found on ticket ${prefix}-${ticketN}` }, 404);
+    }
+    throw err;
+  }
 });
 
 export { app };
