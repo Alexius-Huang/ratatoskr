@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import {
@@ -7,6 +7,7 @@ import {
   listTickets,
   readProjectConfig,
   readTicketDetail,
+  scanProjects,
   TICKET_FILENAME_RE,
   tasksDir,
 } from './fs';
@@ -22,6 +23,76 @@ import type {
 
 export function nowIso(): string {
   return new Date().toISOString();
+}
+
+const DISPLAY_ID_RE = /^[A-Z]+-\d+$/;
+
+function parseDisplayIdParts(id: string): { prefix: string; number: number } | null {
+  if (!DISPLAY_ID_RE.test(id)) return null;
+  const dash = id.indexOf('-');
+  return { prefix: id.slice(0, dash), number: Number(id.slice(dash + 1)) };
+}
+
+type ResolvedRef = {
+  displayId: string;
+  projectName: string;
+  number: number;
+  filePath: string;
+};
+
+async function resolveDisplayIds(
+  ids: readonly string[],
+): Promise<{ ok: true; refs: ResolvedRef[] } | { ok: false; error: DomainError }> {
+  if (ids.length === 0) return { ok: true, refs: [] };
+
+  const projects = await scanProjects();
+  const prefixMap = new Map<string, string>();
+  for (const p of projects) {
+    if (p.config?.prefix) prefixMap.set(p.config.prefix.toUpperCase(), p.name);
+  }
+
+  const refs: ResolvedRef[] = [];
+  for (const id of ids) {
+    const parts = parseDisplayIdParts(id);
+    if (!parts) {
+      return { ok: false, error: { kind: 'invalid-input', message: `Referenced ticket has invalid display ID format: ${id}` } };
+    }
+    const projectName = prefixMap.get(parts.prefix);
+    if (!projectName) {
+      return { ok: false, error: { kind: 'invalid-input', message: `Referenced project for prefix '${parts.prefix}' not found` } };
+    }
+    const filePath = path.join(tasksDir(projectName), `${parts.number}.md`);
+    try {
+      await stat(filePath);
+    } catch {
+      return { ok: false, error: { kind: 'invalid-input', message: `Referenced ticket ${id} not found` } };
+    }
+    refs.push({ displayId: id, projectName, number: parts.number, filePath });
+  }
+  return { ok: true, refs };
+}
+
+function normalizeIds(input: string[] | null | undefined): string[] {
+  if (!input) return [];
+  return [...new Set(input.filter((v): v is string => typeof v === 'string'))];
+}
+
+function applyInverseEdit(
+  rawContent: string,
+  field: 'blocks' | 'blocked_by',
+  add: string[],
+  remove: string[],
+): string {
+  const parsed = matter(rawContent);
+  const fm = { ...parsed.data } as Record<string, unknown>;
+  const current: string[] = Array.isArray(fm[field])
+    ? (fm[field] as unknown[]).filter((v): v is string => typeof v === 'string')
+    : [];
+  const next = current.filter(id => !remove.includes(id));
+  for (const id of add) if (!next.includes(id)) next.push(id);
+  fm[field] = next;
+  fm.updated = nowIso();
+  return matter.stringify(parsed.content, fm);
 }
 
 export async function computeNextTicketNumber(projectName: string): Promise<number> {
@@ -286,6 +357,83 @@ export async function updateTicket(
     }
   }
 
+  // ---- bidirectional dependency sync (RAT-36) ----
+  const wantsBlockedBy = 'blocked_by' in patch;
+  const wantsBlocks = 'blocks' in patch;
+
+  type InverseOp = { filePath: string; field: 'blocks' | 'blocked_by'; addIds: string[]; removeIds: string[] };
+  const inverseOps: InverseOp[] = [];
+
+  if (wantsBlockedBy || wantsBlocks) {
+    const primaryDisplayId = `${prefix}-${num}`;
+
+    const oldBlockedBy: string[] = Array.isArray(fm.blocked_by)
+      ? (fm.blocked_by as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+    const oldBlocks: string[] = Array.isArray(fm.blocks)
+      ? (fm.blocks as unknown[]).filter((v): v is string => typeof v === 'string')
+      : [];
+
+    const newBlockedBy = wantsBlockedBy ? normalizeIds(patch.blocked_by) : oldBlockedBy;
+    const newBlocks = wantsBlocks ? normalizeIds(patch.blocks) : oldBlocks;
+
+    for (const id of newBlockedBy) {
+      if (!DISPLAY_ID_RE.test(id)) {
+        return { ok: false, error: { kind: 'invalid-input', message: `blocked_by: invalid display ID '${id}' (expected PREFIX-NUMBER)` } };
+      }
+    }
+    for (const id of newBlocks) {
+      if (!DISPLAY_ID_RE.test(id)) {
+        return { ok: false, error: { kind: 'invalid-input', message: `blocks: invalid display ID '${id}' (expected PREFIX-NUMBER)` } };
+      }
+    }
+
+    if (newBlockedBy.includes(primaryDisplayId)) {
+      return { ok: false, error: { kind: 'invalid-input', message: 'blocked_by: ticket cannot reference itself' } };
+    }
+    if (newBlocks.includes(primaryDisplayId)) {
+      return { ok: false, error: { kind: 'invalid-input', message: 'blocks: ticket cannot reference itself' } };
+    }
+
+    const addedBlockedBy = newBlockedBy.filter(id => !oldBlockedBy.includes(id));
+    const removedBlockedBy = wantsBlockedBy ? oldBlockedBy.filter(id => !newBlockedBy.includes(id)) : [];
+    const addedBlocks = newBlocks.filter(id => !oldBlocks.includes(id));
+    const removedBlocks = wantsBlocks ? oldBlocks.filter(id => !newBlocks.includes(id)) : [];
+
+    const idsToResolve = [...new Set([...addedBlockedBy, ...removedBlockedBy, ...addedBlocks, ...removedBlocks])];
+    if (idsToResolve.length > 0) {
+      const resolved = await resolveDisplayIds(idsToResolve);
+      if (!resolved.ok) return { ok: false, error: resolved.error };
+
+      const refMap = new Map(resolved.refs.map(r => [r.displayId, r]));
+      const mergedOps = new Map<string, Map<'blocks' | 'blocked_by', { add: string[]; remove: string[] }>>();
+
+      function enqueue(id: string, field: 'blocks' | 'blocked_by', add: string[], remove: string[]) {
+        const fp = refMap.get(id)!.filePath;
+        if (!mergedOps.has(fp)) mergedOps.set(fp, new Map());
+        const fieldMap = mergedOps.get(fp)!;
+        if (!fieldMap.has(field)) fieldMap.set(field, { add: [], remove: [] });
+        const entry = fieldMap.get(field)!;
+        entry.add.push(...add);
+        entry.remove.push(...remove);
+      }
+
+      for (const id of addedBlockedBy) enqueue(id, 'blocks', [primaryDisplayId], []);
+      for (const id of removedBlockedBy) enqueue(id, 'blocks', [], [primaryDisplayId]);
+      for (const id of addedBlocks) enqueue(id, 'blocked_by', [primaryDisplayId], []);
+      for (const id of removedBlocks) enqueue(id, 'blocked_by', [], [primaryDisplayId]);
+
+      for (const [fp, fieldMap] of mergedOps) {
+        for (const [field, { add, remove }] of fieldMap) {
+          inverseOps.push({ filePath: fp, field, addIds: add, removeIds: remove });
+        }
+      }
+    }
+
+    fm.blocks = newBlocks;
+    fm.blocked_by = newBlockedBy;
+  }
+
   const VALID_RESOLUTIONS = ['VIBED', 'PLANNED', 'MANUAL'] as const;
 
   if ('resolution' in patch) {
@@ -338,7 +486,49 @@ export async function updateTicket(
 
   const newContent = patch.body !== undefined ? patch.body : parsed.content;
   const fileContent = matter.stringify(newContent, fm);
-  await writeFile(filePath, fileContent, 'utf8');
+
+  if (inverseOps.length === 0) {
+    await writeFile(filePath, fileContent, 'utf8');
+  } else {
+    // Best-effort atomic write: pre-read all files for rollback, then write all or restore.
+    // True cross-file atomicity is impossible on POSIX without a journal.
+    const rollbackCache = new Map<string, string>([[filePath, raw]]);
+    for (const op of inverseOps) {
+      if (!rollbackCache.has(op.filePath)) {
+        rollbackCache.set(op.filePath, await readFile(op.filePath, 'utf8'));
+      }
+    }
+
+    const mutations: { filePath: string; content: string }[] = [];
+    for (const op of inverseOps) {
+      const base = mutations.find(m => m.filePath === op.filePath)?.content
+        ?? rollbackCache.get(op.filePath)!;
+      const updated = applyInverseEdit(base, op.field, op.addIds, op.removeIds);
+      const existing = mutations.find(m => m.filePath === op.filePath);
+      if (existing) {
+        existing.content = updated;
+      } else {
+        mutations.push({ filePath: op.filePath, content: updated });
+      }
+    }
+    mutations.push({ filePath, content: fileContent });
+
+    const written: string[] = [];
+    try {
+      for (const m of mutations) {
+        await writeFile(m.filePath, m.content, 'utf8');
+        written.push(m.filePath);
+      }
+    } catch (err) {
+      for (const wpath of written) {
+        const original = rollbackCache.get(wpath);
+        if (original !== undefined) {
+          try { await writeFile(wpath, original, 'utf8'); } catch { /* swallow rollback failure */ }
+        }
+      }
+      return { ok: false, error: { kind: 'invalid-input', message: `Bidirectional sync write failed: ${(err as Error).message}` } };
+    }
+  }
 
   if (patch.state !== undefined && PROMOTING_STATES.has(patch.state as TicketState)) {
     await maybePromoteParentEpic(

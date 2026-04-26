@@ -103,6 +103,8 @@ export type UpdateTicketRequest = {
   wont_do_reason?: string | null;
   resolution?: TicketResolution | null;
   is_reviewed?: boolean | null;
+  blocks?: string[] | null;
+  blocked_by?: string[] | null;
 };
 
 export type UserProfile = {
