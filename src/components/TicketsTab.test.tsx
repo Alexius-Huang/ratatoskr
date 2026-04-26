@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import type { TicketSummary } from '../../server/types';
+import { makeEpicSummary, makeTicketSummary } from '../test/factories';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { TicketsTab } from './TicketsTab';
 
@@ -92,18 +93,18 @@ import { useArchiveDoneTickets } from '../lib/ticketMutations';
 const mockUseTickets = vi.mocked(useTickets);
 const mockUseArchiveDoneTickets = vi.mocked(useArchiveDoneTickets);
 
-const epic1 = { number: 10, displayId: 'RAT-10', type: 'Epic' as const, title: 'Epic one', state: 'IN_PROGRESS' as const, created: '', updated: '' };
-const epic2 = { number: 11, displayId: 'RAT-11', type: 'Epic' as const, title: 'Epic two', state: 'IN_PROGRESS' as const, created: '', updated: '' };
+const epic1 = makeEpicSummary({ number: 10, title: 'Epic one', state: 'IN_PROGRESS' });
+const epic2 = makeEpicSummary({ number: 11, title: 'Epic two', state: 'IN_PROGRESS' });
 
 const fixtures: TicketSummary[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', epic: 10, created: '', updated: '', blocks: [], blockedBy: [] },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', epic: 10, created: '', updated: '', blocks: [], blockedBy: [] },
-  { number: 3, displayId: 'RAT-3', type: 'Task', title: 'Task three', state: 'DONE', epic: 11, created: '', updated: '', blocks: [], blockedBy: [] },
+  makeTicketSummary({ number: 1, title: 'Task one', state: 'READY', epic: 10 }),
+  makeTicketSummary({ number: 2, title: 'Task two', state: 'IN_PROGRESS', epic: 10 }),
+  makeTicketSummary({ number: 3, title: 'Task three', state: 'DONE', epic: 11 }),
 ];
 
 const fixturesNoDone: TicketSummary[] = [
-  { number: 1, displayId: 'RAT-1', type: 'Task', title: 'Task one', state: 'READY', created: '', updated: '', blocks: [], blockedBy: [] },
-  { number: 2, displayId: 'RAT-2', type: 'Task', title: 'Task two', state: 'IN_PROGRESS', created: '', updated: '', blocks: [], blockedBy: [] },
+  makeTicketSummary({ number: 1, title: 'Task one', state: 'READY' }),
+  makeTicketSummary({ number: 2, title: 'Task two', state: 'IN_PROGRESS' }),
 ];
 
 function setupMocks(taskList = fixtures) {
@@ -203,20 +204,14 @@ describe('TicketsTab', () => {
   });
 
   it('should render the epic tag with inline color when epicColor is present on a ticket', () => {
-    const ticketWithColor: TicketSummary = {
+    const ticketWithColor = makeTicketSummary({
       number: 4,
-      displayId: 'RAT-4',
-      type: 'Task',
       title: 'Task four',
       state: 'READY',
       epic: 10,
       epicTitle: 'Epic one',
       epicColor: '#88C0D0',
-      created: '',
-      updated: '',
-      blocks: [],
-      blockedBy: [],
-    };
+    });
     setupMocks([ticketWithColor]);
     render();
     const tag = document.querySelector('[title="Epic one"]') as HTMLElement;
@@ -285,20 +280,14 @@ describe('TicketsTab', () => {
   it('clicking the epic tag navigates to epics tab without triggering row inspect', async () => {
     const user = userEvent.setup();
     mockNavigate.mockReset();
-    const ticketWithEpic: TicketSummary = {
+    const ticketWithEpic = makeTicketSummary({
       number: 4,
-      displayId: 'RAT-4',
-      type: 'Task',
       title: 'Task with epic',
       state: 'READY',
       epic: 10,
       epicTitle: 'Epic one',
       epicColor: '#88C0D0',
-      created: '',
-      updated: '',
-      blocks: [],
-      blockedBy: [],
-    };
+    });
     setupMocks([ticketWithEpic]);
     render();
     const epicTag = document.querySelector('[title="Epic one"]') as HTMLElement;

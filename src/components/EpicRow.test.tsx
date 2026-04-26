@@ -2,48 +2,34 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { TicketSummary } from '../../server/types';
+import { makeEpicSummary } from '../test/factories';
 import { EpicRow } from './EpicRow';
-
-function makeEpic(overrides: Partial<TicketSummary> = {}): TicketSummary {
-  return {
-    number: 1,
-    displayId: 'RAT-1',
-    type: 'Epic',
-    title: 'Ratatoskr Project Foundation',
-    state: 'IN_PROGRESS',
-    created: '2026-01-01T00:00:00.000Z',
-    updated: '2026-01-01T00:00:00.000Z',
-    blocks: [],
-    blockedBy: [],
-    ...overrides,
-  };
-}
 
 function noop() {}
 
 describe('EpicRow', () => {
   it('should render the epic display ID and title', () => {
-    render(<EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} />);
+    const ticket = makeEpicSummary({ number: 1, title: 'Ratatoskr Project Foundation' });
+    render(<EpicRow ticket={ticket} isSelected={false} onClick={noop} />);
     expect(screen.getByText('RAT-1')).toBeDefined();
     expect(screen.getByText('Ratatoskr Project Foundation')).toBeDefined();
   });
 
   it('should show "No child tasks yet." when total is 0', () => {
-    render(<EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} />);
+    render(<EpicRow ticket={makeEpicSummary()} isSelected={false} onClick={noop} />);
     expect(screen.getByText('No child tasks yet.')).toBeDefined();
   });
 
   it('should not render a progress bar when total is 0', () => {
     const { container } = render(
-      <EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} />,
+      <EpicRow ticket={makeEpicSummary()} isSelected={false} onClick={noop} />,
     );
     const bars = container.querySelectorAll('[style*="width"]');
     expect(bars.length).toBe(0);
   });
 
   it('should render a progress bar when counts.total > 0', () => {
-    const ticket = makeEpic({
+    const ticket = makeEpicSummary({
       childCounts: {
         total: 4,
         byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3, WONT_DO: 0 },
@@ -57,7 +43,7 @@ describe('EpicRow', () => {
   });
 
   it('should set bar fill width to the percentage of DONE tickets', () => {
-    const ticket = makeEpic({
+    const ticket = makeEpicSummary({
       childCounts: {
         total: 5,
         byState: { NOT_READY: 0, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 4, WONT_DO: 0 },
@@ -71,7 +57,7 @@ describe('EpicRow', () => {
   });
 
   it('should show non-zero state badges and hide zero-count states', () => {
-    const ticket = makeEpic({
+    const ticket = makeEpicSummary({
       childCounts: {
         total: 3,
         byState: { NOT_READY: 2, PLANNING: 0, READY: 1, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0, WONT_DO: 0 },
@@ -85,7 +71,7 @@ describe('EpicRow', () => {
   });
 
   it('should reflect 100% completion when all tickets are DONE', () => {
-    const ticket = makeEpic({
+    const ticket = makeEpicSummary({
       childCounts: {
         total: 3,
         byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 3, WONT_DO: 0 },
@@ -102,7 +88,7 @@ describe('EpicRow', () => {
 
   it('should render the color swatch button when onColorChange is provided', () => {
     render(
-      <EpicRow ticket={makeEpic({ color: '#A3BE8C' })} isSelected={false} onClick={noop} onColorChange={vi.fn()} />,
+      <EpicRow ticket={makeEpicSummary({ color: '#A3BE8C' })} isSelected={false} onClick={noop} onColorChange={vi.fn()} />,
     );
     expect(screen.getByRole('button', { name: /epic color/i })).toBeDefined();
   });
@@ -111,7 +97,7 @@ describe('EpicRow', () => {
     const user = userEvent.setup();
     const onColorChange = vi.fn();
     render(
-      <EpicRow ticket={makeEpic()} isSelected={false} onClick={noop} onColorChange={onColorChange} />,
+      <EpicRow ticket={makeEpicSummary()} isSelected={false} onClick={noop} onColorChange={onColorChange} />,
     );
     const swatch = screen.getByRole('button', { name: /epic color|set epic/i });
     await user.click(swatch);
@@ -123,7 +109,7 @@ describe('EpicRow', () => {
     const user = userEvent.setup();
     const rowClick = vi.fn();
     render(
-      <EpicRow ticket={makeEpic()} isSelected={false} onClick={rowClick} onColorChange={vi.fn()} />,
+      <EpicRow ticket={makeEpicSummary()} isSelected={false} onClick={rowClick} onColorChange={vi.fn()} />,
     );
     await user.click(screen.getByRole('button', { name: /epic color|set epic/i }));
     expect(rowClick).not.toHaveBeenCalled();
@@ -143,7 +129,7 @@ describe('EpicRow — Mark-Done button', () => {
   it('should render the Mark-Done button when IN_PROGRESS and all children DONE', () => {
     render(
       <EpicRow
-        ticket={makeEpic({ state: 'IN_PROGRESS', childCounts: doneChildCounts })}
+        ticket={makeEpicSummary({ state: 'IN_PROGRESS', childCounts: doneChildCounts })}
         isSelected={false}
         onClick={noop}
         onMarkDone={vi.fn()}
@@ -157,7 +143,7 @@ describe('EpicRow — Mark-Done button', () => {
   it('should not render the Mark-Done button when epic has any non-DONE child', () => {
     render(
       <EpicRow
-        ticket={makeEpic({ state: 'IN_PROGRESS', childCounts: partialChildCounts })}
+        ticket={makeEpicSummary({ state: 'IN_PROGRESS', childCounts: partialChildCounts })}
         isSelected={false}
         onClick={noop}
         onMarkDone={vi.fn()}
@@ -169,7 +155,7 @@ describe('EpicRow — Mark-Done button', () => {
   it('should not render the Mark-Done button when epic is DONE', () => {
     render(
       <EpicRow
-        ticket={makeEpic({ state: 'DONE', childCounts: doneChildCounts })}
+        ticket={makeEpicSummary({ state: 'DONE', childCounts: doneChildCounts })}
         isSelected={false}
         onClick={noop}
         onMarkDone={vi.fn()}
@@ -181,7 +167,7 @@ describe('EpicRow — Mark-Done button', () => {
   it('should not render the Mark-Done button when onMarkDone prop is absent', () => {
     render(
       <EpicRow
-        ticket={makeEpic({ state: 'IN_PROGRESS', childCounts: doneChildCounts })}
+        ticket={makeEpicSummary({ state: 'IN_PROGRESS', childCounts: doneChildCounts })}
         isSelected={false}
         onClick={noop}
       />,
@@ -195,7 +181,7 @@ describe('EpicRow — Mark-Done button', () => {
     const onClick = vi.fn();
     render(
       <EpicRow
-        ticket={makeEpic({ state: 'IN_PROGRESS', childCounts: doneChildCounts })}
+        ticket={makeEpicSummary({ state: 'IN_PROGRESS', childCounts: doneChildCounts })}
         isSelected={false}
         onClick={onClick}
         onMarkDone={onMarkDone}
@@ -215,7 +201,7 @@ describe('EpicRow — Mark-Done button', () => {
     };
     render(
       <EpicRow
-        ticket={makeEpic({ state: 'IN_PROGRESS', childCounts: mixedCounts })}
+        ticket={makeEpicSummary({ state: 'IN_PROGRESS', childCounts: mixedCounts })}
         isSelected={false}
         onClick={noop}
         onMarkDone={vi.fn()}
@@ -228,7 +214,7 @@ describe('EpicRow — Mark-Done button', () => {
 
 describe('EpicRow — WONT_DO progress', () => {
   it('counts WONT_DO as completed in progress percentage', () => {
-    const ticket = makeEpic({
+    const ticket = makeEpicSummary({
       childCounts: {
         total: 3,
         byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 2, WONT_DO: 1 },
@@ -241,7 +227,7 @@ describe('EpicRow — WONT_DO progress', () => {
   });
 
   it('renders a WONT DO state chip', () => {
-    const ticket = makeEpic({
+    const ticket = makeEpicSummary({
       childCounts: {
         total: 2,
         byState: { NOT_READY: 0, PLANNING: 0, READY: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 1, WONT_DO: 1 },

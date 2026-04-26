@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { vi } from 'vitest';
 import type { Comment, TicketSummary } from '../../server/types';
+import { makeComment, makeTicketSummary } from '../test/factories';
 import { ticketsKey } from './queryKeys';
 import { useCreateComment, useTransitionTicketState } from './ticketMutations';
 
@@ -13,30 +14,9 @@ function makeWrapper(qc: QueryClient) {
   };
 }
 
-const baseTicket: TicketSummary = {
-  number: 1,
-  displayId: 'RAT-1',
-  type: 'Task',
-  title: 'Test ticket',
-  state: 'READY',
-  created: '2026-01-01T00:00:00.000Z',
-  updated: '2026-01-01T00:00:00.000Z',
-  blocks: [],
-  blockedBy: [],
-};
+const baseTicket: TicketSummary = makeTicketSummary({ number: 1, state: 'READY' });
 
 const commentsKey = (project: string, n: number) => ['comments', project, n];
-
-function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return {
-    n: 1,
-    author: 'alice',
-    displayName: 'Alice',
-    timestamp: '2026-01-01T00:00:00.000Z',
-    body: 'Existing',
-    ...overrides,
-  };
-}
 
 describe('useCreateComment', () => {
   it('should optimistically append the new comment to the comments cache', async () => {
@@ -63,7 +43,7 @@ describe('useCreateComment', () => {
 
   it('should roll back the cache when the mutation fails', async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-    const existing = makeComment();
+    const existing = makeComment({ body: 'Existing' });
     qc.setQueryData(commentsKey('ratatoskr', 5), [existing]);
 
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Network error'))));
