@@ -320,6 +320,78 @@ describe('mcp tools', () => {
     expect(ticket.isReviewed).toBe(true);
   });
 
+  describe('patch_ticket — blocks / blocked_by', () => {
+    it.each([
+      {
+        desc: 'setting blocked_by writes inverse blocks on partner',
+        seedPrimary: {} as Record<string, unknown>,
+        seedPartner: {} as Record<string, unknown>,
+        blocked_by: [`${PREFIX}-2`] as string[] | undefined,
+        blocks: undefined as string[] | undefined,
+        primaryField: 'blockedBy',
+        primaryExpected: [`${PREFIX}-2`],
+        partnerField: 'blocks',
+        partnerExpected: [`${PREFIX}-1`],
+      },
+      {
+        desc: 'setting blocks writes inverse blocked_by on partner',
+        seedPrimary: {} as Record<string, unknown>,
+        seedPartner: {} as Record<string, unknown>,
+        blocked_by: undefined as string[] | undefined,
+        blocks: [`${PREFIX}-2`] as string[] | undefined,
+        primaryField: 'blocks',
+        primaryExpected: [`${PREFIX}-2`],
+        partnerField: 'blocked_by',
+        partnerExpected: [`${PREFIX}-1`],
+      },
+      {
+        desc: 'clearing blocked_by removes inverse from partner',
+        seedPrimary: { blocked_by: [`${PREFIX}-2`] } as Record<string, unknown>,
+        seedPartner: { blocks: [`${PREFIX}-1`] } as Record<string, unknown>,
+        blocked_by: [] as string[] | undefined,
+        blocks: undefined as string[] | undefined,
+        primaryField: 'blockedBy',
+        primaryExpected: [] as string[],
+        partnerField: 'blocks',
+        partnerExpected: [] as string[],
+      },
+    ])(
+      '$desc',
+      async ({
+        seedPrimary,
+        seedPartner,
+        blocks,
+        blocked_by,
+        primaryField,
+        primaryExpected,
+        partnerField,
+        partnerExpected,
+      }) => {
+        await makeTicket(1, seedPrimary);
+        await makeTicket(2, seedPartner);
+        const result = await patchTicketHandler({ project: PROJECT, number: 1, blocks, blocked_by });
+        expect(result.isError).toBeUndefined();
+        const parsed = JSON.parse(result.content[0].text) as Record<string, unknown>;
+        expect(parsed[primaryField]).toEqual(primaryExpected);
+        const raw = await readFile(path.join(tasksDir, '2.md'), 'utf8');
+        const fm = matter(raw).data as Record<string, unknown>;
+        expect(fm[partnerField]).toEqual(partnerExpected);
+      },
+    );
+
+    it('returns isError when blocks contains an invalid display ID', async () => {
+      await makeTicket(1);
+      const result = await patchTicketHandler({
+        project: PROJECT,
+        number: 1,
+        blocks: ['not-a-ticket'],
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse(result.content[0].text) as { error: string };
+      expect(body.error).toMatch(/invalid display ID/);
+    });
+  });
+
   describe('add_comment', () => {
     it('creates a comment with explicit author', async () => {
       await makeTicket(1);
