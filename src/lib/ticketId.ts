@@ -1,3 +1,8 @@
+export function extractPrefix(displayId: string): string | null {
+  const match = displayId.match(/^(.+)-\d+$/);
+  return match ? match[1] : null;
+}
+
 export function parseDisplayId(value: string, prefix: string): number | null {
   const pattern = new RegExp(`^${escapeRegex(prefix)}-(\\d+)$`);
   const match = value.match(pattern);

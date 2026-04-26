@@ -9,6 +9,8 @@ import { EditTicketModal } from './EditTicketModal';
 import { MarkdownBody } from './MarkdownBody';
 import { CommentSection } from './CommentSection';
 import { resolutionLabel } from '../lib/ticketResolution';
+import { DependencySection } from './DependencySection';
+import { extractPrefix } from '../lib/ticketId';
 
 function resolutionIcon(r: string): ElementType {
   switch (r) {
@@ -60,6 +62,7 @@ export function TicketDetailView({
   projectName,
   epicLabel,
 }: Props) {
+  const currentPrefix = extractPrefix(data.displayId);
   const hasGitContext =
     !!data.branch ||
     (data.prs && data.prs.length > 0) ||
@@ -101,6 +104,16 @@ export function TicketDetailView({
               </span>
             )}
           </div>
+          {(data.blockedBy.length > 0 || data.blocks.length > 0) && (
+            <div className="mt-3">
+              <DependencySection
+                projectName={projectName}
+                currentPrefix={currentPrefix ?? ''}
+                blockedBy={data.blockedBy}
+                blocks={data.blocks}
+              />
+            </div>
+          )}
           {hasGitContext && (
           <div className="flex flex-wrap gap-2 mt-3">
             {data.pullRequests && data.pullRequests.length > 0
