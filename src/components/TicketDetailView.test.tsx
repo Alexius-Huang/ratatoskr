@@ -29,7 +29,7 @@ describe('TicketDetailView — dependency section', () => {
         data={makeTicketDetail({ blockedBy: ['RAT-5'] })}
       />,
     );
-    expect(screen.getByText('Blocked by:')).toBeInTheDocument();
+    expect(screen.getByText('Blocked by')).toBeInTheDocument();
   });
 
   it('should render the dependency section when blocks is non-empty', () => {
@@ -39,7 +39,7 @@ describe('TicketDetailView — dependency section', () => {
         data={makeTicketDetail({ blocks: ['RAT-12'] })}
       />,
     );
-    expect(screen.getByText('Blocks:')).toBeInTheDocument();
+    expect(screen.getByText('Blocks')).toBeInTheDocument();
   });
 
   it('should not render the dependency section when both arrays are empty', () => {
@@ -49,8 +49,8 @@ describe('TicketDetailView — dependency section', () => {
         data={makeTicketDetail()}
       />,
     );
-    expect(screen.queryByText('Blocked by:')).not.toBeInTheDocument();
-    expect(screen.queryByText('Blocks:')).not.toBeInTheDocument();
+    expect(screen.queryByText('Blocked by')).not.toBeInTheDocument();
+    expect(screen.queryByText('Blocks')).not.toBeInTheDocument();
   });
 });
 

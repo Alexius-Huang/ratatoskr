@@ -104,6 +104,16 @@ export function TicketDetailView({
               </span>
             )}
           </div>
+          {(data.blockedBy.length > 0 || data.blocks.length > 0) && (
+            <div className="mt-3">
+              <DependencySection
+                projectName={projectName}
+                currentPrefix={currentPrefix ?? ''}
+                blockedBy={data.blockedBy}
+                blocks={data.blocks}
+              />
+            </div>
+          )}
           {hasGitContext && (
           <div className="flex flex-wrap gap-2 mt-3">
             {data.pullRequests && data.pullRequests.length > 0
@@ -158,12 +168,6 @@ export function TicketDetailView({
           )}
         </div>
         <div className="pt-4">
-        <DependencySection
-          projectName={projectName}
-          currentPrefix={currentPrefix ?? ''}
-          blockedBy={data.blockedBy}
-          blocks={data.blocks}
-        />
         {data.state === 'WONT_DO' && (
           <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
             <div className="text-nord-11 font-medium mb-1">Won't do</div>
