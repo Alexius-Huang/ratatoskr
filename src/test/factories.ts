@@ -1,8 +1,10 @@
 import { faker } from '@faker-js/faker';
 import type { ArchivedTicketRecord, Comment, TicketDetail, TicketSummary } from '../../server/types';
 
-let _n = 0;
-function nextN() { return ++_n; }
+const nextN = (() => {
+  let n = 0;
+  return () => ++n;
+})();
 
 export function makeTicketSummary(overrides: Partial<TicketSummary> = {}): TicketSummary {
   const n = overrides.number ?? nextN();
