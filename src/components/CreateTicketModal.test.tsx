@@ -126,6 +126,18 @@ describe('CreateTicketModal', () => {
     expect(titleInput.value).toBe('');
   });
 
+  it('should render the dependency editor by default (Task type)', () => {
+    renderModal({ open: true });
+    expect(screen.getByText('Dependencies')).toBeInTheDocument();
+  });
+
+  it('should hide the dependency editor when type is changed to Epic', async () => {
+    const user = userEvent.setup();
+    renderModal({ open: true });
+    await user.selectOptions(screen.getByLabelText('Type'), 'Epic');
+    expect(screen.queryByText('Dependencies')).not.toBeInTheDocument();
+  });
+
   it('should render DONE epics as non-selectable in the Epic picker', async () => {
     const user = userEvent.setup();
     vi.mocked(useTickets).mockReturnValue({

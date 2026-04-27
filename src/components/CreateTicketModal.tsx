@@ -26,6 +26,8 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
   const [body, setBody] = useState('');
   const [bodyTouched, setBodyTouched] = useState(false);
   const [wontDoReason, setWontDoReason] = useState('');
+  const [blockedBy, setBlockedBy] = useState<string[]>([]);
+  const [blocks, setBlocks] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const epicsQuery = useTickets(projectName, 'Epic');
@@ -44,6 +46,8 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
     setBody('');
     setBodyTouched(false);
     setWontDoReason('');
+    setBlockedBy([]);
+    setBlocks([]);
     setSubmitError(null);
     onClose();
   };
@@ -101,6 +105,13 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
       onTitleChange={handleTitleChange}
       body={body}
       onBodyChange={(v) => { setBody(v); setBodyTouched(true); }}
+      showDependencies={type !== 'Epic'}
+      projectName={projectName}
+      currentDisplayId={undefined}
+      blockedBy={blockedBy}
+      blocks={blocks}
+      onBlockedByChange={setBlockedBy}
+      onBlocksChange={setBlocks}
     />
   );
 }
