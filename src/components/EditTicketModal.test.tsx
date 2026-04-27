@@ -173,6 +173,22 @@ describe('EditTicketModal', () => {
     );
   });
 
+  it('should render the dependency editor when ticket type is Task', () => {
+    renderModal({});
+    expect(screen.getByText('Dependencies')).toBeInTheDocument();
+  });
+
+  it('should hide the dependency editor when ticket type is Epic', () => {
+    renderModal({ ticket: { ...baseTicket, type: 'Epic', epic: undefined } });
+    expect(screen.queryByText('Dependencies')).not.toBeInTheDocument();
+  });
+
+  it('should initialize blockedBy and blocks from ticket props as removable tags', () => {
+    renderModal({ ticket: { ...baseTicket, blockedBy: ['RAT-3'], blocks: ['RAT-7'] } });
+    expect(screen.getByRole('button', { name: 'Remove RAT-3 from blocked by' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove RAT-7 from blocks' })).toBeInTheDocument();
+  });
+
   it('should render DONE epics as non-selectable in the Epic picker', async () => {
     const user = userEvent.setup();
     vi.mocked(useTickets).mockReturnValue({

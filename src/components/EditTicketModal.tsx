@@ -20,6 +20,8 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
   const [epicNum, setEpicNum] = useState<number | null>(ticket.epic ?? null);
   const [body, setBody] = useState(ticket.body);
   const [wontDoReason, setWontDoReason] = useState(ticket.wontDoReason ?? '');
+  const [blockedBy, setBlockedBy] = useState<string[]>(ticket.blockedBy);
+  const [blocks, setBlocks] = useState<string[]>(ticket.blocks);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const epicsQuery = useTickets(projectName, 'Epic');
@@ -87,6 +89,13 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
       onTitleChange={setTitle}
       body={body}
       onBodyChange={setBody}
+      showDependencies={ticket.type !== 'Epic'}
+      projectName={projectName}
+      currentDisplayId={ticket.displayId}
+      blockedBy={blockedBy}
+      blocks={blocks}
+      onBlockedByChange={setBlockedBy}
+      onBlocksChange={setBlocks}
     />
   );
 }
