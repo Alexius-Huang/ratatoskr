@@ -1,5 +1,6 @@
 import type { TicketState, TicketType } from '../../server/types';
 import type { TicketSummary } from '../../server/types';
+import { DependencyEditor } from './DependencyEditor';
 import { EpicCombobox } from './EpicCombobox';
 import { Button } from './ui/Button';
 import { Modal } from './Modal';
@@ -39,6 +40,13 @@ type Props = {
   onTitleChange: (v: string) => void;
   body: string;
   onBodyChange: (v: string) => void;
+  showDependencies: boolean;
+  projectName: string;
+  currentDisplayId?: string;
+  blockedBy: string[];
+  blocks: string[];
+  onBlockedByChange: (next: string[]) => void;
+  onBlocksChange: (next: string[]) => void;
 };
 
 export function TicketFormModal({
@@ -50,6 +58,8 @@ export function TicketFormModal({
   showEpic, epics, epicNum, onEpicChange,
   title, onTitleChange,
   body, onBodyChange,
+  showDependencies, projectName, currentDisplayId,
+  blockedBy, blocks, onBlockedByChange, onBlocksChange,
 }: Props) {
   const wontDoReasonMissing = state === 'WONT_DO' && wontDoReason.trim() === '';
   const footer = (
@@ -124,6 +134,16 @@ export function TicketFormModal({
             className="bg-nord-2 border border-nord-3 rounded px-3 py-2 text-sm text-nord-6 placeholder-nord-4 focus:outline-none focus:border-nord-8"
           />
         </label>
+        {showDependencies && (
+          <DependencyEditor
+            projectName={projectName}
+            currentDisplayId={currentDisplayId}
+            blockedBy={blockedBy}
+            blocks={blocks}
+            onBlockedByChange={onBlockedByChange}
+            onBlocksChange={onBlocksChange}
+          />
+        )}
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-nord-4 uppercase tracking-wider">Body</span>
           <textarea
