@@ -196,3 +196,38 @@ export function useEditComment(projectName: string, ticketNumber: number) {
     },
   });
 }
+
+export function useDeleteComment(projectName: string, ticketNumber: number) {
+  const queryClient = useQueryClient();
+  const commentsKey = ['comments', projectName, ticketNumber];
+  return useMutation({
+    mutationFn: async ({ n }: { n: number }) => {
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(projectName)}/tickets/${ticketNumber}/comments/${n}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        let message = `Delete failed: ${res.status}`;
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body.error) message = body.error;
+        } catch { /* ignore */ }
+        throw new Error(message);
+      }
+    },
+    onMutate: async ({ n }) => {
+      await queryClient.cancelQueries({ queryKey: commentsKey });
+      const previous = queryClient.getQueryData<Comment[]>(commentsKey);
+      queryClient.setQueryData<Comment[]>(commentsKey, (old) => old?.filter((c) => c.n !== n));
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous !== undefined) {
+        queryClient.setQueryData(commentsKey, ctx.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: commentsKey });
+    },
+  });
+}

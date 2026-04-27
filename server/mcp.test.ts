@@ -8,6 +8,7 @@ import {
   addCommentHandler,
   archiveTicketHandler,
   createTicketHandler,
+  deleteCommentHandler,
   editCommentHandler,
   getTicketByIdHandler,
   getTicketHandler,
@@ -546,6 +547,32 @@ describe('mcp tools', () => {
     it('should surface a 404 as isError: true for a non-existent comment', async () => {
       await makeTicket(1);
       const result = await editCommentHandler({ project: PROJECT, number: 1, n: 999, body: 'body' });
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  describe('delete_comment', () => {
+    it('should soft-delete the comment and return an empty success response', async () => {
+      await makeTicket(1);
+      await addCommentHandler({
+        project: PROJECT,
+        number: 1,
+        body: 'To be deleted',
+        author: { username: 'claude', display_name: 'Claude' },
+      });
+
+      const result = await deleteCommentHandler({ project: PROJECT, number: 1, n: 1 });
+      expect(result.isError).toBeUndefined();
+
+      const commentsDir = path.join(tmpRoot, 'projects', PROJECT, '.meta', 'ratatoskr', 'comments', '1');
+      const raw = await readFile(path.join(commentsDir, '1.md'), 'utf8');
+      const parsed = matter(raw);
+      expect(parsed.data.removed).toBe(true);
+    });
+
+    it('should surface a 404 as isError: true for a non-existent comment', async () => {
+      await makeTicket(1);
+      const result = await deleteCommentHandler({ project: PROJECT, number: 1, n: 999 });
       expect(result.isError).toBe(true);
     });
   });

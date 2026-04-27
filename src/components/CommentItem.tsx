@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useAppConfig } from '../lib/api';
-import { useEditComment } from '../lib/ticketMutations';
+import { useDeleteComment, useEditComment } from '../lib/ticketMutations';
 import { formatTimestamp } from '../lib/time';
 import type { Comment } from '../../server/types';
 import { MarkdownBody } from './MarkdownBody';
 import { Button } from './shadcn/button';
+import { Modal } from './Modal';
 
 type Props = {
   projectName: string;
@@ -24,8 +25,16 @@ export function CommentItem({ projectName, ticketNumber, comment }: Props) {
     if (!isEditing) setDraft(comment.body);
   }, [comment.body, isEditing]);
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteMutation = useDeleteComment(projectName, ticketNumber);
+
   const canEdit = user !== null && comment.author === user.username;
   const saveDisabled = draft.trim().length === 0 || draft.trim() === comment.body || mutation.isPending;
+
+  function handleConfirmDelete() {
+    deleteMutation.mutate({ n: comment.n });
+    setConfirmingDelete(false);
+  }
 
   function handleSave() {
     const trimmed = draft.trim();
@@ -55,15 +64,26 @@ export function CommentItem({ projectName, ticketNumber, comment }: Props) {
           </span>
         )}
         {canEdit && !isEditing && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-            className="ml-auto h-6 px-2 text-xs gap-1 border-nord-3 text-nord-4 hover:text-nord-6 hover:border-nord-4 bg-transparent"
-          >
-            <Pencil size={11} />
-            Edit
-          </Button>
+          <div className="ml-auto flex gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              className="h-6 px-2 text-xs gap-1 border-nord-3 text-nord-4 hover:text-nord-6 hover:border-nord-4 bg-transparent"
+            >
+              <Pencil size={11} />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmingDelete(true)}
+              className="h-6 px-2 text-xs gap-1 border-nord-3 text-nord-4 hover:text-nord-11 hover:border-nord-11 bg-transparent"
+            >
+              <Trash2 size={11} />
+              Delete
+            </Button>
+          </div>
         )}
       </div>
       {isEditing ? (
@@ -94,6 +114,29 @@ export function CommentItem({ projectName, ticketNumber, comment }: Props) {
       ) : (
         <MarkdownBody source={comment.body} />
       )}
+      <Modal
+        open={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
+        title="Delete comment"
+        footer={
+          <>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              className="px-3 py-1 text-xs rounded bg-nord-3 text-nord-6 hover:bg-nord-2 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              className="px-3 py-1 text-xs rounded bg-nord-11 text-white hover:opacity-90 transition-opacity"
+            >
+              Delete
+            </button>
+          </>
+        }
+      >
+        <p className="py-4 text-sm text-nord-4">This comment will be permanently removed. Are you sure?</p>
+      </Modal>
     </div>
   );
 }

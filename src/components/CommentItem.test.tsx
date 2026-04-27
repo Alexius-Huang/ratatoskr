@@ -212,4 +212,79 @@ describe('CommentItem', () => {
       expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
     });
   });
+
+  describe('delete', () => {
+    it('should show a Delete button when the comment is authored by the current user', () => {
+      stubConfig('alice');
+      const comment = makeComment({ author: 'alice' });
+      renderItem(comment);
+      expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+    });
+
+    it('should not show a Delete button when the comment is authored by someone else', () => {
+      stubConfig('bob');
+      const comment = makeComment({ author: 'alice' });
+      renderItem(comment);
+      expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+    });
+
+    it('should not show a Delete button when no user is configured', () => {
+      stubConfig(null);
+      const comment = makeComment({ author: 'alice' });
+      renderItem(comment);
+      expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+    });
+
+    it('should show a confirmation dialog when Delete is clicked', async () => {
+      const user = userEvent.setup();
+      stubConfig('alice');
+      const comment = makeComment({ author: 'alice' });
+      renderItem(comment);
+
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByText(/delete comment/i)).toBeInTheDocument();
+    });
+
+    it('should call DELETE and close the dialog when the confirmation button is clicked', async () => {
+      const user = userEvent.setup();
+      stubConfig('alice');
+      const comment = makeComment({ n: 7, author: 'alice' });
+      stubFetch(null, 204);
+      renderItem(comment);
+
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      const confirmBtn = screen.getAllByRole('button', { name: /delete/i }).find(
+        (el) => el.closest('[role="dialog"]'),
+      );
+      await user.click(confirmBtn!);
+
+      await waitFor(() => {
+        const fetchMock = vi.mocked(fetch);
+        const deleteCall = fetchMock.mock.calls.find(
+          ([url, init]) => (init as RequestInit)?.method === 'DELETE' && String(url).includes('/comments/7'),
+        );
+        expect(deleteCall).toBeDefined();
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('should close the dialog and make no network call when Cancel is clicked', async () => {
+      const user = userEvent.setup();
+      const fetchSpy = vi.fn();
+      vi.stubGlobal('fetch', fetchSpy);
+      stubConfig('alice');
+      const comment = makeComment({ author: 'alice' });
+      renderItem(comment);
+
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
 });

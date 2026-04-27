@@ -153,6 +153,18 @@ export async function editCommentHandler(args: {
   );
 }
 
+export async function deleteCommentHandler(args: {
+  project: string;
+  number: number;
+  n: number;
+}): Promise<ToolResult> {
+  const { project, number, n } = args;
+  return dispatch(
+    `/api/projects/${encodeURIComponent(project)}/tickets/${number}/comments/${n}`,
+    { method: 'DELETE' },
+  );
+}
+
 function errorResult(message: string, extra?: Record<string, string>): ToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify({ error: message, ...extra }) }],
@@ -349,6 +361,16 @@ export function buildServer(): McpServer {
       body: z.string().min(1),
     },
     async (args) => editCommentHandler(args),
+  );
+
+  server.tool(
+    'delete_comment',
+    {
+      project: z.string(),
+      number: z.number().int().positive(),
+      n: z.number().int().positive(),
+    },
+    async (args) => deleteCommentHandler(args),
   );
 
   server.tool(
