@@ -1148,4 +1148,22 @@ describe('updateTicket — blocks / blocked_by', () => {
     const bby: unknown[] = Array.isArray(fm2.blocked_by) ? fm2.blocked_by : [];
     expect(bby.filter(v => v === 'RAT-1')).toHaveLength(1);
   });
+
+  it('should fail validation when an unchanged blocked_by entry references a now-missing ticket', async () => {
+    // Ticket 1 has a pre-existing dep on ticket 2; ticket 3 is the new dep being added.
+    await makeTicketFile(tasksPath, 1, { blocked_by: ['RAT-2'] });
+    await makeTicketFile(tasksPath, 2, { blocks: ['RAT-1'] });
+    await makeTicketFile(tasksPath, 3);
+    // Simulate ticket 2 disappearing externally (e.g. deleted outside Ratatoskr).
+    await rm(path.join(tasksPath, '2.md'));
+
+    // validateDependencyInputs now resolves the full newBlockedBy set (['RAT-2']),
+    // not just added IDs — so an unchanged stale dep causes the whole update to fail.
+    const result = await updateTicket(PROJECT, PREFIX, 1, { blocks: ['RAT-3'] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('RAT-2');
+    }
+  });
 });
