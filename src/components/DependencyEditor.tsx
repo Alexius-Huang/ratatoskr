@@ -39,7 +39,7 @@ export function DependencyEditor({
     if (t.type === 'Epic') return false;
     if (!query) return true;
     return `${t.displayId} — ${t.title}`.toLowerCase().includes(query.toLowerCase());
-  });
+  }).slice(0, 25);
 
   function togglePending(displayId: string) {
     setPending((prev) => {
