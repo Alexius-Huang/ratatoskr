@@ -53,12 +53,19 @@ export function DependencyEditor({
     });
   }
 
+  function handleRelationshipChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setRelationship(e.target.value as Relationship);
+    setPending(new Set());
+    setQuery('');
+    setOpen(false);
+  }
+
   function handleConfirm() {
     if (pending.size === 0) return;
     if (relationship === 'blocked_by') {
-      onBlockedByChange([...blockedBy, ...Array.from(pending)]);
+      onBlockedByChange([...new Set([...blockedBy, ...Array.from(pending)])]);
     } else {
-      onBlocksChange([...blocks, ...Array.from(pending)]);
+      onBlocksChange([...new Set([...blocks, ...Array.from(pending)])]);
     }
     setPending(new Set());
     setQuery('');
@@ -82,7 +89,7 @@ export function DependencyEditor({
       <div className="flex gap-2 items-start">
         <select
           value={relationship}
-          onChange={(e) => { setRelationship(e.target.value as Relationship); setPending(new Set()); }}
+          onChange={handleRelationshipChange}
           className="bg-nord-2 border border-nord-3 rounded px-2 py-1.5 text-sm text-nord-6 focus:outline-none focus:border-nord-8 shrink-0"
         >
           <option value="blocked_by">is blocked by</option>

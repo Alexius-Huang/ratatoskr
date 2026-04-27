@@ -125,14 +125,17 @@ describe('DependencyEditor', () => {
     expect(expectedFn).toHaveBeenCalledWith(['RAT-1']);
   });
 
-  it('should clear pending selections when the relationship dropdown changes', async () => {
+  it('should clear pending, query, and close the picker when the relationship dropdown changes', async () => {
     const user = userEvent.setup();
     renderWithProviders(<DependencyEditor {...defaultProps} />);
-    await user.click(screen.getByPlaceholderText('Search tickets…'));
+    const input = screen.getByPlaceholderText('Search tickets…');
+    await user.type(input, 'alpha');
     await user.click(screen.getByText('Alpha ticket'));
     expect(screen.getByRole('button', { name: 'Confirm' })).not.toBeDisabled();
     await user.selectOptions(screen.getByDisplayValue('is blocked by'), 'blocks');
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+    expect((input as HTMLInputElement).value).toBe('');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
   it('should append multiple selected tickets when Confirm is clicked', async () => {
@@ -143,6 +146,15 @@ describe('DependencyEditor', () => {
     await user.click(screen.getByText('Beta ticket'));
     await user.click(screen.getByRole('button', { name: 'Confirm' }));
     expect(onBlockedByChange).toHaveBeenCalledWith(['RAT-1', 'RAT-2']);
+  });
+
+  it('should append to an existing blockedBy array without duplicates', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DependencyEditor {...defaultProps} blockedBy={['RAT-2']} />);
+    await user.click(screen.getByPlaceholderText('Search tickets…'));
+    await user.click(screen.getByText('Alpha ticket'));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(onBlockedByChange).toHaveBeenCalledWith(['RAT-2', 'RAT-1']);
   });
 
   it('should clear pending and query after Confirm', async () => {
