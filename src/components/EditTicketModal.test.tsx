@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { TicketDetail } from '../../server/types';
-import { makeEpicSummary, makeTicketDetail } from '../test/factories';
+import { makeEpicSummary, makeTicketDetail, makeTicketSummary } from '../test/factories';
 
 vi.mock('../lib/ticketMutations', () => ({
   useUpdateTicket: vi.fn(),
@@ -205,5 +205,81 @@ describe('EditTicketModal', () => {
     const activeOption = screen.getByRole('option', { name: /Active/ });
     expect(finishedOption).toHaveAttribute('aria-disabled', 'true');
     expect(activeOption).not.toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('EditTicketModal — dependency persistence', () => {
+  const pickerTicket = makeTicketSummary({ number: 10, displayId: 'RAT-10', title: 'Another ticket', type: 'Task' });
+
+  beforeEach(() => {
+    vi.mocked(useTickets).mockReturnValue({ data: [pickerTicket], isLoading: false } as never);
+    vi.mocked(useUpdateTicket).mockReturnValue(makeMutation() as never);
+  });
+
+  it.each([
+    { field: 'blocked_by' as const, relationship: 'is blocked by', payloadKey: 'blocked_by' },
+    { field: 'blocks' as const, relationship: 'blocks', payloadKey: 'blocks' },
+  ])(
+    'should include $payloadKey in the PATCH payload when the user adds a dependency via picker',
+    async ({ relationship, payloadKey }) => {
+      const user = userEvent.setup();
+      const mutateAsync = vi.fn().mockResolvedValue({ ...baseTicket });
+      vi.mocked(useUpdateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+
+      renderModal({});
+
+      if (relationship !== 'is blocked by') {
+        await user.selectOptions(screen.getByDisplayValue('is blocked by'), relationship);
+      }
+      await user.click(screen.getByPlaceholderText('Search tickets…'));
+      await user.click(screen.getByText('Another ticket'));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ [payloadKey]: ['RAT-10'] }),
+      );
+    },
+  );
+
+  it('should include blocked_by in the PATCH payload (with the entry removed) when the user clicks × on a tag', async () => {
+    const user = userEvent.setup();
+    const mutateAsync = vi.fn().mockResolvedValue({ ...baseTicket });
+    vi.mocked(useUpdateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+
+    renderModal({ ticket: { ...baseTicket, blockedBy: ['RAT-3'] } });
+
+    await user.click(screen.getByRole('button', { name: 'Remove RAT-3 from blocked by' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ blocked_by: [] }),
+    );
+  });
+
+  it('should NOT include blocked_by/blocks in the PATCH payload when arrays are unchanged', async () => {
+    const user = userEvent.setup();
+    const mutateAsync = vi.fn().mockResolvedValue({ ...baseTicket });
+    vi.mocked(useUpdateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+
+    renderModal({ ticket: { ...baseTicket, blockedBy: ['RAT-3'], blocks: [] } });
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    const call = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('blocked_by');
+    expect(call).not.toHaveProperty('blocks');
+  });
+
+  it('should display the server\'s invalid-input message in the error banner when the PATCH rejects', async () => {
+    const user = userEvent.setup();
+    vi.mocked(useUpdateTicket).mockReturnValue(
+      makeMutation({ mutateAsync: vi.fn().mockRejectedValue(new Error('Referenced ticket RAT-9999 not found')) }) as never,
+    );
+
+    renderModal({});
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Referenced ticket RAT-9999 not found')).toBeInTheDocument();
   });
 });

@@ -6,6 +6,9 @@ import { TicketFormModal } from './TicketFormModal';
 
 const NON_EPIC_TYPES: TicketType[] = ['Task', 'Bug'];
 
+const sameSet = (a: string[], b: string[]) =>
+  a.length === b.length && a.every(x => b.includes(x));
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -47,6 +50,8 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
       epic?: number | null;
       body?: string;
       wont_do_reason?: string | null;
+      blocked_by?: string[];
+      blocks?: string[];
     } = {};
     if (trimmed !== ticket.title) patch.title = trimmed;
     if (state !== ticket.state) patch.state = state;
@@ -54,6 +59,8 @@ export function EditTicketModal({ open, onClose, projectName, ticket }: Props) {
     if (body !== ticket.body) patch.body = body;
     if (epicNum !== (ticket.epic ?? null)) patch.epic = epicNum;
     patch.wont_do_reason = state === 'WONT_DO' ? wontDoReason.trim() : null;
+    if (!sameSet(blockedBy, ticket.blockedBy)) patch.blocked_by = blockedBy;
+    if (!sameSet(blocks, ticket.blocks)) patch.blocks = blocks;
 
     try {
       await updateMutation.mutateAsync(patch);

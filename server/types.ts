@@ -89,6 +89,8 @@ export type CreateTicketRequest = {
   epic?: number | null;
   body?: string;
   wont_do_reason?: string;
+  blocks?: string[];
+  blocked_by?: string[];
 };
 
 export type UpdateTicketRequest = {
