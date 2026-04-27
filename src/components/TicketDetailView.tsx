@@ -169,7 +169,7 @@ export function TicketDetailView({
         </div>
         <div className="pt-4">
         {data.state === 'WONT_DO' && (
-          <div className="mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
+          <div className="mt-4 mb-4 p-3 rounded border border-nord-11/40 bg-nord-11/10 text-sm">
             <div className="text-nord-11 font-medium mb-1">Won't do</div>
             <div className="text-nord-4 whitespace-pre-wrap">{data.wontDoReason ?? 'No reason provided.'}</div>
           </div>
