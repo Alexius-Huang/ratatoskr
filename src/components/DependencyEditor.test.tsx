@@ -125,6 +125,16 @@ describe('DependencyEditor', () => {
     expect(expectedFn).toHaveBeenCalledWith(['RAT-1']);
   });
 
+  it('should append multiple selected tickets when Confirm is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DependencyEditor {...defaultProps} />);
+    await user.click(screen.getByPlaceholderText('Search tickets…'));
+    await user.click(screen.getByText('Alpha ticket'));
+    await user.click(screen.getByText('Beta ticket'));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    expect(onBlockedByChange).toHaveBeenCalledWith(['RAT-1', 'RAT-2']);
+  });
+
   it('should clear pending and query after Confirm', async () => {
     const user = userEvent.setup();
     renderWithProviders(<DependencyEditor {...defaultProps} />);
