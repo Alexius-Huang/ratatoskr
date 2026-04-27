@@ -31,6 +31,7 @@ export function makeTicketDetail(overrides: Partial<TicketDetail> = {}): TicketD
   return {
     ...base,
     body: '',
+    comments: [],
     ...overrides,
   };
 }

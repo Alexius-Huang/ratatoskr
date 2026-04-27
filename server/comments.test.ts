@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CommentNotFoundError, commentsDir, editComment, listComments, writeComment } from './comments';
+import { CommentNotFoundError, commentsDir, deleteComment, editComment, listComments, writeComment } from './comments';
 
 const PROJECT = 'ratatoskr';
 const TICKET = 12;
@@ -154,6 +154,16 @@ describe('listComments', () => {
     expect(result).toHaveLength(1);
     expect(result[0].updated).toBe(updated);
     expect(result[0].body).toBe('Edited body.');
+  });
+
+  it('should exclude comments with removed: true', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1);
+    await makeCommentFile(dir, 2, { removed: true });
+    await makeCommentFile(dir, 3);
+
+    const result = await listComments(PROJECT, TICKET);
+    expect(result.map((c) => c.n)).toEqual([1, 3]);
   });
 
   it('should skip and warn on non-<n>.md filenames', async () => {
@@ -340,5 +350,79 @@ describe('editComment', () => {
     expect(new Date(second.updated!).getTime()).toBeGreaterThanOrEqual(
       new Date(first.updated!).getTime(),
     );
+  });
+
+  it('should throw CommentNotFoundError when editing a removed comment', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1, { removed: true });
+    await expect(editComment(PROJECT, TICKET, 1, 'new body')).rejects.toBeInstanceOf(CommentNotFoundError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('deleteComment', () => {
+  it('should set removed: true in frontmatter and preserve the body', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1);
+
+    await deleteComment(PROJECT, TICKET, 1);
+
+    const raw = await import('node:fs/promises').then((m) => m.readFile(path.join(dir, '1.md'), 'utf8'));
+    const parsed = matter(raw);
+    expect(parsed.data.removed).toBe(true);
+    expect(parsed.content.trim()).toBe('Comment body here.');
+  });
+
+  it('should bump the updated timestamp on delete', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1);
+
+    const before = Date.now();
+    await deleteComment(PROJECT, TICKET, 1);
+    const after = Date.now();
+
+    const raw = await import('node:fs/promises').then((m) => m.readFile(path.join(dir, '1.md'), 'utf8'));
+    const parsed = matter(raw);
+    const updatedMs = new Date(parsed.data.updated as string).getTime();
+    expect(updatedMs).toBeGreaterThanOrEqual(before - 5000);
+    expect(updatedMs).toBeLessThanOrEqual(after + 5000);
+  });
+
+  it('should throw CommentNotFoundError when the file does not exist', async () => {
+    await expect(deleteComment(PROJECT, TICKET, 999)).rejects.toBeInstanceOf(CommentNotFoundError);
+  });
+
+  it('should throw CommentNotFoundError when the comment is already removed', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1, { removed: true });
+    await expect(deleteComment(PROJECT, TICKET, 1)).rejects.toBeInstanceOf(CommentNotFoundError);
+  });
+
+  it('should make the comment invisible to listComments after deletion', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1);
+    await makeCommentFile(dir, 2);
+    await makeCommentFile(dir, 3);
+
+    await deleteComment(PROJECT, TICKET, 2);
+
+    const result = await listComments(PROJECT, TICKET);
+    expect(result.map((c) => c.n)).toEqual([1, 3]);
+  });
+
+  it('should not break next-id assignment after a soft delete', async () => {
+    const dir = path.join(commentsBasePath, String(TICKET));
+    await makeCommentFile(dir, 1);
+    await makeCommentFile(dir, 2);
+    await makeCommentFile(dir, 3);
+    await deleteComment(PROJECT, TICKET, 2);
+
+    const result = await writeComment(PROJECT, TICKET, {
+      author: 'j.huang',
+      displayName: 'Jun-Xin Huang',
+      body: 'New comment after delete.',
+    });
+    expect(result.n).toBe(4);
   });
 });

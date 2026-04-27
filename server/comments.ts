@@ -72,6 +72,8 @@ export async function listComments(
 
     const fm = parsed.data as Record<string, unknown>;
 
+    if (fm.removed === true) continue;
+
     if (typeof fm.author !== 'string' || fm.author.length === 0) {
       console.warn(`[comments] Missing 'author' in ${entry.name}`);
       continue;
@@ -181,6 +183,9 @@ export async function editComment(
 
   const parsed = matter(raw);
   const data = { ...parsed.data as Record<string, unknown> };
+  if (data.removed === true) {
+    throw new CommentNotFoundError(n);
+  }
   const updated = new Date().toISOString();
   data.updated = updated;
 
@@ -195,4 +200,29 @@ export async function editComment(
     updated,
     body: trimmed,
   };
+}
+
+export async function deleteComment(
+  projectName: string,
+  ticketNumber: number,
+  n: number,
+): Promise<void> {
+  const filePath = path.join(commentsDir(projectName, ticketNumber), `${n}.md`);
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new CommentNotFoundError(n);
+    }
+    throw err;
+  }
+  const parsed = matter(raw);
+  const data = { ...parsed.data as Record<string, unknown> };
+  if (data.removed === true) {
+    throw new CommentNotFoundError(n);
+  }
+  data.removed = true;
+  data.updated = new Date().toISOString();
+  await writeFile(filePath, matter.stringify(parsed.content.trim(), data));
 }
