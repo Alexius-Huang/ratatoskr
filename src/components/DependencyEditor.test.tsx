@@ -125,6 +125,16 @@ describe('DependencyEditor', () => {
     expect(expectedFn).toHaveBeenCalledWith(['RAT-1']);
   });
 
+  it('should clear pending selections when the relationship dropdown changes', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DependencyEditor {...defaultProps} />);
+    await user.click(screen.getByPlaceholderText('Search tickets…'));
+    await user.click(screen.getByText('Alpha ticket'));
+    expect(screen.getByRole('button', { name: 'Confirm' })).not.toBeDisabled();
+    await user.selectOptions(screen.getByDisplayValue('is blocked by'), 'blocks');
+    expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+  });
+
   it('should append multiple selected tickets when Confirm is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(<DependencyEditor {...defaultProps} />);
