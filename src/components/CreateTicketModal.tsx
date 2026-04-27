@@ -67,6 +67,8 @@ export function CreateTicketModal({ open, onClose, projectName }: Props) {
         epic: (type !== 'Epic' && epicNum !== null) ? epicNum : undefined,
         body: body || scaffoldBody(trimmed),
         wont_do_reason: state === 'WONT_DO' ? wontDoReason.trim() : undefined,
+        ...(blockedBy.length > 0 && { blocked_by: blockedBy }),
+        ...(blocks.length > 0 && { blocks }),
       });
       handleClose();
       setSearchParams((prev) => {

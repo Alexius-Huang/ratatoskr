@@ -77,6 +77,74 @@ function normalizeIds(input: string[] | null | undefined): string[] {
   return [...new Set(input.filter((v): v is string => typeof v === 'string'))];
 }
 
+type InverseOp = { filePath: string; field: 'blocks' | 'blocked_by'; addIds: string[]; removeIds: string[] };
+
+async function validateDependencyInputs(
+  primaryDisplayId: string,
+  newBlockedBy: string[],
+  newBlocks: string[],
+): Promise<{ ok: true; refs: ResolvedRef[] } | { ok: false; error: DomainError }> {
+  for (const id of newBlockedBy) {
+    if (!DISPLAY_ID_RE.test(id)) {
+      return { ok: false, error: { kind: 'invalid-input', message: `blocked_by: invalid display ID '${id}' (expected PREFIX-NUMBER)` } };
+    }
+  }
+  for (const id of newBlocks) {
+    if (!DISPLAY_ID_RE.test(id)) {
+      return { ok: false, error: { kind: 'invalid-input', message: `blocks: invalid display ID '${id}' (expected PREFIX-NUMBER)` } };
+    }
+  }
+  if (newBlockedBy.includes(primaryDisplayId)) {
+    return { ok: false, error: { kind: 'invalid-input', message: 'blocked_by: ticket cannot reference itself' } };
+  }
+  if (newBlocks.includes(primaryDisplayId)) {
+    return { ok: false, error: { kind: 'invalid-input', message: 'blocks: ticket cannot reference itself' } };
+  }
+  const allIds = [...new Set([...newBlockedBy, ...newBlocks])];
+  const resolved = await resolveDisplayIds(allIds);
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  return { ok: true, refs: resolved.refs };
+}
+
+function computeInverseOps(
+  primaryDisplayId: string,
+  oldBlockedBy: string[],
+  oldBlocks: string[],
+  newBlockedBy: string[],
+  newBlocks: string[],
+  refMap: Map<string, ResolvedRef>,
+): InverseOp[] {
+  const addedBlockedBy = newBlockedBy.filter(id => !oldBlockedBy.includes(id));
+  const removedBlockedBy = oldBlockedBy.filter(id => !newBlockedBy.includes(id));
+  const addedBlocks = newBlocks.filter(id => !oldBlocks.includes(id));
+  const removedBlocks = oldBlocks.filter(id => !newBlocks.includes(id));
+
+  const mergedOps = new Map<string, Map<'blocks' | 'blocked_by', { add: string[]; remove: string[] }>>();
+
+  function enqueue(id: string, field: 'blocks' | 'blocked_by', add: string[], remove: string[]) {
+    const fp = refMap.get(id)!.filePath;
+    if (!mergedOps.has(fp)) mergedOps.set(fp, new Map());
+    const fieldMap = mergedOps.get(fp)!;
+    if (!fieldMap.has(field)) fieldMap.set(field, { add: [], remove: [] });
+    const entry = fieldMap.get(field)!;
+    entry.add.push(...add);
+    entry.remove.push(...remove);
+  }
+
+  for (const id of addedBlockedBy) enqueue(id, 'blocks', [primaryDisplayId], []);
+  for (const id of removedBlockedBy) enqueue(id, 'blocks', [], [primaryDisplayId]);
+  for (const id of addedBlocks) enqueue(id, 'blocked_by', [primaryDisplayId], []);
+  for (const id of removedBlocks) enqueue(id, 'blocked_by', [], [primaryDisplayId]);
+
+  const ops: InverseOp[] = [];
+  for (const [fp, fieldMap] of mergedOps) {
+    for (const [field, { add, remove }] of fieldMap) {
+      ops.push({ filePath: fp, field, addIds: add, removeIds: remove });
+    }
+  }
+  return ops;
+}
+
 function applyInverseEdit(
   rawContent: string,
   field: 'blocks' | 'blocked_by',
@@ -205,7 +273,19 @@ export async function createTicket(
     }
   }
 
+  const newBlockedBy = normalizeIds(input.blocked_by);
+  const newBlocks = normalizeIds(input.blocks);
+
   const num = await computeNextTicketNumber(projectName);
+  const primaryDisplayId = `${prefix}-${num}`;
+
+  let depRefs: ResolvedRef[] = [];
+  if (newBlockedBy.length > 0 || newBlocks.length > 0) {
+    const validation = await validateDependencyInputs(primaryDisplayId, newBlockedBy, newBlocks);
+    if (!validation.ok) return { ok: false, error: validation.error };
+    depRefs = validation.refs;
+  }
+
   const now = nowIso();
 
   const fm: Record<string, unknown> = {
@@ -218,17 +298,63 @@ export async function createTicket(
   if ((ticketType === 'Task' || ticketType === 'Bug') && input.epic !== undefined && input.epic !== null) {
     fm.epic = input.epic;
   }
-
   if (ticketState === 'WONT_DO') {
     fm.wont_do_reason = input.wont_do_reason!.trim();
   }
+  if (newBlockedBy.length > 0) fm.blocked_by = newBlockedBy;
+  if (newBlocks.length > 0) fm.blocks = newBlocks;
 
   const body = input.body !== undefined ? input.body : scaffoldBody(title);
   const fileContent = matter.stringify(body, fm);
 
   const dir = tasksDir(projectName);
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, `${num}.md`), fileContent, 'utf8');
+  const filePath = path.join(dir, `${num}.md`);
+  await writeFile(filePath, fileContent, 'utf8');
+
+  if (depRefs.length > 0) {
+    const refMap = new Map(depRefs.map(r => [r.displayId, r]));
+    const inverseOps = computeInverseOps(primaryDisplayId, [], [], newBlockedBy, newBlocks, refMap);
+
+    if (inverseOps.length > 0) {
+      const rollbackCache = new Map<string, string>();
+      for (const op of inverseOps) {
+        if (!rollbackCache.has(op.filePath)) {
+          rollbackCache.set(op.filePath, await readFile(op.filePath, 'utf8'));
+        }
+      }
+
+      const mutations: { filePath: string; content: string }[] = [];
+      for (const op of inverseOps) {
+        const base = mutations.find(m => m.filePath === op.filePath)?.content
+          ?? rollbackCache.get(op.filePath)!;
+        const updated = applyInverseEdit(base, op.field, op.addIds, op.removeIds);
+        const existing = mutations.find(m => m.filePath === op.filePath);
+        if (existing) {
+          existing.content = updated;
+        } else {
+          mutations.push({ filePath: op.filePath, content: updated });
+        }
+      }
+
+      const written: string[] = [];
+      try {
+        for (const m of mutations) {
+          await writeFile(m.filePath, m.content, 'utf8');
+          written.push(m.filePath);
+        }
+      } catch (err) {
+        for (const wpath of written) {
+          const original = rollbackCache.get(wpath);
+          if (original !== undefined) {
+            try { await writeFile(wpath, original, 'utf8'); } catch { /* swallow rollback failure */ }
+          }
+        }
+        try { await unlink(filePath); } catch { /* swallow */ }
+        return { ok: false, error: { kind: 'invalid-input', message: `Bidirectional sync write failed: ${(err as Error).message}` } };
+      }
+    }
+  }
 
   if (ticketType !== 'Epic' && PROMOTING_STATES.has(ticketState)) {
     await maybePromoteParentEpic(projectName, input.epic ?? undefined);
@@ -361,7 +487,6 @@ export async function updateTicket(
   const wantsBlockedBy = 'blocked_by' in patch;
   const wantsBlocks = 'blocks' in patch;
 
-  type InverseOp = { filePath: string; field: 'blocks' | 'blocked_by'; addIds: string[]; removeIds: string[] };
   const inverseOps: InverseOp[] = [];
 
   if (wantsBlockedBy || wantsBlocks) {
@@ -377,58 +502,21 @@ export async function updateTicket(
     const newBlockedBy = wantsBlockedBy ? normalizeIds(patch.blocked_by) : oldBlockedBy;
     const newBlocks = wantsBlocks ? normalizeIds(patch.blocks) : oldBlocks;
 
-    for (const id of newBlockedBy) {
-      if (!DISPLAY_ID_RE.test(id)) {
-        return { ok: false, error: { kind: 'invalid-input', message: `blocked_by: invalid display ID '${id}' (expected PREFIX-NUMBER)` } };
-      }
-    }
-    for (const id of newBlocks) {
-      if (!DISPLAY_ID_RE.test(id)) {
-        return { ok: false, error: { kind: 'invalid-input', message: `blocks: invalid display ID '${id}' (expected PREFIX-NUMBER)` } };
-      }
-    }
+    const validation = await validateDependencyInputs(primaryDisplayId, newBlockedBy, newBlocks);
+    if (!validation.ok) return { ok: false, error: validation.error };
+    const refMap = new Map(validation.refs.map(r => [r.displayId, r]));
 
-    if (newBlockedBy.includes(primaryDisplayId)) {
-      return { ok: false, error: { kind: 'invalid-input', message: 'blocked_by: ticket cannot reference itself' } };
-    }
-    if (newBlocks.includes(primaryDisplayId)) {
-      return { ok: false, error: { kind: 'invalid-input', message: 'blocks: ticket cannot reference itself' } };
-    }
-
-    const addedBlockedBy = newBlockedBy.filter(id => !oldBlockedBy.includes(id));
+    // Resolve removed IDs (in old but not in new) — needed for inverse-op file-path lookup
     const removedBlockedBy = wantsBlockedBy ? oldBlockedBy.filter(id => !newBlockedBy.includes(id)) : [];
-    const addedBlocks = newBlocks.filter(id => !oldBlocks.includes(id));
     const removedBlocks = wantsBlocks ? oldBlocks.filter(id => !newBlocks.includes(id)) : [];
-
-    const idsToResolve = [...new Set([...addedBlockedBy, ...removedBlockedBy, ...addedBlocks, ...removedBlocks])];
-    if (idsToResolve.length > 0) {
-      const resolved = await resolveDisplayIds(idsToResolve);
-      if (!resolved.ok) return { ok: false, error: resolved.error };
-
-      const refMap = new Map(resolved.refs.map(r => [r.displayId, r]));
-      const mergedOps = new Map<string, Map<'blocks' | 'blocked_by', { add: string[]; remove: string[] }>>();
-
-      function enqueue(id: string, field: 'blocks' | 'blocked_by', add: string[], remove: string[]) {
-        const fp = refMap.get(id)!.filePath;
-        if (!mergedOps.has(fp)) mergedOps.set(fp, new Map());
-        const fieldMap = mergedOps.get(fp)!;
-        if (!fieldMap.has(field)) fieldMap.set(field, { add: [], remove: [] });
-        const entry = fieldMap.get(field)!;
-        entry.add.push(...add);
-        entry.remove.push(...remove);
-      }
-
-      for (const id of addedBlockedBy) enqueue(id, 'blocks', [primaryDisplayId], []);
-      for (const id of removedBlockedBy) enqueue(id, 'blocks', [], [primaryDisplayId]);
-      for (const id of addedBlocks) enqueue(id, 'blocked_by', [primaryDisplayId], []);
-      for (const id of removedBlocks) enqueue(id, 'blocked_by', [], [primaryDisplayId]);
-
-      for (const [fp, fieldMap] of mergedOps) {
-        for (const [field, { add, remove }] of fieldMap) {
-          inverseOps.push({ filePath: fp, field, addIds: add, removeIds: remove });
-        }
-      }
+    const removedIds = [...new Set([...removedBlockedBy, ...removedBlocks])].filter(id => !refMap.has(id));
+    if (removedIds.length > 0) {
+      const removedResolved = await resolveDisplayIds(removedIds);
+      if (!removedResolved.ok) return { ok: false, error: removedResolved.error };
+      for (const r of removedResolved.refs) refMap.set(r.displayId, r);
     }
+
+    inverseOps.push(...computeInverseOps(primaryDisplayId, oldBlockedBy, oldBlocks, newBlockedBy, newBlocks, refMap));
 
     fm.blocks = newBlocks;
     fm.blocked_by = newBlockedBy;

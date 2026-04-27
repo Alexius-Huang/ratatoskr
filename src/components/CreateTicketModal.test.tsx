@@ -16,6 +16,7 @@ vi.mock('../lib/api', async () => {
 import { useCreateTicket } from '../lib/ticketMutations';
 import { useTickets } from '../lib/api';
 import { CreateTicketModal } from './CreateTicketModal';
+import { makeTicketSummary } from '../test/factories';
 
 function renderModal(props: { open: boolean; onClose?: () => void; projectName?: string }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -154,5 +155,71 @@ describe('CreateTicketModal', () => {
     const activeOption = screen.getByRole('option', { name: /Active/ });
     expect(finishedOption).toHaveAttribute('aria-disabled', 'true');
     expect(activeOption).not.toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('CreateTicketModal — dependency persistence', () => {
+  const pickerTicket = makeTicketSummary({ number: 10, displayId: 'RAT-10', title: 'Another ticket', type: 'Task' });
+
+  beforeEach(() => {
+    vi.mocked(useTickets).mockReturnValue({ data: [pickerTicket], isLoading: false } as never);
+    vi.mocked(useCreateTicket).mockReturnValue(makeMutation() as never);
+  });
+
+  it.each([
+    { relationship: 'is blocked by', payloadKey: 'blocked_by' },
+    { relationship: 'blocks', payloadKey: 'blocks' },
+  ])(
+    'should include $payloadKey in the POST payload when the user adds a dependency via picker',
+    async ({ relationship, payloadKey }) => {
+      const user = userEvent.setup();
+      const mutateAsync = vi.fn().mockResolvedValue({ displayId: 'RAT-2', number: 2 });
+      vi.mocked(useCreateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+
+      renderModal({ open: true });
+
+      await user.type(screen.getByLabelText('Title'), 'My new ticket');
+
+      if (relationship !== 'is blocked by') {
+        await user.selectOptions(screen.getByDisplayValue('is blocked by'), relationship);
+      }
+      await user.click(screen.getByPlaceholderText('Search tickets…'));
+      await user.click(screen.getByText('Another ticket'));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Create' }));
+
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ [payloadKey]: ['RAT-10'] }),
+      );
+    },
+  );
+
+  it('should NOT include blocked_by/blocks when both arrays are empty', async () => {
+    const user = userEvent.setup();
+    const mutateAsync = vi.fn().mockResolvedValue({ displayId: 'RAT-2', number: 2 });
+    vi.mocked(useCreateTicket).mockReturnValue(makeMutation({ mutateAsync }) as never);
+
+    renderModal({ open: true });
+    await user.type(screen.getByLabelText('Title'), 'My new ticket');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    const call = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('blocked_by');
+    expect(call).not.toHaveProperty('blocks');
+  });
+
+  it('should display the server\'s invalid-input message in the error banner when the POST rejects', async () => {
+    const user = userEvent.setup();
+    vi.mocked(useCreateTicket).mockReturnValue(
+      makeMutation({ mutateAsync: vi.fn().mockRejectedValue(new Error('Referenced ticket RAT-9999 not found')) }) as never,
+    );
+
+    renderModal({ open: true });
+    await user.type(screen.getByLabelText('Title'), 'My new ticket');
+    await user.click(screen.getByPlaceholderText('Search tickets…'));
+    await user.click(screen.getByText('Another ticket'));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+    expect(await screen.findByText('Referenced ticket RAT-9999 not found')).toBeInTheDocument();
   });
 });

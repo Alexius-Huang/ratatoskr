@@ -124,6 +124,127 @@ describe('createTicket', () => {
 
 // ---------------------------------------------------------------------------
 
+describe('createTicket — blocks / blocked_by', () => {
+  async function makeProjectConfig(projectName: string, prefix: string) {
+    const cfgDir = path.join(tmpRoot, 'projects', projectName, '.meta', 'ratatoskr');
+    await mkdir(cfgDir, { recursive: true });
+    await writeFile(path.join(cfgDir, 'config.json'), JSON.stringify({ prefix }), 'utf8');
+  }
+
+  beforeEach(async () => {
+    await makeProjectConfig('ratatoskr', 'RAT');
+  });
+
+  it.each([
+    { field: 'blocked_by' as const, inverseField: 'blocks' as const, label: 'blocked_by' },
+    { field: 'blocks' as const, inverseField: 'blocked_by' as const, label: 'blocks' },
+  ])(
+    'should write $label to frontmatter and add inverse $inverseField on the referenced ticket',
+    async ({ field, inverseField }) => {
+      await makeTicketFile(tasksPath, 1);
+      const result = await createTicket(PROJECT, PREFIX, {
+        type: 'Task',
+        title: 'New ticket',
+        [field]: ['RAT-1'],
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      const raw = await readFile(path.join(tasksPath, `${result.data.number}.md`), 'utf8');
+      const { data } = matter(raw);
+      expect(data[field]).toEqual(['RAT-1']);
+
+      const raw1 = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+      const { data: fm1 } = matter(raw1);
+      expect(fm1[inverseField]).toContain(result.data.displayId);
+    },
+  );
+
+  it('should write both blocks and blocked_by atomically when both are provided', async () => {
+    await makeTicketFile(tasksPath, 1);
+    await makeTicketFile(tasksPath, 2);
+    const result = await createTicket(PROJECT, PREFIX, {
+      type: 'Task',
+      title: 'New ticket',
+      blocked_by: ['RAT-1'],
+      blocks: ['RAT-2'],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const raw = await readFile(path.join(tasksPath, `${result.data.number}.md`), 'utf8');
+    const { data } = matter(raw);
+    expect(data.blocked_by).toEqual(['RAT-1']);
+    expect(data.blocks).toEqual(['RAT-2']);
+
+    const { data: fm1 } = matter(await readFile(path.join(tasksPath, '1.md'), 'utf8'));
+    expect(fm1.blocks).toContain(result.data.displayId);
+
+    const { data: fm2 } = matter(await readFile(path.join(tasksPath, '2.md'), 'utf8'));
+    expect(fm2.blocked_by).toContain(result.data.displayId);
+  });
+
+  it('should reject and not create the ticket when blocked_by contains an invalid display ID format', async () => {
+    const result = await createTicket(PROJECT, PREFIX, {
+      type: 'Task',
+      title: 'New ticket',
+      blocked_by: ['rat-1'],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe('invalid-input');
+    // Ticket should not have been written (num = 1, no files exist yet)
+    await expect(stat(path.join(tasksPath, '1.md'))).rejects.toThrow();
+  });
+
+  it('should reject and not create the ticket when a referenced ticket does not exist', async () => {
+    const result = await createTicket(PROJECT, PREFIX, {
+      type: 'Task',
+      title: 'New ticket',
+      blocked_by: ['RAT-9999'],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('RAT-9999');
+    }
+    // Primary ticket file should not exist
+    await expect(stat(path.join(tasksPath, '1.md'))).rejects.toThrow();
+  });
+
+  it('should reject and not create the ticket when blocked_by includes the would-be-self displayId', async () => {
+    // With no existing tickets, the new ticket will be RAT-1
+    const result = await createTicket(PROJECT, PREFIX, {
+      type: 'Task',
+      title: 'Self-referencing ticket',
+      blocked_by: ['RAT-1'],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('invalid-input');
+      expect(result.error.message).toContain('cannot reference itself');
+    }
+    await expect(stat(path.join(tasksPath, '1.md'))).rejects.toThrow();
+  });
+
+  it('should not touch any inverse files when both arrays are empty', async () => {
+    await makeTicketFile(tasksPath, 1);
+    const rawBefore = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data: fmBefore } = matter(rawBefore);
+
+    const result = await createTicket(PROJECT, PREFIX, { type: 'Task', title: 'No deps' });
+    expect(result.ok).toBe(true);
+
+    const rawAfter = await readFile(path.join(tasksPath, '1.md'), 'utf8');
+    const { data: fmAfter } = matter(rawAfter);
+    // ticket 1 should be completely untouched
+    expect(fmAfter.updated).toBe(fmBefore.updated);
+    expect(fmAfter.blocks).toBeUndefined();
+    expect(fmAfter.blocked_by).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('updateTicket', () => {
   it('should return not-found for a missing ticket', async () => {
     const result = await updateTicket(PROJECT, PREFIX, 999, { title: 'New' });
