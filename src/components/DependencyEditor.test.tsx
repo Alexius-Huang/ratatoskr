@@ -148,7 +148,7 @@ describe('DependencyEditor', () => {
     expect(onBlockedByChange).toHaveBeenCalledWith(['RAT-1', 'RAT-2']);
   });
 
-  it('should append to an existing blockedBy array without duplicates', async () => {
+  it('should append pending IDs after an existing blockedBy entry', async () => {
     const user = userEvent.setup();
     renderWithProviders(<DependencyEditor {...defaultProps} blockedBy={['RAT-2']} />);
     await user.click(screen.getByPlaceholderText('Search tickets…'));
