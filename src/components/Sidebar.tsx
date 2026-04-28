@@ -92,7 +92,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="shrink-0 border-r border-nord-3 bg-nord-1 h-screen overflow-y-auto overflow-x-hidden flex flex-col relative transition-[width] duration-200 ease-in-out motion-reduce:transition-none motion-reduce:duration-0"
+      className="shrink-0 border-r border-nord-3 bg-nord-1 h-dvh overflow-y-auto overflow-x-hidden flex flex-col relative transition-[width] duration-200 ease-in-out motion-reduce:transition-none motion-reduce:duration-0"
       style={{ width, transition: isDragging ? 'none' : undefined }}
     >
       {/* Header */}

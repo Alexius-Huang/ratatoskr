@@ -16,7 +16,7 @@ export function SetupScreen() {
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-nord-0">
+    <div className="flex h-dvh w-screen items-center justify-center bg-nord-0">
       <div className="bg-nord-1 border border-nord-3 rounded-lg p-8 w-full max-w-lg shadow-xl">
         <h1 className="text-xl font-semibold text-nord-6 mb-1">Welcome to Ratatoskr</h1>
         <p className="text-sm text-nord-4 mb-6">
