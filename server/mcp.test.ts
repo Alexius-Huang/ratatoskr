@@ -282,6 +282,40 @@ describe('mcp tools', () => {
     expect(body.error).toMatch(/Ticket TST-999 not found/);
   });
 
+  it('get_ticket_by_id returns full object for an archived ticket', async () => {
+    await makeTicket(1, { title: 'archived ticket', state: 'DONE' });
+    await archiveTicketHandler({ project: PROJECT, number: 1 });
+    const result = await getTicketByIdHandler({ displayId: `${PREFIX}-1` });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as {
+      number: number;
+      displayId: string;
+      state: string;
+      title: string;
+      project: string;
+    };
+    expect(ticket.number).toBe(1);
+    expect(ticket.displayId).toBe(`${PREFIX}-1`);
+    expect(ticket.state).toBe('DONE');
+    expect(ticket.title).toBe('archived ticket');
+    expect(ticket.project).toBe(PROJECT);
+  });
+
+  it('get_ticket returns full object for an archived ticket', async () => {
+    await makeTicket(1, { title: 'archived via get_ticket', state: 'DONE' });
+    await archiveTicketHandler({ project: PROJECT, number: 1 });
+    const result = await getTicketHandler({ project: PROJECT, number: 1 });
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as {
+      number: number;
+      state: string;
+      title: string;
+    };
+    expect(ticket.number).toBe(1);
+    expect(ticket.state).toBe('DONE');
+    expect(ticket.title).toBe('archived via get_ticket');
+  });
+
   it('get_ticket returns branch and prs when present', async () => {
     await makeTicket(1, {
       branch: 'feature/x',

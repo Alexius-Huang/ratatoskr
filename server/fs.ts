@@ -290,20 +290,34 @@ export async function readTicketDetail(
   num: number,
   prefix: string,
 ): Promise<TicketDetail | null> {
-  const filePath = path.join(tasksDir(projectName), `${num}.md`);
-  const raw = await parseTicketFileRaw(filePath, num, prefix);
+  const raw =
+    (await parseTicketFileRaw(
+      path.join(tasksDir(projectName), `${num}.md`),
+      num,
+      prefix,
+    )) ??
+    (await parseTicketFileRaw(
+      path.join(archiveDir(projectName), `${num}.md`),
+      num,
+      prefix,
+    ));
   if (!raw) return null;
 
   if (
     (raw.summary.type === 'Task' || raw.summary.type === 'Bug') &&
     raw.summary.epic !== undefined
   ) {
-    const epicPath = path.join(tasksDir(projectName), `${raw.summary.epic}.md`);
-    const epicRaw = await parseTicketFileRaw(
-      epicPath,
-      raw.summary.epic,
-      prefix,
-    );
+    const epicRaw =
+      (await parseTicketFileRaw(
+        path.join(tasksDir(projectName), `${raw.summary.epic}.md`),
+        raw.summary.epic,
+        prefix,
+      )) ??
+      (await parseTicketFileRaw(
+        path.join(archiveDir(projectName), `${raw.summary.epic}.md`),
+        raw.summary.epic,
+        prefix,
+      ));
     if (epicRaw && epicRaw.summary.type === 'Epic') {
       raw.summary.epicTitle = epicRaw.summary.title;
       if (epicRaw.summary.color) raw.summary.epicColor = epicRaw.summary.color;
