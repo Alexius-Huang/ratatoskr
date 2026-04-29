@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import { useProjects } from '../lib/api';
 import { SettingsModal } from './SettingsModal';
+import { SidebarHomeRow } from './SidebarHomeRow';
 import { SidebarRow } from './SidebarRow';
 
 const STORAGE_COLLAPSED = 'ratatoskr:sidebar-collapsed';
@@ -138,6 +139,8 @@ export function Sidebar() {
       )}
 
       <ul className="flex-1">
+        <SidebarHomeRow collapsed={collapsed} />
+        <li className="border-b border-nord-3 my-1" aria-hidden="true" />
         {projects?.map((p) => (
           <SidebarRow
             key={p.name}

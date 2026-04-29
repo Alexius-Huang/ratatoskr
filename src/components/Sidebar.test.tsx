@@ -73,4 +73,11 @@ describe('Sidebar', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
     expect(localStorage.getItem('ratatoskr:sidebar-collapsed')).toBe('true');
   });
+
+  it('should render the HOME row above the project list', () => {
+    render();
+    const links = screen.getAllByRole('link');
+    expect(links[0]).toHaveAttribute('href', '/home');
+    expect(links[1]).toHaveAttribute('href', '/projects/ratatoskr/tickets');
+  });
 });
