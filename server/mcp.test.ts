@@ -174,6 +174,82 @@ describe('mcp tools', () => {
     expect(file).toContain('new ticket');
   });
 
+  describe('create_ticket — blocks / blocked_by', () => {
+    it('blocked_by wires dependency and writes inverse blocks on partner', async () => {
+      await makeTicket(1, { title: 'partner ticket' });
+      const result = await createTicketHandler({
+        project: PROJECT,
+        type: 'Task',
+        title: 'dep test',
+        blocked_by: [`${PREFIX}-1`],
+      });
+      expect(result.isError).toBeUndefined();
+      const created = JSON.parse(result.content[0].text) as { number: number; blockedBy: string[] };
+      expect(created.number).toBe(2);
+      expect(created.blockedBy).toEqual([`${PREFIX}-1`]);
+      const raw = await readFile(path.join(tasksDir, '1.md'), 'utf8');
+      const fm = { ...matter(raw).data } as Record<string, unknown>;
+      expect(fm.blocks).toEqual([`${PREFIX}-2`]);
+    });
+
+    it('blocks wires dependency and writes inverse blocked_by on partner', async () => {
+      await makeTicket(1, { title: 'partner ticket' });
+      const result = await createTicketHandler({
+        project: PROJECT,
+        type: 'Task',
+        title: 'dep test',
+        blocks: [`${PREFIX}-1`],
+      });
+      expect(result.isError).toBeUndefined();
+      const created = JSON.parse(result.content[0].text) as { number: number; blocks: string[] };
+      expect(created.number).toBe(2);
+      expect(created.blocks).toEqual([`${PREFIX}-1`]);
+      const raw = await readFile(path.join(tasksDir, '1.md'), 'utf8');
+      const fm = { ...matter(raw).data } as Record<string, unknown>;
+      expect(fm.blocked_by).toEqual([`${PREFIX}-2`]);
+    });
+
+    it('returns isError when blocked_by contains a malformed display ID', async () => {
+      const result = await createTicketHandler({
+        project: PROJECT,
+        type: 'Task',
+        title: 'dep test',
+        blocked_by: ['not-a-ticket'],
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse(result.content[0].text) as { error: string };
+      expect(body.error).toMatch(/invalid display ID/);
+    });
+
+    it('returns isError on self-reference', async () => {
+      await makeTicket(1);
+      const result = await createTicketHandler({
+        project: PROJECT,
+        type: 'Task',
+        title: 'dep test',
+        blocked_by: [`${PREFIX}-2`],
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse(result.content[0].text) as { error: string };
+      expect(body.error).toMatch(/cannot reference itself/);
+    });
+
+    it.each([
+      { field: 'blocked_by' as const, desc: 'blocked_by references non-existent ticket' },
+      { field: 'blocks' as const, desc: 'blocks references non-existent ticket' },
+    ])('returns isError when $desc', async ({ field }) => {
+      const result = await createTicketHandler({
+        project: PROJECT,
+        type: 'Task',
+        title: 'dep test',
+        [field]: [`${PREFIX}-999`],
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse(result.content[0].text) as { error: string };
+      expect(body.error).toMatch(/not found/);
+    });
+  });
+
   it('patch_ticket updates state and bumps updated', async () => {
     await makeTicket(1);
     const before = await getTicketHandler({ project: PROJECT, number: 1 });
