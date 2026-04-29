@@ -65,6 +65,8 @@ export async function createTicketHandler(args: {
   epic?: number;
   body?: string;
   wont_do_reason?: string;
+  blocks?: string[];
+  blocked_by?: string[];
 }): Promise<ToolResult> {
   const { project, ...payload } = args;
   return dispatch(`/api/projects/${encodeURIComponent(project)}/tickets`, {
@@ -303,6 +305,8 @@ export function buildServer(): McpServer {
       epic: z.number().int().positive().optional(),
       body: z.string().optional(),
       wont_do_reason: z.string().optional(),
+      blocks: z.array(z.string()).optional(),
+      blocked_by: z.array(z.string()).optional(),
     },
     async (args) => createTicketHandler(args),
   );
