@@ -8,11 +8,13 @@ import { makeTicketSummary } from '../test/factories';
 
 vi.mock('../lib/api', () => ({
   useTickets: vi.fn(),
+  useArchive: vi.fn(),
 }));
 
-import { useTickets } from '../lib/api';
+import { useTickets, useArchive } from '../lib/api';
 
 const mockUseTickets = vi.mocked(useTickets);
+const mockUseArchive = vi.mocked(useArchive);
 
 const project = { name: 'ratatoskr', config: { prefix: 'RAT' }, hasConfig: true, warnings: [] };
 
@@ -41,6 +43,11 @@ describe('ProjectStatusCard', () => {
       isLoading: false,
       error: null,
     } as unknown as ReturnType<typeof useTickets>);
+    mockUseArchive.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useArchive>);
   });
 
   it('should render the project name and total ticket count (excluding WONT_DO)', () => {
@@ -126,12 +133,43 @@ describe('ProjectStatusCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/projects/ratatoskr');
   });
 
+  it('should include archived tickets in the total count and bar', () => {
+    mockUseTickets.mockReturnValue({
+      data: [makeTicketSummary({ state: 'IN_PROGRESS' })],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useTickets>);
+    mockUseArchive.mockReturnValue({
+      data: [
+        { ...makeTicketSummary({ state: 'DONE' }), archived: '2026-01-02T00:00:00.000Z', body: '' },
+        { ...makeTicketSummary({ state: 'DONE' }), archived: '2026-01-02T00:00:00.000Z', body: '' },
+      ],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useArchive>);
+
+    renderCard();
+    expect(screen.getByText('3 tickets')).toBeInTheDocument();
+    expect(screen.getByText('2 done · 1 in progress · 0 todo')).toBeInTheDocument();
+  });
+
   it('should show "Loading…" in the summary line while tickets are loading', () => {
     mockUseTickets.mockReturnValue({
       data: undefined,
       isLoading: true,
       error: null,
     } as unknown as ReturnType<typeof useTickets>);
+
+    renderCard();
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+  });
+
+  it('should show "Loading…" in the summary line while archive is loading', () => {
+    mockUseArchive.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      error: null,
+    } as unknown as ReturnType<typeof useArchive>);
 
     renderCard();
     expect(screen.getByText('Loading…')).toBeInTheDocument();

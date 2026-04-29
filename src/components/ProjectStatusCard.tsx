@@ -1,15 +1,17 @@
 import { Link } from 'react-router-dom';
 import { Bug } from 'lucide-react';
 import type { ProjectSummary } from '../../server/types';
-import { useTickets } from '../lib/api';
+import { useArchive, useTickets } from '../lib/api';
 import { computeProjectStats } from '../lib/projectStats';
 import { ProjectAvatar } from './ProjectAvatar';
 
 interface Props { project: ProjectSummary }
 
 export function ProjectStatusCard({ project }: Props) {
-  const { data: tickets, isLoading } = useTickets(project.name);
-  const stats = computeProjectStats(tickets ?? []);
+  const { data: tickets, isLoading: ticketsLoading } = useTickets(project.name);
+  const { data: archived, isLoading: archiveLoading } = useArchive(project.name);
+  const isLoading = ticketsLoading || archiveLoading;
+  const stats = computeProjectStats([...(tickets ?? []), ...(archived ?? [])]);
   const denom = stats.total || 1;
   const donePct = (stats.done / denom) * 100;
   const inProgressPct = (stats.inProgress / denom) * 100;
