@@ -112,7 +112,7 @@ This is a one-time step per machine. Subsequent launches via Dock / Spotlight wo
 
 Releases require a **minisign keypair** for Tauri's updater. This is a one-time setup; the private key must live outside the repo.
 
-#### One-time setup
+#### One-time keypair setup
 
 ```sh
 mkdir -p ~/.tauri
@@ -128,19 +128,39 @@ This prints a public key and writes two files:
 
 After generating, paste the public key (the long base64 line printed to stdout, or `cat ~/.tauri/ratatoskr.key.pub`) into `src-tauri/tauri.conf.json` at `plugins.updater.pubkey`, replacing the placeholder `"REPLACE_WITH_PUBKEY_FROM_ratatoskr.key.pub"`. Commit that change.
 
-#### Per-release steps
+#### GitHub Secrets setup (one-time)
 
-1. **Bump version** in `src-tauri/tauri.conf.json` (e.g. `"0.1.0"` → `"0.1.1"`). Commit: `chore: release v0.1.1`.
-2. **Tag and push**: `git tag v0.1.1 && git push && git push --tags`.
-3. **Run the release script** from the project root:
-   ```sh
-   ./scripts/release.sh "What's new in this release."
-   ```
-   The script builds the app, signs the updater artifact, generates `latest.json`, and publishes the GitHub Release automatically.
+Add the signing key and password as repository secrets so the CI workflow can sign updater artifacts:
 
-Requirements for the script: `jq`, `gh` (GitHub CLI), and the signing key at `~/.tauri/ratatoskr.key`.
+```sh
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/ratatoskr.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+```
+
+(You'll be prompted to paste the password interactively.)
+
+#### GitHub Actions (recommended)
+
+Releases are built and published by `.github/workflows/release.yml` on every `v*` tag push. CI runs on `macos-14` (arm64), installs the full toolchain, signs the updater artifact, and attaches `.dmg`, `.app.tar.gz`, `.sig`, and `latest.json` to a published GitHub Release.
+
+Per-release steps:
+
+1. Run `/rat-new-release vX.Y.Z` — bumps the version in `src-tauri/tauri.conf.json`, commits, pushes, and pushes the tag.
+2. CI picks up from the tag push (~10–20 min to build and publish).
+3. Watch progress: `gh run watch --repo Alexius-Huang/ratatoskr`
+4. Fill in release notes after CI publishes: `gh release edit vX.Y.Z --repo Alexius-Huang/ratatoskr --notes "..."`
 
 On the next launch, installed copies will detect the new version and show an Install/Skip dialog automatically.
+
+#### Fallback: local `scripts/release.sh` (deprecated)
+
+**Deprecated** — use the GitHub Actions workflow above. The local script is kept on disk as an emergency fallback (offline / CI unavailable) and will be deleted once CI has shipped several releases successfully.
+
+Requirements: `jq`, `gh` (GitHub CLI), Rust toolchain, Bun, and the signing key at `~/.tauri/ratatoskr.key`.
+
+```sh
+./scripts/release.sh "What's new in this release."
+```
 
 ### Signing / notarization (future)
 
