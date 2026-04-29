@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { EmptyState } from './components/EmptyState';
+import { HomePane } from './components/HomePane';
 import { MainPane } from './components/MainPane';
 import { NotFound } from './components/NotFound';
 import { SetupScreen } from './components/SetupScreen';
@@ -24,6 +25,7 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="setup" element={<Navigate to="/" replace />} />
         <Route index element={<EmptyState />} />
+        <Route path="home" element={<HomePane />} />
         <Route
           path="projects/:name"
           element={<Navigate to="tickets" replace />}
