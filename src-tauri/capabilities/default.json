@@ -10,6 +10,7 @@
     "shell:allow-execute",
     "shell:allow-spawn",
     "shell:allow-open",
+    "opener:default",
     "updater:default",
     "dialog:default"
   ]
