@@ -233,6 +233,21 @@ describe('mcp tools', () => {
       const body = JSON.parse(result.content[0].text) as { error: string };
       expect(body.error).toMatch(/cannot reference itself/);
     });
+
+    it.each([
+      { field: 'blocked_by' as const, desc: 'blocked_by references non-existent ticket' },
+      { field: 'blocks' as const, desc: 'blocks references non-existent ticket' },
+    ])('returns isError when $desc', async ({ field }) => {
+      const result = await createTicketHandler({
+        project: PROJECT,
+        type: 'Task',
+        title: 'dep test',
+        [field]: [`${PREFIX}-999`],
+      });
+      expect(result.isError).toBe(true);
+      const body = JSON.parse(result.content[0].text) as { error: string };
+      expect(body.error).toMatch(/not found/);
+    });
   });
 
   it('patch_ticket updates state and bumps updated', async () => {
