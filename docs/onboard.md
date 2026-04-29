@@ -152,16 +152,6 @@ Per-release steps:
 
 On the next launch, installed copies will detect the new version and show an Install/Skip dialog automatically.
 
-#### Fallback: local `scripts/release.sh` (deprecated)
-
-**Deprecated** — use the GitHub Actions workflow above. The local script is kept on disk as an emergency fallback (offline / CI unavailable) and will be deleted once CI has shipped several releases successfully.
-
-Requirements: `jq`, `gh` (GitHub CLI), Rust toolchain, Bun, and the signing key at `~/.tauri/ratatoskr.key`.
-
-```sh
-./scripts/release.sh "What's new in this release."
-```
-
 ### Signing / notarization (future)
 
 To distribute without the Gatekeeper prompt, you need an Apple Developer ID certificate. Once available:
