@@ -134,10 +134,10 @@ Add the signing key and password as repository secrets so the CI workflow can si
 
 ```sh
 gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/ratatoskr.key
-printf '' | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 ```
 
-(The password is empty — the keypair was generated without one.)
+(You'll be prompted to paste the password interactively.)
 
 #### GitHub Actions (recommended)
 
