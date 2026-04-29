@@ -17,7 +17,6 @@ export function SidebarHomeRow({ collapsed }: Props) {
       <Link
         to="/home"
         title={collapsed ? 'Home' : undefined}
-        aria-label="Home"
         className={`${base} ${isActive ? activeClass : inactiveClass} ${collapsed ? 'justify-center px-0' : 'px-3'}`}
       >
         <div

@@ -43,7 +43,7 @@ export function ProjectStatusCard({ project }: Props) {
         className="mt-3 h-2 bg-nord-3 rounded overflow-hidden flex"
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={stats.total}
+        aria-valuemax={Math.max(stats.total, 1)}
         aria-valuenow={stats.done}
       >
         {donePct > 0 && <div style={{ width: `${donePct}%` }} className="bg-nord-14" />}
