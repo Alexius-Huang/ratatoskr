@@ -2,12 +2,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfigResponse } from '../lib/api';
+import { GITHUB_TOKEN_SENTINEL } from '../lib/githubToken';
 import { SettingsModal } from './SettingsModal';
 
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}));
+
 function mockConfig(config: AppConfigResponse) {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
     new Response(JSON.stringify(config), {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -29,6 +34,7 @@ function renderModal(onClose = vi.fn()) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
 });
 
 describe('SettingsModal', () => {
@@ -89,5 +95,98 @@ describe('SettingsModal', () => {
     expect(onClose).toHaveBeenCalled();
     const putCalls = fetchSpy.mock.calls.filter(([, init]) => (init as RequestInit)?.method === 'PUT');
     expect(putCalls).toHaveLength(0);
+  });
+});
+
+describe('SettingsModal — GitHub Token field', () => {
+  beforeEach(() => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    mockConfig({ configured: true, workspaceRoot: '/ws', source: 'file', user: null });
+  });
+
+  it('should render a GitHub Token password input', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(null);
+    renderModal();
+    await waitFor(() => {
+      expect(screen.getByText(/github token/i)).toBeDefined();
+    });
+    const tokenInput = screen.getByPlaceholderText(/ghp_/i) as HTMLInputElement;
+    expect(tokenInput.type).toBe('password');
+  });
+
+  it('should pre-fill token field with sentinel when a token is stored', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue('ghp_existing_token');
+    renderModal();
+    await waitFor(() => {
+      const tokenInput = screen.getByPlaceholderText(/ghp_/i) as HTMLInputElement;
+      expect(tokenInput.value).toBe(GITHUB_TOKEN_SENTINEL);
+    });
+  });
+
+  it('should leave token field empty when no token is stored', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(null);
+    renderModal();
+    await waitFor(() => {
+      const tokenInput = screen.getByPlaceholderText(/ghp_/i) as HTMLInputElement;
+      expect(tokenInput.value).toBe('');
+    });
+  });
+
+  it.each([
+    ['new token typed', 'ghp_newtoken', 'set_github_token', { token: 'ghp_newtoken' }],
+    ['field cleared', '', 'delete_github_token', undefined],
+  ])('should call %s → %s on save', async (_label, inputValue, expectedCommand, expectedArgs) => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    const { onClose } = renderModal();
+    // Wait for workspace path to load (proves config query completed and path state is set)
+    await waitFor(() => {
+      const input = screen.getByPlaceholderText(/\/users\/you\/workspace/i) as HTMLInputElement;
+      expect(input.value).toBe('/ws');
+    });
+    vi.mocked(invoke).mockClear();
+
+    const tokenInput = screen.getByPlaceholderText(/ghp_/i);
+    await userEvent.clear(tokenInput);
+    if (inputValue) await userEvent.type(tokenInput, inputValue);
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+
+    const calls = vi.mocked(invoke).mock.calls;
+    const match = calls.find(([cmd]) => cmd === expectedCommand);
+    expect(match).toBeDefined();
+    if (expectedArgs !== undefined) {
+      expect(match?.[1]).toEqual(expectedArgs);
+    }
+  });
+
+  it('should not call set_github_token when token is unchanged (sentinel)', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue('ghp_existing_token');
+
+    const { onClose } = renderModal();
+
+    // Wait for both fields to load before interacting
+    await waitFor(() => {
+      const pathInput = screen.getByPlaceholderText(/\/users\/you\/workspace/i) as HTMLInputElement;
+      expect(pathInput.value).toBe('/ws');
+      const tokenInput = screen.getByPlaceholderText(/ghp_/i) as HTMLInputElement;
+      expect(tokenInput.value).toBe(GITHUB_TOKEN_SENTINEL);
+    });
+
+    // Clear call history so we only track invoke calls made during handleSubmit
+    vi.mocked(invoke).mockClear();
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+
+    const invokeCallCommands = vi.mocked(invoke).mock.calls.map(([cmd]) => cmd);
+    expect(invokeCallCommands).not.toContain('set_github_token');
+    expect(invokeCallCommands).not.toContain('delete_github_token');
   });
 });
