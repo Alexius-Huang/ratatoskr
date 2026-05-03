@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed, Hand, Map, Sparkles, Zap } from 'lucide-react';
+import { CalendarDays, Check, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed, Hand, Map, Sparkles, Zap } from 'lucide-react';
 import { useState } from 'react';
 import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
@@ -14,6 +14,7 @@ import { DependencySection } from './DependencySection';
 import { extractPrefix } from '../lib/ticketId';
 import { Modal } from './Modal';
 import { Button } from './ui/Button';
+import { useMergePullRequest, parsePrPathOrUrl, mergeErrorMessage } from '../lib/mergePullRequest';
 
 function resolutionIcon(r: string): ElementType {
   switch (r) {
@@ -66,6 +67,13 @@ export function TicketDetailView({
   epicLabel,
 }: Props) {
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
+  const merge = useMergePullRequest({ projectName, ticketNumber: data.number });
+  const prTarget = parsePrPathOrUrl(data.pullRequests?.[0]?.url ?? data.prs?.[0] ?? '');
+  const MergeIcon = merge.isSuccess ? Check : GitMerge;
+  const mergeLabel = merge.isPending ? 'Merging…' : merge.isSuccess ? 'Merged' : 'Merge';
+  const mergeButtonClass = merge.isSuccess
+    ? 'flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-nord-14/40 bg-nord-14/20 text-nord-14 font-medium'
+    : 'flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-nord-9/40 bg-nord-9/10 text-nord-9 hover:bg-nord-9/20 font-medium';
   const currentPrefix = extractPrefix(data.displayId);
   const hasGitContext =
     !!data.branch ||
@@ -119,7 +127,8 @@ export function TicketDetailView({
             </div>
           )}
           {hasGitContext && (
-          <div className="flex flex-wrap gap-2 mt-3">
+          <div className="mt-3">
+          <div className="flex flex-wrap gap-2">
             {data.pullRequests && data.pullRequests.length > 0
               ? data.pullRequests.map((pr) => {
                   const Icon = prStateIcon(pr.state);
@@ -128,12 +137,18 @@ export function TicketDetailView({
                       {pr.state === 'OPEN' && (
                         <button
                           type="button"
-                          onClick={() => { if (!data.isReviewed) setShowMergeConfirm(true); }}
+                          onClick={() => {
+                            const target = parsePrPathOrUrl(pr.url);
+                            if (!target || merge.isPending || merge.isSuccess) return;
+                            if (data.isReviewed) merge.mutate(target);
+                            else setShowMergeConfirm(true);
+                          }}
+                          disabled={merge.isPending || merge.isSuccess}
                           aria-label="Merge pull request"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-nord-9/40 bg-nord-9/10 text-nord-9 hover:bg-nord-9/20 font-medium"
+                          className={mergeButtonClass}
                         >
-                          <GitMerge size={12} />
-                          Merge
+                          <MergeIcon size={12} />
+                          {mergeLabel}
                         </button>
                       )}
                       <button
@@ -156,12 +171,18 @@ export function TicketDetailView({
                     <div key={prPath} className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => { if (!data.isReviewed) setShowMergeConfirm(true); }}
+                        onClick={() => {
+                          const target = parsePrPathOrUrl(prPath);
+                          if (!target || merge.isPending || merge.isSuccess) return;
+                          if (data.isReviewed) merge.mutate(target);
+                          else setShowMergeConfirm(true);
+                        }}
+                        disabled={merge.isPending || merge.isSuccess}
                         aria-label="Merge pull request"
-                        className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-nord-9/40 bg-nord-9/10 text-nord-9 hover:bg-nord-9/20 font-medium"
+                        className={mergeButtonClass}
                       >
-                        <GitMerge size={12} />
-                        Merge
+                        <MergeIcon size={12} />
+                        {mergeLabel}
                       </button>
                       <button
                         type="button"
@@ -190,6 +211,12 @@ export function TicketDetailView({
                 AI Reviewed
               </div>
             )}
+          </div>
+          {merge.error && (
+            <div className="mt-2 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
+              {mergeErrorMessage(merge.error)}
+            </div>
+          )}
           </div>
           )}
         </div>
@@ -223,7 +250,10 @@ export function TicketDetailView({
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowMergeConfirm(false)}>Cancel</Button>
-            <Button variant="primary" onClick={() => setShowMergeConfirm(false)}>Merge</Button>
+            <Button variant="primary" onClick={() => {
+              if (prTarget) merge.mutate(prTarget);
+              setShowMergeConfirm(false);
+            }}>Merge</Button>
           </>
         }
       >
