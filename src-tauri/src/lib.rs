@@ -1,3 +1,5 @@
+mod commands;
+
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -63,7 +65,7 @@ pub fn run() {
   let child_slot_setup = child_slot.clone();
 
   let app = tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![])
+    .invoke_handler(tauri::generate_handler![commands::launch_claude_skill])
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
