@@ -89,7 +89,7 @@ describe('useMergePullRequest', () => {
     global.fetch = vi.fn().mockResolvedValue({
       status: 405,
       json: vi.fn().mockResolvedValue({}),
-    });
+    }) as unknown as typeof fetch;
     const { result } = renderHook(
       () => useMergePullRequest({ projectName: 'test', ticketNumber: 1 }),
       { wrapper: createWrapper() },
@@ -104,7 +104,7 @@ describe('useMergePullRequest', () => {
     global.fetch = vi.fn().mockResolvedValue({
       status: 200,
       json: vi.fn().mockResolvedValue({ sha: 'abc123', merged: true }),
-    });
+    }) as unknown as typeof fetch;
     const { result } = renderHook(
       () => useMergePullRequest({ projectName: 'test', ticketNumber: 1 }),
       { wrapper: createWrapper() },
