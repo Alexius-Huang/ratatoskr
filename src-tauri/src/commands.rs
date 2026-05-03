@@ -87,12 +87,13 @@ fn flags_for(mode: &Mode) -> (&'static str, &'static str) {
 fn build_applescript(project_path: &str, ticket_id: &str, mode: &Mode) -> String {
     let (model, skill) = flags_for(mode);
     let escaped = project_path.replace('\\', "\\\\").replace('"', "\\\"");
-    // No `activate`: do script creates a new window that naturally appears in front;
-    // activate would also surface any pre-existing Terminal windows the user didn't ask for.
+    // iTerm2: create window with default profile so the user's dark theme is used.
+    // Terminal.app's do script always uses the Default profile which may differ from the
+    // active profile and causes Claude Code's TUI to render with wrong background colors.
     // PATH prefix: ~/.local/bin is where Claude Code CLI installs but may not reach new
-    // Terminal windows opened via do script (envman hook that adds it isn't always sourced).
+    // shell sessions opened via AppleScript (envman hook that adds it isn't always sourced).
     format!(
-        "tell application \"Terminal\"\n  do script \"export PATH=$HOME/.local/bin:$PATH; cd \" & quoted form of \"{escaped}\" & \" && claude --model {model} --permission-mode acceptEdits '/{skill} {ticket_id} --exit-after-complete'\"\nend tell"
+        "tell application \"iTerm\"\n  create window with default profile\n  tell current session of current window\n    write text \"export PATH=$HOME/.local/bin:$PATH; cd \" & quoted form of \"{escaped}\" & \" && claude --model {model} --permission-mode acceptEdits '/{skill} {ticket_id} --exit-after-complete'\"\n  end tell\nend tell"
     )
 }
 
@@ -174,8 +175,8 @@ mod tests {
     #[test]
     fn applescript_plan() {
         let script = build_applescript("/tmp/foo", "RAT-1", &Mode::Plan);
-        assert!(script.contains("tell application \"Terminal\""));
-        assert!(!script.contains("activate"), "activate must be absent to avoid surfacing existing windows");
+        assert!(script.contains("tell application \"iTerm\""));
+        assert!(script.contains("create window with default profile"));
         assert!(script.contains("PATH=$HOME/.local/bin:$PATH"));
         assert!(script.contains("claude --model claude-opus-4-7"));
         assert!(script.contains("--permission-mode acceptEdits"));
