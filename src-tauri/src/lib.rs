@@ -1,3 +1,5 @@
+mod commands;
+
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -63,7 +65,7 @@ pub fn run() {
   let child_slot_setup = child_slot.clone();
 
   let app = tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![])
+    .invoke_handler(tauri::generate_handler![commands::launch_claude_skill])
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
@@ -71,6 +73,9 @@ pub fn run() {
     .setup(move |app| {
       // In dev mode, the window points at the Vite dev server (devUrl) — no sidecar or update check needed.
       if cfg!(debug_assertions) {
+        if let Some(win) = app.get_webview_window("main") {
+          let _ = win.show();
+        }
         return Ok(());
       }
 
@@ -138,7 +143,8 @@ pub fn run() {
                 // and the kernel accepting connections).
                 if wait_for_port_ready("127.0.0.1", 17653, Duration::from_secs(3)) {
                   if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.reload();
+                    let sidecar_url = tauri::Url::parse("http://localhost:17653").expect("sidecar url");
+                    let _ = win.navigate(sidecar_url);
                     eprintln!("[boot] sidecar ready, webview reload triggered");
                   }
                   // Wait for the WebView to complete its reload before revealing the window.
