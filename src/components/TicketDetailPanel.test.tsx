@@ -18,6 +18,7 @@ vi.mock('../lib/api', async (importActual) => {
 
 vi.mock('../lib/ticketMutations', () => ({
   useArchiveTicket: vi.fn(),
+  useUpdateTicket: vi.fn(() => ({ mutateAsync: vi.fn().mockResolvedValue({}) })),
 }));
 
 vi.mock('./EditTicketModal', () => ({
