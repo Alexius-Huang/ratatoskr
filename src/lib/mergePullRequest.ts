@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
 import type { UseMutationResult } from '@tanstack/react-query';
-import { readGithubToken } from './githubToken';
 import { useUpdateTicket } from './ticketMutations';
 
 export function parsePrPathOrUrl(input: string): { owner: string; repo: string; pullNumber: number } | null {
@@ -19,22 +18,6 @@ export class MergeError extends Error {
     this.kind = kind;
     this.status = status;
     this.name = 'MergeError';
-  }
-}
-
-export function mapMergeError(status: number, body?: { message?: string }): MergeError {
-  switch (status) {
-    case 401:
-    case 403:
-      return new MergeError('unauthorized', status);
-    case 404:
-    case 422:
-      return new MergeError('gone', status);
-    case 405:
-    case 409:
-      return new MergeError('not-mergeable', status);
-    default:
-      return new MergeError('unknown', status, body?.message);
   }
 }
 
@@ -69,24 +52,13 @@ export function useMergePullRequest({
 
   return useMutation<MergeResult, MergeError, MergeTarget>({
     mutationFn: async ({ owner, repo, pullNumber }) => {
-      const token = await readGithubToken();
-      if (!token) throw new MergeError('no-token');
-
       let res: Response;
       try {
-        res = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}/merge`,
-          {
-            method: 'PUT',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/vnd.github+json',
-              'Content-Type': 'application/json',
-              'X-GitHub-Api-Version': '2022-11-28',
-            },
-            body: JSON.stringify({ merge_method: 'squash' }),
-          },
-        );
+        res = await fetch('/api/github/merge', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ owner, repo, pullNumber }),
+        });
       } catch {
         throw new MergeError('network');
       }
@@ -95,9 +67,9 @@ export function useMergePullRequest({
         return res.json() as Promise<MergeResult>;
       }
 
-      let body: { message?: string } | undefined;
-      try { body = await res.json() as { message?: string }; } catch { /* ignore */ }
-      throw mapMergeError(res.status, body);
+      let envelope: { kind?: MergeErrorKind; message?: string } = {};
+      try { envelope = await res.json() as { kind?: MergeErrorKind; message?: string }; } catch { /* ignore */ }
+      throw new MergeError(envelope.kind ?? 'unknown', res.status, envelope.message);
     },
     onSuccess: async () => {
       await updateTicket.mutateAsync({ state: 'DONE' });

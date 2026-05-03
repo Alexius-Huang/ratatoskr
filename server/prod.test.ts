@@ -246,6 +246,118 @@ describe('GET /api/projects/:name/tickets/:number/comments', () => {
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+
+describe('GET /api/github-token', () => {
+  it('should return { configured: false } when no token file exists', async () => {
+    const res = await app.request('/api/github-token');
+    expect(res.status).toBe(200);
+    const body = await res.json() as { configured: boolean };
+    expect(body.configured).toBe(false);
+  });
+});
+
+describe('PUT /api/github-token', () => {
+  it('should write the file, set mode 0600, and return { configured: true }', async () => {
+    const res = await app.request('/api/github-token', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: 'ghp_test_token' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { configured: boolean };
+    expect(body.configured).toBe(true);
+
+    const { stat: statFn } = await import('node:fs/promises');
+    const { getTokenFilePath } = await import('./githubToken');
+    const s = await statFn(getTokenFilePath());
+    expect(s.mode & 0o777).toBe(0o600);
+  });
+
+  it('should return { configured: true } on a subsequent GET after PUT', async () => {
+    await app.request('/api/github-token', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: 'ghp_test' }),
+    });
+    const res = await app.request('/api/github-token');
+    expect(res.status).toBe(200);
+    const body = await res.json() as { configured: boolean };
+    expect(body.configured).toBe(true);
+  });
+
+  it.each([
+    ['empty token', JSON.stringify({ token: '' }), 'token must be a non-empty string'],
+    ['missing token field', JSON.stringify({}), 'token must be a non-empty string'],
+    ['malformed JSON', 'not-json', 'Invalid JSON body'],
+  ])('should return 400 on %s', async (_desc, requestBody, expectedError) => {
+    const res = await app.request('/api/github-token', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBody,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe(expectedError);
+  });
+});
+
+describe('DELETE /api/github-token', () => {
+  it('should remove the token file and return { configured: false }', async () => {
+    await app.request('/api/github-token', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: 'ghp_to_delete' }),
+    });
+    const res = await app.request('/api/github-token', { method: 'DELETE' });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { configured: boolean };
+    expect(body.configured).toBe(false);
+
+    const checkRes = await app.request('/api/github-token');
+    const checkBody = await checkRes.json() as { configured: boolean };
+    expect(checkBody.configured).toBe(false);
+  });
+
+  it('should be idempotent — deleting when no file exists returns 200', async () => {
+    const res1 = await app.request('/api/github-token', { method: 'DELETE' });
+    expect(res1.status).toBe(200);
+    const res2 = await app.request('/api/github-token', { method: 'DELETE' });
+    expect(res2.status).toBe(200);
+  });
+});
+
+describe('POST /api/github/merge', () => {
+  it('should return 412 with kind no-token when no token is configured', async () => {
+    const res = await app.request('/api/github/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner: 'acme', repo: 'app', pullNumber: 1 }),
+    });
+    expect(res.status).toBe(412);
+    const body = await res.json() as { kind: string };
+    expect(body.kind).toBe('no-token');
+  });
+
+  it.each([
+    ['missing owner', { repo: 'app', pullNumber: 1 }, 'owner must be a non-empty string'],
+    ['missing repo', { owner: 'o', pullNumber: 1 }, 'repo must be a non-empty string'],
+    ['missing pullNumber', { owner: 'o', repo: 'r' }, 'pullNumber must be a positive integer'],
+    ['pullNumber is string', { owner: 'o', repo: 'r', pullNumber: '1' }, 'pullNumber must be a positive integer'],
+  ])('should return 400 on %s', async (_desc, payload, expectedError) => {
+    const res = await app.request('/api/github/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe(expectedError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
 describe('POST /api/projects/:name/tickets/:number/comments', () => {
   const PROJECT = 'myproj';
   const TICKET = 12;

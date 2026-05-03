@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppConfig, useUpdateAppConfig } from '../lib/api';
-import { GITHUB_TOKEN_SENTINEL, useGithubToken, useSaveGithubToken } from '../lib/githubToken';
+import { GITHUB_TOKEN_SENTINEL, useGithubTokenConfigured, useSaveGithubToken } from '../lib/githubToken';
 import { Button } from './ui/Button';
 import { Modal } from './Modal';
 
@@ -14,18 +14,18 @@ export function SettingsModal({ onClose }: Props) {
   const [path, setPath] = useState(config?.workspaceRoot ?? '');
   const isEnvControlled = config?.source === 'env';
 
-  const { data: storedToken } = useGithubToken();
+  const { data: tokenStatus } = useGithubTokenConfigured();
   const saveToken = useSaveGithubToken();
   const [tokenValue, setTokenValue] = useState('');
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPath(config?.workspaceRoot ?? ''); }, [config?.workspaceRoot]);
 
-  // Pre-fill with sentinel once we know whether a token is stored.
+  // Pre-fill with sentinel once we know whether a token is configured.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    setTokenValue(storedToken ? GITHUB_TOKEN_SENTINEL : '');
-  }, [storedToken]);
+    setTokenValue(tokenStatus?.configured ? GITHUB_TOKEN_SENTINEL : '');
+  }, [tokenStatus?.configured]);
 
   const handleSubmit = async () => {
     const trimmed = path.trim();

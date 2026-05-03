@@ -1,24 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from './api';
 
-// Sentinel used in the SettingsModal input to indicate a token is stored without
-// echoing the actual value. The component checks for this string to decide whether
-// to skip the update on save.
 export const GITHUB_TOKEN_SENTINEL = '__stored__';
 
-function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
-export async function readGithubToken(): Promise<string | null> {
-  if (!isTauri()) return null;
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke<string | null>('get_github_token');
-}
-
-export function useGithubToken() {
+export function useGithubTokenConfigured() {
   return useQuery({
     queryKey: ['github-token'],
-    queryFn: readGithubToken,
+    queryFn: () => apiFetch<{ configured: boolean }>('/api/github-token'),
     staleTime: Infinity,
   });
 }
@@ -27,12 +15,13 @@ export function useSaveGithubToken() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (token: string | null) => {
-      if (!isTauri()) return;
-      const { invoke } = await import('@tauri-apps/api/core');
-      if (token) {
-        await invoke('set_github_token', { token });
+      if (token === null) {
+        await apiFetch('/api/github-token', { method: 'DELETE' });
       } else {
-        await invoke('delete_github_token');
+        await apiFetch('/api/github-token', {
+          method: 'PUT',
+          body: JSON.stringify({ token }),
+        });
       }
     },
     onSuccess: () => {
