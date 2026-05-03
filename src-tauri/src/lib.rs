@@ -7,35 +7,6 @@ use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_updater::UpdaterExt;
 
-const KEYRING_SERVICE: &str = "ratatoskr";
-const KEYRING_USERNAME: &str = "github_token";
-
-#[tauri::command]
-fn get_github_token() -> Option<String> {
-  keyring::Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)
-    .ok()
-    .and_then(|e| e.get_password().ok())
-}
-
-#[tauri::command]
-fn set_github_token(token: String) -> Result<(), String> {
-  keyring::Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)
-    .map_err(|e| e.to_string())?
-    .set_password(&token)
-    .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn delete_github_token() -> Result<(), String> {
-  let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USERNAME)
-    .map_err(|e| e.to_string())?;
-  match entry.delete_credential() {
-    Ok(()) => Ok(()),
-    Err(keyring::Error::NoEntry) => Ok(()),
-    Err(e) => Err(e.to_string()),
-  }
-}
-
 fn kill_child(slot: &Arc<Mutex<Option<tauri_plugin_shell::process::CommandChild>>>) {
   if let Ok(mut guard) = slot.lock() {
     if let Some(child) = guard.take() {
@@ -92,11 +63,7 @@ pub fn run() {
   let child_slot_setup = child_slot.clone();
 
   let app = tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![
-      get_github_token,
-      set_github_token,
-      delete_github_token
-    ])
+    .invoke_handler(tauri::generate_handler![])
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_updater::Builder::new().build())

@@ -24,6 +24,8 @@ import {
   unarchiveTicket,
   updateTicket,
 } from './writeFs';
+import { deleteToken, readToken, tokenExists, writeToken } from './githubToken';
+import { mergePullRequest } from './githubMerge';
 
 const VALID_TYPES: readonly TicketType[] = ['Task', 'Epic', 'Bug'];
 
@@ -60,6 +62,52 @@ app.put('/api/config', async (c) => {
   }
   writeAppConfig({ workspaceRoot: candidate });
   return c.json({ configured: true, workspaceRoot: candidate, source: getWorkspaceRootSource() });
+});
+
+app.get('/api/github-token', async (c) => {
+  return c.json({ configured: await tokenExists() });
+});
+
+app.put('/api/github-token', async (c) => {
+  const body = await parseJsonBody(c);
+  const token = (body as { token?: unknown })?.token;
+  if (typeof token !== 'string' || token.length === 0) {
+    return c.json({ error: 'token must be a non-empty string' }, 400);
+  }
+  await writeToken(token);
+  return c.json({ configured: true });
+});
+
+app.delete('/api/github-token', async (c) => {
+  await deleteToken();
+  return c.json({ configured: false });
+});
+
+app.post('/api/github/merge', async (c) => {
+  const body = await parseJsonBody(c);
+  const b = body as { owner?: unknown; repo?: unknown; pullNumber?: unknown; mergeMethod?: unknown };
+  if (typeof b.owner !== 'string' || b.owner.length === 0) {
+    return c.json({ error: 'owner must be a non-empty string' }, 400);
+  }
+  if (typeof b.repo !== 'string' || b.repo.length === 0) {
+    return c.json({ error: 'repo must be a non-empty string' }, 400);
+  }
+  if (typeof b.pullNumber !== 'number' || !Number.isInteger(b.pullNumber) || b.pullNumber <= 0) {
+    return c.json({ error: 'pullNumber must be a positive integer' }, 400);
+  }
+  const mergeMethod = b.mergeMethod as 'squash' | 'rebase' | 'merge' | undefined;
+  if (mergeMethod !== undefined && !['squash', 'rebase', 'merge'].includes(mergeMethod)) {
+    return c.json({ error: 'mergeMethod must be squash, rebase, or merge' }, 400);
+  }
+  const token = await readToken();
+  const result = await mergePullRequest(
+    { owner: b.owner, repo: b.repo, pullNumber: b.pullNumber, mergeMethod },
+    { token },
+  );
+  if (!result.ok) {
+    return c.json(result.envelope, result.status as Parameters<typeof c.json>[1]);
+  }
+  return c.json({ sha: result.sha, merged: true });
 });
 
 app.get('/api/projects', async (c) => {
