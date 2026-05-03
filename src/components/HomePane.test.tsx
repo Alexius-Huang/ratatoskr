@@ -8,12 +8,14 @@ import { HomePane } from './HomePane';
 vi.mock('../lib/api', () => ({
   useProjects: vi.fn(),
   useTickets: vi.fn(),
+  useArchive: vi.fn(),
 }));
 
-import { useProjects, useTickets } from '../lib/api';
+import { useProjects, useTickets, useArchive } from '../lib/api';
 
 const mockUseProjects = vi.mocked(useProjects);
 const mockUseTickets = vi.mocked(useTickets);
+const mockUseArchive = vi.mocked(useArchive);
 
 const project1 = { name: 'alpha', config: { prefix: 'ALP' }, hasConfig: true, warnings: [] };
 const project2 = { name: 'beta', config: { prefix: 'BET' }, hasConfig: true, warnings: [] };
@@ -39,6 +41,11 @@ describe('HomePane', () => {
       isLoading: false,
       error: null,
     } as unknown as ReturnType<typeof useTickets>);
+    mockUseArchive.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useArchive>);
   });
 
   it('should render one card per project in projects-list order', () => {
