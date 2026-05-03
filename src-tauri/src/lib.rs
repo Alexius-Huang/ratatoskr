@@ -143,7 +143,8 @@ pub fn run() {
                 // and the kernel accepting connections).
                 if wait_for_port_ready("127.0.0.1", 17653, Duration::from_secs(3)) {
                   if let Some(win) = handle.get_webview_window("main") {
-                    let _ = win.reload();
+                    let sidecar_url = tauri::Url::parse("http://localhost:17653").expect("sidecar url");
+                    let _ = win.navigate(sidecar_url);
                     eprintln!("[boot] sidecar ready, webview reload triggered");
                   }
                   // Wait for the WebView to complete its reload before revealing the window.
