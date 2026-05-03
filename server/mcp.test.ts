@@ -407,6 +407,29 @@ describe('mcp tools', () => {
     expect(ticket.prs).toEqual(['owner/repo/pull/7']);
   });
 
+  it.each([
+    {
+      desc: 'get_ticket returns comments: [] when no comments exist',
+      getResult: async () => {
+        await makeTicket(1);
+        return getTicketHandler({ project: PROJECT, number: 1 });
+      },
+    },
+    {
+      desc: 'get_ticket_by_id returns comments: [] when no comments exist',
+      getResult: async () => {
+        await makeTicket(1);
+        return getTicketByIdHandler({ displayId: `${PREFIX}-1` });
+      },
+    },
+  ])('$desc', async ({ getResult }) => {
+    const result = await getResult();
+    expect(result.isError).toBeUndefined();
+    const ticket = JSON.parse(result.content[0].text) as { comments: unknown };
+    expect(Array.isArray(ticket.comments)).toBe(true);
+    expect(ticket.comments).toHaveLength(0);
+  });
+
   it('get_ticket includes inline comments sorted by n', async () => {
     await makeTicket(1);
     await seedComment(1, 2, { author: 'alice', display_name: 'Alice' });
