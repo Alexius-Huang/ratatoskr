@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { makeTicketDetail } from '../test/factories';
 import { renderWithProviders } from '../test/renderWithProviders';
@@ -79,5 +80,68 @@ describe('TicketDetailView — AI Reviewed badge', () => {
       />,
     );
     expect(screen.getByText('AI Reviewed')).toBeInTheDocument();
+  });
+});
+
+describe('TicketDetailView — Merge button visibility', () => {
+  it.each([
+    { state: 'OPEN',   visible: true,  label: 'OPEN' },
+    { state: 'MERGED', visible: false, label: 'MERGED' },
+    { state: 'CLOSED', visible: false, label: 'CLOSED' },
+  ])('pullRequests state=$label → Merge button visible=$visible', ({ state, visible }) => {
+    renderWithProviders(
+      <TicketDetailView
+        {...defaultProps}
+        data={makeTicketDetail({
+          pullRequests: [{ url: 'https://github.com/o/r/pull/1', number: 1, title: 'fix', state }],
+        })}
+      />,
+    );
+    const btn = screen.queryByRole('button', { name: 'Merge pull request' });
+    if (visible) expect(btn).toBeInTheDocument();
+    else expect(btn).not.toBeInTheDocument();
+  });
+
+  it('shows Merge button for legacy prs', () => {
+    renderWithProviders(
+      <TicketDetailView
+        {...defaultProps}
+        data={makeTicketDetail({ prs: ['Alexius-Huang/ratatoskr/pull/42'] })}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Merge pull request' })).toBeInTheDocument();
+  });
+
+  it('does not show Merge button when no PRs and no branch', () => {
+    renderWithProviders(
+      <TicketDetailView
+        {...defaultProps}
+        data={makeTicketDetail()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Merge pull request' })).not.toBeInTheDocument();
+  });
+});
+
+describe('TicketDetailView — Merge button click behavior', () => {
+  it.each([
+    { isReviewed: false as const,     dialogShown: true,  label: 'false' },
+    { isReviewed: undefined,          dialogShown: true,  label: 'undefined' },
+    { isReviewed: true as const,      dialogShown: false, label: 'true' },
+  ])('isReviewed=$label → confirmation dialog shown=$dialogShown', async ({ isReviewed, dialogShown }) => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <TicketDetailView
+        {...defaultProps}
+        data={makeTicketDetail({
+          pullRequests: [{ url: 'https://github.com/o/r/pull/1', number: 1, title: 'fix', state: 'OPEN' }],
+          isReviewed,
+        })}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Merge pull request' }));
+    const dialog = screen.queryByText('This PR has not been AI-reviewed. Merge anyway?');
+    if (dialogShown) expect(dialog).toBeInTheDocument();
+    else expect(dialog).not.toBeInTheDocument();
   });
 });

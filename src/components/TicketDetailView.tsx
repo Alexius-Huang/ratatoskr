@@ -1,4 +1,5 @@
 import { CalendarDays, Clock, GitBranch, GitMerge, GitPullRequest, GitPullRequestClosed, Hand, Map, Sparkles, Zap } from 'lucide-react';
+import { useState } from 'react';
 import type { ElementType } from 'react';
 import type { TicketDetail } from '../../server/types';
 import { EpicTag } from './EpicTag';
@@ -11,6 +12,8 @@ import { CommentSection } from './CommentSection';
 import { resolutionLabel } from '../lib/ticketResolution';
 import { DependencySection } from './DependencySection';
 import { extractPrefix } from '../lib/ticketId';
+import { Modal } from './Modal';
+import { Button } from './ui/Button';
 
 function resolutionIcon(r: string): ElementType {
   switch (r) {
@@ -62,6 +65,7 @@ export function TicketDetailView({
   projectName,
   epicLabel,
 }: Props) {
+  const [showMergeConfirm, setShowMergeConfirm] = useState(false);
   const currentPrefix = extractPrefix(data.displayId);
   const hasGitContext =
     !!data.branch ||
@@ -120,34 +124,56 @@ export function TicketDetailView({
               ? data.pullRequests.map((pr) => {
                   const Icon = prStateIcon(pr.state);
                   return (
-                    <button
-                      key={pr.url}
-                      type="button"
-                      onClick={() => openExternal(pr.url)}
-                      aria-label={`Open PR #${pr.number}: ${pr.title}`}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border font-medium ${prStateButtonClass(pr.state)}`}
-                    >
-                      <Icon size={12} />
-                      <span className="font-mono">#{pr.number}</span>
-                      {data.branch && <span className="font-mono opacity-80">{data.branch}</span>}
-                    </button>
+                    <div key={pr.url} className="flex items-center gap-1.5">
+                      {pr.state === 'OPEN' && (
+                        <button
+                          type="button"
+                          onClick={() => { if (!data.isReviewed) setShowMergeConfirm(true); }}
+                          aria-label="Merge pull request"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-nord-9/40 bg-nord-9/10 text-nord-9 hover:bg-nord-9/20 font-medium"
+                        >
+                          <GitMerge size={12} />
+                          Merge
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openExternal(pr.url)}
+                        aria-label={`Open PR #${pr.number}: ${pr.title}`}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border font-medium ${prStateButtonClass(pr.state)}`}
+                      >
+                        <Icon size={12} />
+                        <span className="font-mono">#{pr.number}</span>
+                        {data.branch && <span className="font-mono opacity-80">{data.branch}</span>}
+                      </button>
+                    </div>
                   );
                 })
               : data.prs && data.prs.length > 0
               ? data.prs.map((prPath) => {
                   const prNum = prPath.match(/\/pull\/(\d+)$/)?.[1];
                   return (
-                    <button
-                      key={prPath}
-                      type="button"
-                      onClick={() => openExternal(`https://github.com/${prPath}`)}
-                      aria-label={`Open PR ${prPath}`}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-nord-3 bg-nord-1 text-nord-4 hover:bg-nord-2 hover:text-nord-6 font-medium"
-                    >
-                      <GitPullRequest size={12} className="text-nord-9" />
-                      <span className="font-mono">{prNum ? `#${prNum}` : prPath}</span>
-                      {data.branch && <span className="font-mono opacity-80">{data.branch}</span>}
-                    </button>
+                    <div key={prPath} className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { if (!data.isReviewed) setShowMergeConfirm(true); }}
+                        aria-label="Merge pull request"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded text-xs border border-nord-9/40 bg-nord-9/10 text-nord-9 hover:bg-nord-9/20 font-medium"
+                      >
+                        <GitMerge size={12} />
+                        Merge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openExternal(`https://github.com/${prPath}`)}
+                        aria-label={`Open PR ${prPath}`}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border border-nord-3 bg-nord-1 text-nord-4 hover:bg-nord-2 hover:text-nord-6 font-medium"
+                      >
+                        <GitPullRequest size={12} className="text-nord-9" />
+                        <span className="font-mono">{prNum ? `#${prNum}` : prPath}</span>
+                        {data.branch && <span className="font-mono opacity-80">{data.branch}</span>}
+                      </button>
+                    </div>
                   );
                 })
               : data.branch
@@ -190,6 +216,21 @@ export function TicketDetailView({
         projectName={projectName}
         ticket={data}
       />
+      <Modal
+        open={showMergeConfirm}
+        onClose={() => setShowMergeConfirm(false)}
+        title="Merge pull request"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowMergeConfirm(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => setShowMergeConfirm(false)}>Merge</Button>
+          </>
+        }
+      >
+        <p className="py-4 text-sm text-nord-4">
+          This PR has not been AI-reviewed. Merge anyway?
+        </p>
+      </Modal>
     </>
   );
 }
