@@ -73,6 +73,9 @@ pub fn run() {
     .setup(move |app| {
       // In dev mode, the window points at the Vite dev server (devUrl) — no sidecar or update check needed.
       if cfg!(debug_assertions) {
+        if let Some(win) = app.get_webview_window("main") {
+          let _ = win.show();
+        }
         return Ok(());
       }
 
