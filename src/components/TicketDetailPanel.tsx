@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { ApiError, useAppConfig } from '../lib/api';
 import { useTicketDetailState } from '../lib/useTicketDetailState';
 import { useScrollToBottom } from '../lib/useScrollToBottom';
+import { Check } from 'lucide-react';
 import { useLaunchClaudeSkill, launchErrorMessage } from '../lib/useLaunchClaudeSkill';
 import { isPreReady } from '../lib/ticketState';
 import { PanelShell } from './ui/PanelShell';
@@ -80,9 +81,20 @@ export function TicketDetailPanel({
         }
       : null;
 
+  const planImplementedAction: HeaderAction | null =
+    data && ['IN_REVIEW', 'DONE', 'WONT_DO'].includes(data.state) && data.planDoc
+      ? {
+          label: 'Plan Implemented',
+          icon: <Check size={12} />,
+          onClick: () => {},
+          disabled: true,
+        }
+      : null;
+
   const planViewActions: HeaderAction[] = [
     ...(planAction ? [planAction] : []),
     ...(implementWithClaudeAction ? [implementWithClaudeAction] : []),
+    ...(planImplementedAction ? [planImplementedAction] : []),
   ];
 
   const detailActions: HeaderAction[] = planWithClaudeAction

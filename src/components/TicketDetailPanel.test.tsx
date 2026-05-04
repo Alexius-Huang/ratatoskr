@@ -470,3 +470,76 @@ describe('TicketDetailPanel — Implement Plan with Claude button', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('TicketDetailPanel — Plan Implemented indicator', () => {
+  const planInReviewFixture = makeTicketDetail({
+    number: 5,
+    title: 'My task title',
+    state: 'IN_REVIEW',
+    body: 'Task body text',
+    planDoc: 'plans/5.md',
+  });
+
+  function renderPlanView(fixture: TicketDetail = planInReviewFixture) {
+    mockUseTicketDetail.mockReturnValue({
+      data: fixture,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useTicketDetail>);
+    const onClose = vi.fn();
+    const result = renderWithProviders(
+      <TicketDetailPanel
+        projectName="ratatoskr"
+        number={fixture.number}
+        displayId={fixture.displayId}
+        onClose={onClose}
+      />,
+      { initialEntries: [`/projects/ratatoskr/tickets?inspect=${fixture.displayId}&view=plan`] },
+    );
+    return { ...result, onClose };
+  }
+
+  beforeEach(() => {
+    setupArchiveMock();
+    setupPlanMock('The plan content');
+    mockUseAppConfig.mockReturnValue({
+      data: { configured: true, workspaceRoot: '/ws', source: 'file', user: null },
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useAppConfig>);
+    mockUseScrollToBottom.mockReturnValue(false);
+    mockUseLaunchClaudeSkill.mockReturnValue({
+      mutate: mockLaunchMutate,
+      isPending: false,
+      error: null,
+    } as unknown as ReturnType<typeof useLaunchClaudeSkill>);
+  });
+
+  it.each<TicketState>(['IN_REVIEW', 'DONE', 'WONT_DO'])(
+    'should render a disabled "Plan Implemented" button when state is %s and planDoc is set',
+    (state) => {
+      renderPlanView({ ...planInReviewFixture, state });
+      const btn = screen.getByRole('button', { name: /plan implemented/i });
+      expect(btn).toBeInTheDocument();
+      expect(btn).toBeDisabled();
+    },
+  );
+
+  it.each<TicketState>(['NOT_READY', 'PLANNING', 'READY'])(
+    'should not render "Plan Implemented" button when state is %s',
+    (state) => {
+      renderPlanView({ ...planInReviewFixture, state });
+      expect(screen.queryByRole('button', { name: /plan implemented/i })).not.toBeInTheDocument();
+    },
+  );
+
+  it('should not render the button when planDoc is undefined', () => {
+    renderPlanView({ ...planInReviewFixture, planDoc: undefined });
+    expect(screen.queryByRole('button', { name: /plan implemented/i })).not.toBeInTheDocument();
+  });
+
+  it('should not render the button in detail view', () => {
+    renderPanel({ ...planInReviewFixture });
+    expect(screen.queryByRole('button', { name: /plan implemented/i })).not.toBeInTheDocument();
+  });
+});
