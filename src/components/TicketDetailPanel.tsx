@@ -45,14 +45,15 @@ export function TicketDetailPanel({
   } = useTicketDetailState(projectName, number, onClose);
 
   const atBottom = useScrollToBottom(scrollRef, data?.number);
+  const workspaceRoot = config?.workspaceRoot;
 
   const planWithClaudeAction: HeaderAction | null =
-    data && isPreReady(data.state) && config?.workspaceRoot
+    data && isPreReady(data.state) && workspaceRoot
       ? {
           label: 'Plan with Claude',
           onClick: () =>
             launchMutation.mutate({
-              projectPath: config.workspaceRoot!,
+              projectPath: workspaceRoot,
               ticketId: data.displayId,
               mode: 'plan',
             }),
