@@ -93,7 +93,7 @@ fn build_applescript(project_path: &str, ticket_id: &str, mode: &Mode) -> String
     // PATH prefix: ~/.local/bin is where Claude Code CLI installs but may not reach new
     // shell sessions opened via AppleScript (envman hook that adds it isn't always sourced).
     format!(
-        "tell application \"iTerm\"\n  create window with default profile\n  tell current session of current window\n    write text \"export PATH=$HOME/.local/bin:$PATH; cd \" & quoted form of \"{escaped}\" & \" && claude --model {model} --permission-mode acceptEdits '/{skill} {ticket_id} --exit-after-complete'\"\n  end tell\nend tell"
+        "tell application \"iTerm\"\n  create window with default profile\n  tell current session of current window\n    write text \"export PATH=$HOME/.local/bin:$PATH; cd \" & quoted form of \"{escaped}\" & \" && claude --model {model} --permission-mode acceptEdits '/{skill} {ticket_id} --exit-after-complete'; exit\"\n  end tell\nend tell"
     )
 }
 
@@ -180,7 +180,7 @@ mod tests {
         assert!(script.contains("PATH=$HOME/.local/bin:$PATH"));
         assert!(script.contains("claude --model claude-opus-4-7"));
         assert!(script.contains("--permission-mode acceptEdits"));
-        assert!(script.contains("'/rat-plan-ticket RAT-1 --exit-after-complete'"));
+        assert!(script.contains("'/rat-plan-ticket RAT-1 --exit-after-complete'; exit"));
         assert!(script.contains("cd \" & quoted form of \"/tmp/foo\""));
     }
 
@@ -188,7 +188,7 @@ mod tests {
     fn applescript_implement() {
         let script = build_applescript("/tmp/foo", "RAT-1", &Mode::Implement);
         assert!(script.contains("claude --model claude-sonnet-4-6"));
-        assert!(script.contains("'/rat-implement-ticket RAT-1 --exit-after-complete'"));
+        assert!(script.contains("'/rat-implement-ticket RAT-1 --exit-after-complete'; exit"));
     }
 
     #[test]
