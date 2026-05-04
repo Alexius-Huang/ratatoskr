@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { ApiError, useAppConfig } from '../lib/api';
 import { useTicketDetailState } from '../lib/useTicketDetailState';
 import { useScrollToBottom } from '../lib/useScrollToBottom';
+import { Check } from 'lucide-react';
 import { useLaunchClaudeSkill, launchErrorMessage } from '../lib/useLaunchClaudeSkill';
 import { isPreReady } from '../lib/ticketState';
 import { PanelShell } from './ui/PanelShell';
@@ -44,7 +45,10 @@ export function TicketDetailPanel({
     epicLabel,
   } = useTicketDetailState(projectName, number, onClose);
 
-  const atBottom = useScrollToBottom(scrollRef, data?.number);
+  const atBottom = useScrollToBottom(
+    scrollRef,
+    data ? `${data.number}:${isPlanView ? 'plan' : 'detail'}` : undefined,
+  );
   const workspaceRoot = config?.workspaceRoot;
 
   const planWithClaudeAction: HeaderAction | null =
@@ -61,6 +65,37 @@ export function TicketDetailPanel({
           tooltip: !atBottom ? 'Scroll to the bottom to enable' : undefined,
         }
       : null;
+
+  const implementWithClaudeAction: HeaderAction | null =
+    data && data.state === 'READY' && data.planDoc && workspaceRoot
+      ? {
+          label: 'Implement Plan with Claude',
+          onClick: () =>
+            launchMutation.mutate({
+              projectPath: workspaceRoot,
+              ticketId: data.displayId,
+              mode: 'implement',
+            }),
+          disabled: !atBottom || launchMutation.isPending,
+          tooltip: !atBottom ? 'Scroll to the bottom to enable' : undefined,
+        }
+      : null;
+
+  const planImplementedAction: HeaderAction | null =
+    data && ['IN_REVIEW', 'DONE', 'WONT_DO'].includes(data.state) && data.planDoc
+      ? {
+          label: 'Plan Implemented',
+          icon: <Check size={12} />,
+          onClick: () => {},
+          disabled: true,
+        }
+      : null;
+
+  const planViewActions: HeaderAction[] = [
+    ...(planAction ? [planAction] : []),
+    ...(implementWithClaudeAction ? [implementWithClaudeAction] : []),
+    ...(planImplementedAction ? [planImplementedAction] : []),
+  ];
 
   const detailActions: HeaderAction[] = planWithClaudeAction
     ? [...actions, planWithClaudeAction]
@@ -97,7 +132,7 @@ export function TicketDetailPanel({
       <PanelShell
         onClose={onClose}
         title={data.displayId}
-        actions={planAction ? [planAction] : []}
+        actions={planViewActions}
         variant={variant}
         scrollRef={scrollRef}
       >

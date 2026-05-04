@@ -1,7 +1,8 @@
-import type { Ref } from 'react';
+import type { Ref, ReactNode } from 'react';
 
 export type HeaderAction = {
   label: string;
+  icon?: ReactNode;
   onClick: () => void;
   disabled?: boolean;
   tooltip?: string;
@@ -43,7 +44,10 @@ export function PanelShell({
                   : 'text-nord-8 hover:text-nord-6 border-nord-3 hover:border-nord-8'
               }`}
             >
-              {a.label}
+              <span className="flex items-center gap-1">
+                {a.icon}
+                {a.label}
+              </span>
             </button>
           ))}
           <button

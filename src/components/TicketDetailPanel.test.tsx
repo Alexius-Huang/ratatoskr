@@ -358,3 +358,188 @@ describe('TicketDetailPanel — Plan with Claude button', () => {
     expect(screen.queryByRole('button', { name: /plan with claude/i })).not.toBeInTheDocument();
   });
 });
+
+describe('TicketDetailPanel — Implement Plan with Claude button', () => {
+  beforeEach(() => {
+    mockLaunchMutate.mockReset();
+    setupArchiveMock();
+    setupPlanMock('The plan content');
+    mockUseAppConfig.mockReturnValue({
+      data: { configured: true, workspaceRoot: '/ws', source: 'file', user: null },
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useAppConfig>);
+    mockUseScrollToBottom.mockReturnValue(false);
+    mockUseLaunchClaudeSkill.mockReturnValue({
+      mutate: mockLaunchMutate,
+      isPending: false,
+      error: null,
+    } as unknown as ReturnType<typeof useLaunchClaudeSkill>);
+  });
+
+  const planReadyFixture = makeTicketDetail({
+    number: 5,
+    title: 'My task title',
+    state: 'READY',
+    body: 'Task body text',
+    planDoc: 'plans/5.md',
+  });
+
+  function renderPlanView(fixture: TicketDetail = planReadyFixture) {
+    mockUseTicketDetail.mockReturnValue({
+      data: fixture,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useTicketDetail>);
+    const onClose = vi.fn();
+    const result = renderWithProviders(
+      <TicketDetailPanel
+        projectName="ratatoskr"
+        number={fixture.number}
+        displayId={fixture.displayId}
+        onClose={onClose}
+      />,
+      { initialEntries: [`/projects/ratatoskr/tickets?inspect=${fixture.displayId}&view=plan`] },
+    );
+    return { ...result, onClose };
+  }
+
+  it('should render the button when state is READY and planDoc is set in plan view', () => {
+    renderPlanView(planReadyFixture);
+    expect(screen.getByRole('button', { name: /implement plan with claude/i })).toBeInTheDocument();
+  });
+
+  it.each<TicketState>(['NOT_READY', 'PLANNING', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'WONT_DO'])(
+    'should not render "Implement Plan with Claude" button when state is %s',
+    (state) => {
+      renderPlanView({ ...planReadyFixture, state });
+      expect(
+        screen.queryByRole('button', { name: /implement plan with claude/i }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it('should not render the button when planDoc is undefined', () => {
+    renderPlanView({ ...planReadyFixture, planDoc: undefined });
+    expect(
+      screen.queryByRole('button', { name: /implement plan with claude/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('should not render the button in detail view', () => {
+    renderPanel({ ...planReadyFixture });
+    expect(
+      screen.queryByRole('button', { name: /implement plan with claude/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('should disable the button when not scrolled to the bottom', () => {
+    mockUseScrollToBottom.mockReturnValue(false);
+    renderPlanView(planReadyFixture);
+    expect(screen.getByRole('button', { name: /implement plan with claude/i })).toBeDisabled();
+  });
+
+  it('should enable the button when scrolled to the bottom', () => {
+    mockUseScrollToBottom.mockReturnValue(true);
+    renderPlanView(planReadyFixture);
+    expect(screen.getByRole('button', { name: /implement plan with claude/i })).not.toBeDisabled();
+  });
+
+  it('should call launchClaudeSkill with workspaceRoot, displayId, and mode=implement on click', async () => {
+    mockUseScrollToBottom.mockReturnValue(true);
+    const user = userEvent.setup();
+    renderPlanView(planReadyFixture);
+    await user.click(screen.getByRole('button', { name: /implement plan with claude/i }));
+    expect(mockLaunchMutate).toHaveBeenCalledOnce();
+    expect(mockLaunchMutate).toHaveBeenCalledWith({
+      projectPath: '/ws',
+      ticketId: planReadyFixture.displayId,
+      mode: 'implement',
+    });
+  });
+
+  it('should not render the button when workspaceRoot is not configured', () => {
+    mockUseAppConfig.mockReturnValue({
+      data: { configured: false, workspaceRoot: null, source: null, user: null },
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useAppConfig>);
+    renderPlanView(planReadyFixture);
+    expect(
+      screen.queryByRole('button', { name: /implement plan with claude/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('TicketDetailPanel — Plan Implemented indicator', () => {
+  const planInReviewFixture = makeTicketDetail({
+    number: 5,
+    title: 'My task title',
+    state: 'IN_REVIEW',
+    body: 'Task body text',
+    planDoc: 'plans/5.md',
+  });
+
+  function renderPlanView(fixture: TicketDetail = planInReviewFixture) {
+    mockUseTicketDetail.mockReturnValue({
+      data: fixture,
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useTicketDetail>);
+    const onClose = vi.fn();
+    const result = renderWithProviders(
+      <TicketDetailPanel
+        projectName="ratatoskr"
+        number={fixture.number}
+        displayId={fixture.displayId}
+        onClose={onClose}
+      />,
+      { initialEntries: [`/projects/ratatoskr/tickets?inspect=${fixture.displayId}&view=plan`] },
+    );
+    return { ...result, onClose };
+  }
+
+  beforeEach(() => {
+    setupArchiveMock();
+    setupPlanMock('The plan content');
+    mockUseAppConfig.mockReturnValue({
+      data: { configured: true, workspaceRoot: '/ws', source: 'file', user: null },
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useAppConfig>);
+    mockUseScrollToBottom.mockReturnValue(false);
+    mockUseLaunchClaudeSkill.mockReturnValue({
+      mutate: mockLaunchMutate,
+      isPending: false,
+      error: null,
+    } as unknown as ReturnType<typeof useLaunchClaudeSkill>);
+  });
+
+  it.each<TicketState>(['IN_REVIEW', 'DONE', 'WONT_DO'])(
+    'should render a disabled "Plan Implemented" button when state is %s and planDoc is set',
+    (state) => {
+      renderPlanView({ ...planInReviewFixture, state });
+      const btn = screen.getByRole('button', { name: /plan implemented/i });
+      expect(btn).toBeInTheDocument();
+      expect(btn).toBeDisabled();
+    },
+  );
+
+  it.each<TicketState>(['NOT_READY', 'PLANNING', 'READY'])(
+    'should not render "Plan Implemented" button when state is %s',
+    (state) => {
+      renderPlanView({ ...planInReviewFixture, state });
+      expect(screen.queryByRole('button', { name: /plan implemented/i })).not.toBeInTheDocument();
+    },
+  );
+
+  it('should not render the button when planDoc is undefined', () => {
+    renderPlanView({ ...planInReviewFixture, planDoc: undefined });
+    expect(screen.queryByRole('button', { name: /plan implemented/i })).not.toBeInTheDocument();
+  });
+
+  it('should not render the button in detail view', () => {
+    renderPanel({ ...planInReviewFixture });
+    expect(screen.queryByRole('button', { name: /plan implemented/i })).not.toBeInTheDocument();
+  });
+});
