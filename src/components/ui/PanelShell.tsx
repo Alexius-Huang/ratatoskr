@@ -1,3 +1,5 @@
+import type { Ref } from 'react';
+
 export type HeaderAction = {
   label: string;
   onClick: () => void;
@@ -13,6 +15,7 @@ export function PanelShell({
   children,
   footer,
   variant = 'pane',
+  scrollRef,
 }: {
   onClose: () => void;
   title: string;
@@ -20,6 +23,7 @@ export function PanelShell({
   children: React.ReactNode;
   footer?: React.ReactNode;
   variant?: 'pane' | 'modal';
+  scrollRef?: Ref<HTMLDivElement>;
 }) {
   return (
     <div className={`h-full flex flex-col bg-nord-0${variant === 'pane' ? ' border-l border-nord-3' : ''}`}>
@@ -52,7 +56,7 @@ export function PanelShell({
           </button>
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto px-6">{children}</div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6">{children}</div>
       {footer && (
         <div className="shrink-0 border-t border-nord-3 bg-nord-1 px-6 py-3">{footer}</div>
       )}

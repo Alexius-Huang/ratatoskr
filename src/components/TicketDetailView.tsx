@@ -52,6 +52,7 @@ function prStateButtonClass(state: string): string {
 type Props = {
   data: TicketDetail;
   archiveError: Error | null;
+  launchError?: string | null;
   showEdit: boolean;
   onCloseEdit: () => void;
   projectName: string;
@@ -61,6 +62,7 @@ type Props = {
 export function TicketDetailView({
   data,
   archiveError,
+  launchError,
   showEdit,
   onCloseEdit,
   projectName,
@@ -232,6 +234,11 @@ export function TicketDetailView({
         {archiveError && (
           <div className="mt-4 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
             Archive failed: {archiveError.message}
+          </div>
+        )}
+        {launchError && (
+          <div className="mt-4 bg-nord-2 border border-nord-11 rounded p-3 text-nord-11 text-sm">
+            {launchError}
           </div>
         )}
         </div>

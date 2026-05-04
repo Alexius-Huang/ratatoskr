@@ -13,8 +13,18 @@ vi.mock('../lib/api', async (importActual) => {
     ...actual,
     useTicketDetail: vi.fn(),
     useTicketPlan: vi.fn(),
+    useAppConfig: vi.fn(),
   };
 });
+
+vi.mock('../lib/useScrollToBottom', () => ({
+  useScrollToBottom: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock('../lib/useLaunchClaudeSkill', () => ({
+  useLaunchClaudeSkill: vi.fn(),
+  launchErrorMessage: vi.fn((err: unknown) => String(err)),
+}));
 
 vi.mock('../lib/ticketMutations', () => ({
   useArchiveTicket: vi.fn(),
@@ -39,14 +49,22 @@ vi.mock('./MarkdownBody', () => ({
   ),
 }));
 
-import { useTicketDetail, useTicketPlan } from '../lib/api';
+import { useAppConfig, useTicketDetail, useTicketPlan } from '../lib/api';
 import { openExternal } from '../lib/openExternal';
 import { useArchiveTicket } from '../lib/ticketMutations';
+import { useScrollToBottom } from '../lib/useScrollToBottom';
+import { useLaunchClaudeSkill } from '../lib/useLaunchClaudeSkill';
+import type { TicketState } from '../../server/types';
 
 const mockUseTicketDetail = vi.mocked(useTicketDetail);
 const mockUseTicketPlan = vi.mocked(useTicketPlan);
 const mockUseArchiveTicket = vi.mocked(useArchiveTicket);
 const mockOpenExternal = vi.mocked(openExternal);
+const mockUseAppConfig = vi.mocked(useAppConfig);
+const mockUseScrollToBottom = vi.mocked(useScrollToBottom);
+const mockUseLaunchClaudeSkill = vi.mocked(useLaunchClaudeSkill);
+
+const mockLaunchMutate = vi.fn();
 
 const taskFixture = makeTicketDetail({
   number: 5,
@@ -122,8 +140,20 @@ describe('TicketDetailPanel', () => {
     archiveMutateFn.mockReset();
     archiveMutateAsyncFn.mockReset();
     mockOpenExternal.mockReset();
+    mockLaunchMutate.mockReset();
     setupArchiveMock();
     setupPlanMock('The plan content');
+    mockUseAppConfig.mockReturnValue({
+      data: { configured: true, workspaceRoot: '/ws', source: 'file', user: null },
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useAppConfig>);
+    mockUseScrollToBottom.mockReturnValue(false);
+    mockUseLaunchClaudeSkill.mockReturnValue({
+      mutate: mockLaunchMutate,
+      isPending: false,
+      error: null,
+    } as unknown as ReturnType<typeof useLaunchClaudeSkill>);
   });
 
   it('should render the ticket title and state badge', () => {
@@ -272,5 +302,59 @@ describe('TicketDetailPanel', () => {
     await user.click(screen.getByRole('button', { name: /view plan/i }));
     await waitFor(() => screen.getByRole('button', { name: /back to ticket/i }));
     expect(screen.queryByTestId('comment-form')).not.toBeInTheDocument();
+  });
+});
+
+describe('TicketDetailPanel — Plan with Claude button', () => {
+  it.each<TicketState>(['NOT_READY', 'PLANNING'])(
+    'should render "Plan with Claude" button when state is %s',
+    (state) => {
+      renderPanel({ ...taskFixture, state, planDoc: undefined });
+      expect(screen.getByRole('button', { name: /plan with claude/i })).toBeInTheDocument();
+    },
+  );
+
+  it.each<TicketState>(['READY', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'WONT_DO'])(
+    'should not render "Plan with Claude" button when state is %s',
+    (state) => {
+      renderPanel({ ...taskFixture, state });
+      expect(screen.queryByRole('button', { name: /plan with claude/i })).not.toBeInTheDocument();
+    },
+  );
+
+  it('should disable the button when not scrolled to the bottom', () => {
+    mockUseScrollToBottom.mockReturnValue(false);
+    renderPanel({ ...taskFixture, state: 'NOT_READY', planDoc: undefined });
+    expect(screen.getByRole('button', { name: /plan with claude/i })).toBeDisabled();
+  });
+
+  it('should enable the button when scrolled to the bottom', () => {
+    mockUseScrollToBottom.mockReturnValue(true);
+    renderPanel({ ...taskFixture, state: 'NOT_READY', planDoc: undefined });
+    expect(screen.getByRole('button', { name: /plan with claude/i })).not.toBeDisabled();
+  });
+
+  it('should call launchClaudeSkill with workspaceRoot, displayId, and mode=plan on click', async () => {
+    mockUseScrollToBottom.mockReturnValue(true);
+    const user = userEvent.setup();
+    const fixture = { ...taskFixture, state: 'NOT_READY' as TicketState, planDoc: undefined };
+    renderPanel(fixture);
+    await user.click(screen.getByRole('button', { name: /plan with claude/i }));
+    expect(mockLaunchMutate).toHaveBeenCalledOnce();
+    expect(mockLaunchMutate).toHaveBeenCalledWith({
+      projectPath: '/ws',
+      ticketId: fixture.displayId,
+      mode: 'plan',
+    });
+  });
+
+  it('should not render the button when workspaceRoot is not configured', () => {
+    mockUseAppConfig.mockReturnValue({
+      data: { configured: false, workspaceRoot: null, source: null, user: null },
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useAppConfig>);
+    renderPanel({ ...taskFixture, state: 'NOT_READY' as TicketState, planDoc: undefined });
+    expect(screen.queryByRole('button', { name: /plan with claude/i })).not.toBeInTheDocument();
   });
 });
