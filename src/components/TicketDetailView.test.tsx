@@ -240,3 +240,29 @@ describe('TicketDetailView — Merge integration', () => {
     if (disabled) expect(btn).toBeDisabled();
   });
 });
+
+describe('TicketDetailView — launchError', () => {
+  it('should render the launch error block when launchError is set', () => {
+    renderWithProviders(
+      <TicketDetailView
+        {...defaultProps}
+        data={makeTicketDetail()}
+        launchError="iTerm2 launching is only supported on macOS (platform: win32)."
+      />,
+    );
+    expect(
+      screen.getByText('iTerm2 launching is only supported on macOS (platform: win32).'),
+    ).toBeInTheDocument();
+  });
+
+  it('should not render the launch error block when launchError is null', () => {
+    renderWithProviders(
+      <TicketDetailView
+        {...defaultProps}
+        data={makeTicketDetail()}
+        launchError={null}
+      />,
+    );
+    expect(screen.queryByText(/iTerm2/)).not.toBeInTheDocument();
+  });
+});

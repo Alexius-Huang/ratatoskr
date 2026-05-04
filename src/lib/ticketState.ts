@@ -1,5 +1,9 @@
 import type { TicketState } from '../../server/types';
 
+export function isPreReady(state: TicketState): boolean {
+  return state === 'NOT_READY' || state === 'PLANNING';
+}
+
 export function stateLabel(state: TicketState): string {
   return state.replace('_', ' ');
 }

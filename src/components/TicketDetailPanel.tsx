@@ -1,6 +1,11 @@
-import { ApiError } from '../lib/api';
+import { useRef } from 'react';
+import { ApiError, useAppConfig } from '../lib/api';
 import { useTicketDetailState } from '../lib/useTicketDetailState';
+import { useScrollToBottom } from '../lib/useScrollToBottom';
+import { useLaunchClaudeSkill, launchErrorMessage } from '../lib/useLaunchClaudeSkill';
+import { isPreReady } from '../lib/ticketState';
 import { PanelShell } from './ui/PanelShell';
+import type { HeaderAction } from './ui/PanelShell';
 import { CommentForm } from './CommentForm';
 import { TicketDetailView } from './TicketDetailView';
 import { TicketPlanView } from './TicketPlanView';
@@ -20,6 +25,10 @@ export function TicketDetailPanel({
   onClose,
   variant = 'pane',
 }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { data: config } = useAppConfig();
+  const launchMutation = useLaunchClaudeSkill();
+
   const {
     data,
     isLoading,
@@ -34,6 +43,27 @@ export function TicketDetailPanel({
     actions,
     epicLabel,
   } = useTicketDetailState(projectName, number, onClose);
+
+  const atBottom = useScrollToBottom(scrollRef, data?.number);
+
+  const planWithClaudeAction: HeaderAction | null =
+    data && isPreReady(data.state) && config?.workspaceRoot
+      ? {
+          label: 'Plan with Claude',
+          onClick: () =>
+            launchMutation.mutate({
+              projectPath: config.workspaceRoot!,
+              ticketId: data.displayId,
+              mode: 'plan',
+            }),
+          disabled: !atBottom || launchMutation.isPending,
+          tooltip: !atBottom ? 'Scroll to the bottom to enable' : undefined,
+        }
+      : null;
+
+  const detailActions: HeaderAction[] = planWithClaudeAction
+    ? [...actions, planWithClaudeAction]
+    : actions;
 
   if (isLoading) {
     return (
@@ -68,6 +98,7 @@ export function TicketDetailPanel({
         title={data.displayId}
         actions={planAction ? [planAction] : []}
         variant={variant}
+        scrollRef={scrollRef}
       >
         <TicketPlanView
           path={data.planDoc}
@@ -83,8 +114,9 @@ export function TicketDetailPanel({
     <PanelShell
       onClose={onClose}
       title={data.displayId}
-      actions={actions}
+      actions={detailActions}
       variant={variant}
+      scrollRef={scrollRef}
       footer={<CommentForm projectName={projectName} ticketNumber={data.number} />}
     >
       <TicketDetailView
@@ -94,6 +126,7 @@ export function TicketDetailPanel({
         onCloseEdit={closeEdit}
         projectName={projectName}
         epicLabel={epicLabel}
+        launchError={launchMutation.error ? launchErrorMessage(launchMutation.error) : null}
       />
     </PanelShell>
   );
